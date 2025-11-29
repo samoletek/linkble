@@ -1,55 +1,51 @@
 # Dependencies
-node_modules/
-.pnp/
+node_modules
+.pnp
 .pnp.js
 
 # Build outputs
-build/
-dist/
+build
+dist
 *.jsbundle
 
 # Expo
-.expo/
-*.expo/
-web-build/
+.expo
+*.expo
+web-build
 
 # iOS
-ios/Pods/
-ios/build/
-ios/*.xcworkspace/xcuserdata/
+ios
 *.ipa
 *.dSYM.zip
 *.dSYM
 
 # Android
-android/.gradle/
-android/app/build/
-android/build/
+android
 *.apk
 *.aab
 *.keystore
-!debug.keystore
 
-# Environment & Credentials
+# Source code (not needed for static site)
+src
+
+# Environment
 .env
 .env.local
 .env.*.local
 .credentials
 *.credentials
 secrets.json
-google-services.json
-GoogleService-Info.plist
 
 # IDE
-.idea/
-.vscode/
+.idea
+.vscode
 *.swp
 *.swo
 .DS_Store
 
 # Testing
-coverage/
-.jest/
+coverage
+.jest
 
 # Logs
 *.log
@@ -60,7 +56,7 @@ yarn-error.log*
 # Temporary
 *.tmp
 *.temp
-.cache/
+.cache
 
 # Metro
 .metro-health-check*
@@ -69,8 +65,18 @@ yarn-error.log*
 *.orig
 Thumbs.db
 
-# Claude API
-.claude/
+# Claude
+.claude
 CLAUDE.md
 CHECKLIST.md
-.vercel
+
+# React Native specific
+App.tsx
+app.json
+babel.config.js
+index.js
+metro.config.js
+package.json
+package-lock.json
+tsconfig.json
+README.md
