@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "linkble",
+    "name": "Linkble",
     "slug": "linkble",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "icon": "./assets/logo/logo-original.png"
   }
 }
