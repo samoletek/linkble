@@ -1,7 +1,3 @@
 {
-  "rewrites": [
-    { "source": "/privacy", "destination": "/website/privacy.html" },
-    { "source": "/terms", "destination": "/website/terms.html" },
-    { "source": "/", "destination": "/website/index.html" }
-  ]
+  "public": true
 }
