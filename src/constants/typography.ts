@@ -1,0 +1,97 @@
+/**
+ * Typography constants for Linkble app
+ * Uses system fonts (San Francisco on iOS, Roboto on Android)
+ */
+import { Platform, TextStyle } from 'react-native';
+
+const fontFamily = Platform.select({
+  ios: 'System',
+  android: 'Roboto',
+  default: 'System',
+});
+
+export const Typography = {
+  // Headers
+  h1: {
+    fontFamily,
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 40,
+  } as TextStyle,
+
+  h2: {
+    fontFamily,
+    fontSize: 24,
+    fontWeight: '600',
+    lineHeight: 32,
+  } as TextStyle,
+
+  h3: {
+    fontFamily,
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 28,
+  } as TextStyle,
+
+  h4: {
+    fontFamily,
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+  } as TextStyle,
+
+  // Body text
+  body: {
+    fontFamily,
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 24,
+  } as TextStyle,
+
+  bodyMedium: {
+    fontFamily,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 24,
+  } as TextStyle,
+
+  bodySmall: {
+    fontFamily,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  } as TextStyle,
+
+  // Button text
+  button: {
+    fontFamily,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 20,
+  } as TextStyle,
+
+  buttonSmall: {
+    fontFamily,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+  } as TextStyle,
+
+  // Caption/Labels
+  caption: {
+    fontFamily,
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+  } as TextStyle,
+
+  label: {
+    fontFamily,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+    letterSpacing: 0.5,
+  } as TextStyle,
+} as const;
+
+export default Typography;

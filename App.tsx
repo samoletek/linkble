@@ -1,33 +1,27 @@
-import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-gesture-handler';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import RootNavigator from './src/navigation/RootNavigator';
 
-export default function App() {
+function AppContent() {
+  const { statusBarStyle } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Linkble!</Text>
-      <Text style={styles.subtitle}>Connect. Discover. Experience.</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      <StatusBar style={statusBarStyle === 'light-content' ? 'light' : 'dark'} />
+      <RootNavigator />
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#4ECDC4',
-  },
-});
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}

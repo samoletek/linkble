@@ -47,14 +47,32 @@ export type RootStackParamList = {
 };
 
 export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
+  Welcome: undefined;
   Interests: undefined;
 };
 
+// 5 tabs as per client spec
 export type MainTabParamList = {
   Feed: undefined;
   Map: undefined;
-  CreateEvent: undefined;
+  Create: undefined;
+  Chat: undefined;
   Profile: undefined;
+};
+
+export type FeedStackParamList = {
+  FeedHome: undefined;
+  EventDetail: { eventId: string };
+};
+
+export type ChatStackParamList = {
+  ChatList: undefined;
+  EventChat: { eventId: string };
+  DirectChat: { conversationId: string };
+};
+
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  EditProfile: undefined;
+  Settings: undefined;
 };

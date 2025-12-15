@@ -13,14 +13,15 @@ A mobile application that connects people through local activities and events. U
 
 1. [Project Overview](#1-project-overview)
 2. [Features](#2-features)
-3. [Technical Stack](#3-technical-stack)
-4. [Architecture](#4-architecture)
-5. [Database Schema](#5-database-schema)
-6. [API Specification](#6-api-specification)
-7. [Business Logic](#7-business-logic)
-8. [Setup & Development](#8-setup--development)
-9. [Deployment](#9-deployment)
-10. [Project Status](#10-project-status)
+3. [Design System & Branding](#3-design-system--branding)
+4. [Technical Stack](#4-technical-stack)
+5. [Architecture](#5-architecture)
+6. [Database Schema](#6-database-schema)
+7. [API Specification](#7-api-specification)
+8. [Business Logic](#8-business-logic)
+9. [Setup & Development](#9-setup--development)
+10. [Deployment](#10-deployment)
+11. [Project Status](#11-project-status)
 
 ---
 
@@ -175,9 +176,59 @@ Linkble solves a common problem: people want to do activities but don't have any
 
 ---
 
-## 3. Technical Stack
+## 3. Design System & Branding
 
-### Mobile Application
+### 3.1 Theme
+The app supports both dark and light modes, with **dark mode as primary**.
+
+### 3.2 Colors
+
+| Token | Dark Mode | Light Mode | Usage |
+|-------|-----------|------------|-------|
+| Background | #000814 | #FFFFFF | Main app background |
+| Card Background | #0A0F1A | #F5F5F5 | Cards, bottom sheets |
+| Primary (Neon Blue) | #00A8FF | #00A8FF | Buttons, active states, glow effects |
+| Text Primary | #FFFFFF | #1A1A1A | Main text |
+| Text Secondary | #B3B3B3 | #666666 | Secondary text |
+| Error | #FF4D4D | #FF4D4D | Error states |
+| Success | #34C759 | #34C759 | Success states |
+
+### 3.3 Visual Style
+- Neon blue glow effects on interactive elements
+- Smooth 60fps animations
+- Modern, clean, community-focused UI
+- Logo: Two people icon in neon blue inside a magnifying glass
+
+### 3.4 Animation Guidelines
+
+| Element | Animation | Duration |
+|---------|-----------|----------|
+| Button tap | Scale 1 -> 0.96 -> 1 | 100ms each way |
+| Tab icon | Scale 1 -> 1.15 -> 1 | 120ms |
+| Card appear | Fade + Slide up 20px | 200ms, stagger 50ms |
+| Card tap | Scale 1 -> 0.97 -> 1 | 150-200ms |
+| Bottom sheet | Slide up + Fade content | 250ms |
+| Map pin drop | Fall from -30px + bounce | 250ms |
+| Message appear | Slide up 10px + Fade | 120ms |
+| Badge pop | Scale 0 -> 1.2 -> 1 | 160ms |
+
+**Motion Rules:**
+- Use `transform` + `opacity` only for smooth 60fps
+- Transitions: 180-260ms
+- Tap feedback: 80-120ms
+- Easing: easeOutCubic
+- List stagger: 40-70ms between items
+
+### 3.5 Typography
+- System fonts (San Francisco on iOS, Roboto on Android)
+- Clean, readable hierarchy
+- No emojis in UI
+
+---
+
+## 4. Technical Stack
+
+### 4.1 Mobile Application
 | Component | Technology |
 |-----------|------------|
 | Framework | React Native 0.73+ |
@@ -188,7 +239,7 @@ Linkble solves a common problem: people want to do activities but don't have any
 | Maps | react-native-maps + Google Maps SDK |
 | Notifications | expo-notifications + FCM |
 
-### Backend & Database
+### 4.2 Backend & Database
 | Component | Technology |
 |-----------|------------|
 | Database | Supabase (PostgreSQL) |
@@ -198,7 +249,7 @@ Linkble solves a common problem: people want to do activities but don't have any
 | Push Notifications | Firebase Cloud Messaging |
 | Email Service | Resend |
 
-### Infrastructure
+### 4.3 Infrastructure
 | Component | Technology |
 |-----------|------------|
 | Website Hosting | Vercel |
@@ -206,7 +257,7 @@ Linkble solves a common problem: people want to do activities but don't have any
 | Android Builds | Android Studio (local) |
 | Domain | linkble-app.com |
 
-### External APIs
+### 4.4 External APIs
 | Service | Purpose |
 |---------|---------|
 | Google Maps SDK | Map display, location search |
@@ -216,9 +267,9 @@ Linkble solves a common problem: people want to do activities but don't have any
 
 ---
 
-## 4. Architecture
+## 5. Architecture
 
-### 4.1 System Architecture
+### 5.1 System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -247,7 +298,7 @@ Linkble solves a common problem: people want to do activities but don't have any
     └──────────┘   └──────────┘   └──────────┘
 ```
 
-### 4.2 Data Flow
+### 5.2 Data Flow
 
 #### Event Discovery
 ```
@@ -281,9 +332,9 @@ User requests to join
 
 ---
 
-## 5. Database Schema
+## 6. Database Schema
 
-### 5.1 Tables
+### 6.1 Tables
 
 #### profiles
 ```sql
@@ -416,7 +467,7 @@ CREATE TABLE reports (
 );
 ```
 
-### 5.2 Row Level Security (RLS)
+### 6.2 Row Level Security (RLS)
 
 All tables have RLS enabled. Key policies:
 
@@ -457,9 +508,9 @@ CREATE POLICY "Event messages visible to participants"
 
 ---
 
-## 6. API Specification
+## 7. API Specification
 
-### 6.1 Authentication
+### 7.1 Authentication
 
 All authenticated endpoints require:
 ```
@@ -473,7 +524,7 @@ Supabase handles:
 - `/auth/v1/logout` - Logout
 - `/auth/v1/recover` - Password reset
 
-### 6.2 Supabase Queries
+### 7.2 Supabase Queries
 
 All data operations use Supabase client SDK:
 
@@ -519,7 +570,7 @@ const { data } = await supabase
   });
 ```
 
-### 6.3 Real-time Subscriptions
+### 7.3 Real-time Subscriptions
 
 ```typescript
 // Subscribe to event chat
@@ -559,9 +610,9 @@ const dmSubscription = supabase
 
 ---
 
-## 7. Business Logic
+## 8. Business Logic
 
-### 7.1 Event Rules
+### 8.1 Event Rules
 
 | Rule | Value |
 |------|-------|
@@ -575,7 +626,7 @@ const dmSubscription = supabase
 | Leave deadline (private) | 24 hours before |
 | Chat archive time | 24 hours after event end |
 
-### 7.2 User Rules
+### 8.2 User Rules
 
 | Rule | Value |
 |------|-------|
@@ -585,7 +636,7 @@ const dmSubscription = supabase
 | Username change frequency | Every 30 days |
 | Concurrent events | 1 at a time |
 
-### 7.3 Discovery Rules
+### 8.3 Discovery Rules
 
 | Rule | Value |
 |------|-------|
@@ -594,7 +645,7 @@ const dmSubscription = supabase
 | Event visibility | Until start time (except for participants) |
 | Sorting default | Category preference, distance, soonest |
 
-### 7.4 Privacy & Blocking
+### 8.4 Privacy & Blocking
 
 When User A blocks User B:
 - A cannot see B's events
@@ -605,9 +656,9 @@ When User A blocks User B:
 
 ---
 
-## 8. Setup & Development
+## 9. Setup & Development
 
-### 8.1 Prerequisites
+### 9.1 Prerequisites
 
 - Node.js 18+ LTS
 - npm or yarn
@@ -617,7 +668,7 @@ When User A blocks User B:
 - Google Cloud account
 - Firebase account
 
-### 8.2 Environment Variables
+### 9.2 Environment Variables
 
 Create `.env` in project root:
 
@@ -627,7 +678,7 @@ SUPABASE_ANON_KEY=xxx
 GOOGLE_MAPS_API_KEY=xxx
 ```
 
-### 8.3 Installation
+### 9.3 Installation
 
 ```bash
 # Clone repository
@@ -648,57 +699,79 @@ npx react-native run-ios
 npx react-native run-android
 ```
 
-### 8.4 Project Structure
+### 9.4 Project Structure
 
 ```
 linkble/
 ├── src/
 │   ├── screens/
 │   │   ├── auth/
-│   │   │   ├── LoginScreen.tsx
-│   │   │   ├── RegisterScreen.tsx
-│   │   │   └── InterestsScreen.tsx
-│   │   ├── main/
-│   │   │   ├── FeedScreen.tsx
-│   │   │   ├── MapScreen.tsx
-│   │   │   ├── CreateEventScreen.tsx
-│   │   │   ├── EventDetailScreen.tsx
-│   │   │   └── ProfileScreen.tsx
-│   │   └── chat/
-│   │       ├── EventChatScreen.tsx
-│   │       ├── ConversationsScreen.tsx
-│   │       └── DirectChatScreen.tsx
+│   │   │   └── WelcomeScreen.tsx      # Onboarding with bottom sheet auth modal
+│   │   ├── feed/
+│   │   │   └── FeedScreen.tsx         # Event cards list
+│   │   ├── map/
+│   │   │   └── MapScreen.tsx          # Map view with event pins
+│   │   ├── create/
+│   │   │   └── CreateEventScreen.tsx  # Bottom sheet event creation
+│   │   ├── chat/
+│   │   │   ├── ChatListScreen.tsx     # Conversations list
+│   │   │   ├── EventChatScreen.tsx    # Group event chat
+│   │   │   └── DirectChatScreen.tsx   # Direct messages
+│   │   ├── profile/
+│   │   │   ├── ProfileScreen.tsx      # User profile
+│   │   │   ├── EditProfileScreen.tsx  # Edit profile
+│   │   │   └── SettingsScreen.tsx     # App settings
+│   │   └── event/
+│   │       └── EventDetailScreen.tsx  # Event details view
 │   ├── components/
-│   │   ├── EventCard.tsx
-│   │   ├── CategoryFilter.tsx
-│   │   ├── MapMarker.tsx
-│   │   └── MessageBubble.tsx
-│   ├── services/
-│   │   ├── supabase.ts
-│   │   ├── auth.ts
-│   │   ├── events.ts
-│   │   ├── chat.ts
-│   │   └── notifications.ts
+│   │   ├── common/
+│   │   │   ├── Button.tsx             # Primary/secondary buttons with glow
+│   │   │   ├── Card.tsx               # Event card component
+│   │   │   └── BottomSheet.tsx        # Reusable bottom sheet
+│   │   ├── auth/
+│   │   │   └── AuthModal.tsx          # Auth options modal
+│   │   ├── feed/
+│   │   │   └── EventCard.tsx          # Event list card
+│   │   ├── map/
+│   │   │   └── MapMarker.tsx          # Animated map pin
+│   │   └── chat/
+│   │       └── MessageBubble.tsx      # Chat message bubble
+│   ├── constants/
+│   │   ├── colors.ts                  # Theme colors (dark/light)
+│   │   ├── typography.ts              # Font styles
+│   │   ├── spacing.ts                 # Spacing values
+│   │   ├── animations.ts              # Animation constants
+│   │   └── index.ts                   # Exports
+│   ├── contexts/
+│   │   ├── ThemeContext.tsx           # Dark/Light theme provider
+│   │   └── AuthContext.tsx            # Auth state provider
 │   ├── navigation/
-│   │   ├── AppNavigator.tsx
-│   │   ├── AuthNavigator.tsx
-│   │   └── MainNavigator.tsx
+│   │   ├── RootNavigator.tsx          # Auth/Main switch
+│   │   ├── AuthNavigator.tsx          # Auth stack
+│   │   └── MainNavigator.tsx          # Bottom tabs (Feed, Map, Create, Chat, Profile)
 │   ├── hooks/
 │   │   ├── useAuth.ts
-│   │   ├── useLocation.ts
-│   │   └── useRealtime.ts
+│   │   ├── useTheme.ts
+│   │   └── useLocation.ts
+│   ├── services/
+│   │   ├── supabase.ts
+│   │   └── notifications.ts
 │   ├── stores/
-│   │   └── useStore.ts
+│   │   └── authStore.ts
 │   ├── types/
 │   │   └── index.ts
 │   ├── utils/
 │   │   ├── constants.ts
-│   │   └── helpers.ts
+│   │   ├── helpers.ts
+│   │   └── responsive.ts
 │   └── config/
 │       └── supabase.ts
+├── assets/
+│   ├── logo.png
+│   └── icons/
 ├── ios/
 ├── android/
-├── website/                # Landing page
+├── website/
 │   ├── index.html
 │   ├── privacy.html
 │   └── terms.html
@@ -710,11 +783,18 @@ linkble/
 └── README.md
 ```
 
+**Bottom Tab Navigation (5 tabs):**
+1. **Feed** - Event cards list with category filters
+2. **Map** - Interactive map with event pins
+3. **Create** - Event creation (opens bottom sheet)
+4. **Chat** - Conversations list (event chats + DMs)
+5. **Profile** - User profile and settings
+
 ---
 
-## 9. Deployment
+## 10. Deployment
 
-### 9.1 Website (Vercel)
+### 10.1 Website (Vercel)
 
 ```bash
 # Deploy to Vercel
@@ -725,7 +805,7 @@ vercel --prod
 # Add DNS records for linkble-app.com
 ```
 
-### 9.2 iOS (App Store)
+### 10.2 iOS (App Store)
 
 1. Create production build in Xcode
 2. Archive and upload to App Store Connect
@@ -738,7 +818,7 @@ Required assets:
 - Privacy Policy URL
 - Terms of Service URL
 
-### 9.3 Android (Play Store)
+### 10.3 Android (Play Store)
 
 1. Generate signed AAB in Android Studio
 2. Upload to Google Play Console
@@ -754,7 +834,7 @@ Required assets:
 
 ---
 
-## 10. Project Status
+## 11. Project Status
 
 ### Current Phase: MVP Development
 
