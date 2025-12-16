@@ -45,19 +45,17 @@ export default function WelcomeScreen() {
         {/* Center content */}
         <View style={styles.centerContent}>
           <View style={styles.logoContainer}>
-            {/* Logo placeholder - replace with actual logo */}
             <View
               style={[
-                styles.logoPlaceholder,
-                {
-                  borderColor: colors.accent.primary,
-                  shadowColor: colors.accent.primary,
-                },
+                styles.logoWrapper,
+                { shadowColor: colors.accent.primary },
               ]}
             >
-              <Text style={[styles.logoText, { color: colors.accent.primary }]}>
-                L
-              </Text>
+              <Image
+                source={require('../../../assets/logo/logo-original.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
             <Text style={[styles.appName, { color: colors.accent.primary }]}>
               Linkble
@@ -107,23 +105,20 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
   },
-  logoPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
+  logoWrapper: {
+    marginBottom: 24,
+    borderRadius: 40,
+    overflow: 'hidden',
     // Glow effect
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
-    shadowRadius: 15,
+    shadowRadius: 25,
     elevation: 10,
   },
-  logoText: {
-    fontSize: 48,
-    fontWeight: '700',
+  logo: {
+    width: 240,
+    height: 240,
+    borderRadius: 40,
   },
   appName: {
     ...Typography.h1,
