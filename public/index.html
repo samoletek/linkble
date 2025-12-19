@@ -533,7 +533,7 @@
       text-decoration: none;
     }
 
-    /* Responsive */
+    /* Responsive - Tablet */
     @media (max-width: 900px) {
       .hero {
         grid-template-columns: 1fr;
@@ -543,20 +543,43 @@
       .hero-content { max-width: 100%; margin: 0 auto; }
       .store-badges { justify-content: center; }
       .hero h1 { font-size: 40px; }
-      .phone-mockup { max-width: 360px; margin: 0 auto; }
-      .span-8, .span-6, .span-4, .span-3 { grid-column: span 12; }
-      .why-card { grid-template-columns: 1fr; }
+      .phone-mockup { max-width: 320px; margin: 0 auto; }
+      .bento { grid-template-columns: 1fr; gap: 16px; }
+      .span-8, .span-6, .span-4, .span-3, .span-12,
+      .why-card, .who-card, .feature-card, .tagline-card, .steps-card, .cta-card {
+        grid-column: span 1;
+      }
+      .why-card { grid-template-columns: 1fr; gap: 24px; }
       .steps-card { grid-template-columns: repeat(2, 1fr); }
       .nav { display: none; }
     }
 
+    /* Responsive - Mobile */
     @media (max-width: 600px) {
+      .container { padding: 16px; }
+      header { padding: 12px 0 32px; }
+      .hero { padding: 40px 0 60px; gap: 32px; }
       .hero h1 { font-size: 32px; }
-      .hero p { font-size: 16px; }
-      .phone-inner { height: 400px; }
-      .steps-card { grid-template-columns: 1fr; }
-      .bento-card { padding: 24px; }
-      footer { flex-direction: column; text-align: center; }
+      .hero p { font-size: 16px; margin-bottom: 24px; }
+      .hero-badge { font-size: 12px; padding: 6px 12px; }
+      .phone-mockup { max-width: 280px; padding: 12px; }
+      .phone-inner { height: 360px; padding: 12px; }
+      .phone-map { height: 50%; }
+      .phone-event { padding: 10px 12px; font-size: 13px; }
+      .phone-event-time { font-size: 12px; }
+      .store-badges { flex-direction: column; align-items: center; }
+      .store-badge { width: 100%; max-width: 200px; justify-content: center; }
+      .bento { gap: 12px; margin-bottom: 40px; }
+      .bento-card { padding: 20px; }
+      .bento-card h3 { font-size: 20px; }
+      .steps-card { grid-template-columns: 1fr; gap: 20px; padding: 24px; }
+      .cta-card { padding: 40px 20px; }
+      .cta-card h3 { font-size: 24px; }
+      .cta-buttons { flex-direction: column; align-items: center; }
+      .btn { width: 100%; max-width: 250px; text-align: center; }
+      .tagline-card p { font-size: 17px; }
+      footer { flex-direction: column; text-align: center; gap: 12px; padding: 24px 0; }
+      .footer-links { flex-direction: column; gap: 12px; }
     }
   </style>
 </head>
