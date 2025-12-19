@@ -1,13 +1,13 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { useTheme } from '../contexts/ThemeContext';
 import type { RootStackParamList } from '../types';
 
-const Stack = createStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   // FIXME: Hardcoded for testing. Replace with auth store when Supabase is connected

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local Events – All Events in One App</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121826;
+      --primary: #4f8cff;
+      --text: #e6e8ee;
+      --muted: #9aa4b2;
+      --accent: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(1200px 600px at 70% -10%, #16203a 0%, transparent 60%), var(--bg);
+      color: var(--text);
+    }
+    a { color: inherit; text-decoration: none; }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .nav a {
+      margin-left: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      padding: 80px 0;
+      align-items: center;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: rgba(79,140,255,0.15);
+      color: var(--primary);
+      border-radius: 999px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 52px;
+      line-height: 1.1;
+      margin: 0 0 20px;
+    }
+    .subtitle {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 520px;
+      margin-bottom: 28px;
+    }
+    .cta-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4f8cff, #6aa5ff);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #1a2236;
+      color: var(--text);
+      border: 1px solid #27314d;
+    }
+    .mockup {
+      background: linear-gradient(180deg, #0f172a, #020617);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    .phone {
+      background: #020617;
+      border-radius: 22px;
+      padding: 16px;
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .map {
+      background: linear-gradient(135deg, #1e293b, #020617);
+      border-radius: 14px;
+      height: 55%;
+      position: relative;
+      overflow: hidden;
+    }
+    .pin {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--primary);
+      border-radius: 50%;
+      box-shadow: 0 0 0 6px rgba(79,140,255,0.25);
+    }
+    .list {
+      background: #020617;
+      border-radius: 14px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .event {
+      background: #0b1220;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    section {
+      padding: 80px 0;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .card {
+      background: linear-gradient(180deg, #0f172a, #020617);
+      border: 1px solid #1e293b;
+      border-radius: 22px;
+      padding: 28px;
+    }
+    .card h3 {
+      margin-top: 0;
+    }
+    .card p {
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .footer {
+      border-top: 1px solid #1e293b;
+      padding: 40px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+      h1 { font-size: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">LocalEvents</div>
+      <nav class="nav">
+        <a href="#why">Why</a>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#">Download</a>
+      </nav>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div>
+        <div class="badge">All local events — in one simple app</div>
+        <h1>Find things to do.<br/>Create events.<br/>Meet people.</h1>
+        <p class="subtitle">
+          A local event platform that helps you discover, create, and manage events effortlessly — from hobbies and sports to parties, studies, and business events.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#">👉 Download the app</a>
+          <a class="btn btn-secondary" href="#">➕ Create an event</a>
+        </div>
+      </div>
+
+      <!-- APP MOCKUP -->
+      <div class="mockup">
+        <div class="phone">
+          <div class="map">
+            <div class="pin" style="top:40%;left:45%"></div>
+            <div class="pin" style="top:55%;left:60%"></div>
+            <div class="pin" style="top:30%;left:35%"></div>
+          </div>
+          <div class="list">
+            <div class="event"><span>🏀 Pickup Basketball</span><span>Today 18:00</span></div>
+            <div class="event"><span>🎧 DJ Night</span><span>Tomorrow</span></div>
+            <div class="event"><span>📚 Study Group</span><span>Sat</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY -->
+    <section id="why">
+      <div class="grid-3">
+        <div class="card">
+          <h3>Everything in one place</h3>
+          <p>No more messy group chats, scattered links, or unclear invitations.</p>
+        </div>
+        <div class="card">
+          <h3>Less friction</h3>
+          <p>See details instantly, know who’s attending, and communicate inside the event.</p>
+        </div>
+        <div class="card">
+          <h3>More participation</h3>
+          <p>Clear event lifecycle means fewer cancellations and no-shows.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+      <div class="grid-3">
+        <div class="card">
+          <h3>🔍 Discover events</h3>
+          <p>Map-based view, smart filters, and events starting soon shown first.</p>
+        </div>
+        <div class="card">
+          <h3>➕ Create events</h3>
+          <p>Public or private events with full control over participants.</p>
+        </div>
+        <div class="card">
+          <h3>💬 Stay connected</h3>
+          <p>Event chat, notifications, reminders, and group calls when needed.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how">
+      <div class="grid-3">
+        <div class="card"><h3>1. Sign up</h3><p>Quick signup, 16+ age requirement.</p></div>
+        <div class="card"><h3>2. Choose interests</h3><p>Tell us what you like and what you want to do.</p></div>
+        <div class="card"><h3>3. Join or create</h3><p>Browse the map, join events, or create your own.</p></div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section>
+      <div class="card" style="text-align:center">
+        <h2>Ready to get started?</h2>
+        <p class="subtitle" style="margin: 0 auto 24px;">
+          This is not just an event calendar — it’s the social infrastructure for local life.
+        </p>
+        <div class="cta-row" style="justify-content:center">
+          <a class="btn btn-primary" href="#">👉 Download the app now</a>
+          <a class="btn btn-secondary" href="#">👉 Create an event</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      © 2025 LocalEvents · Safe local communities · Reporting & blocking tools included
+    </footer>
+  </div>
+</body>
+</html>
