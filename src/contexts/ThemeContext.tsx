@@ -16,7 +16,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = '@linkble_theme';
+const THEME_STORAGE_KEY = '@linkble_theme_v2';
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -24,8 +24,8 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const systemColorScheme = useColorScheme();
-  // Default to dark theme as per client spec
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('dark');
+  // Default to system theme
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('auto');
   const [isLoading, setIsLoading] = useState(true);
 
   // Determine active theme based on preference and system setting

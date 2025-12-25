@@ -68,6 +68,7 @@ yarn-error.log*
 # Misc
 *.orig
 Thumbs.db
+Linkble_QA_Document.docx
 
 # Claude API
 .claude/

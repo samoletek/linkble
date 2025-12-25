@@ -95,7 +95,7 @@ Linkble solves a common problem: people want to do activities but don't have any
 - Category (select from presets)
 - Date & time (min 1 hour, max 1 year ahead)
 - Location (address search or map pin)
-- Participant limit (2-100)
+- Participant limit (2-50)
 - Public/Private toggle
 - Auto-accept toggle (public events only)
 
@@ -385,7 +385,7 @@ CREATE TABLE events (
   location_address TEXT NOT NULL,
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ,
-  max_participants INT DEFAULT 10 CHECK (max_participants >= 2 AND max_participants <= 100),
+  max_participants INT DEFAULT 10 CHECK (max_participants >= 2 AND max_participants <= 50),
   is_private BOOLEAN DEFAULT FALSE,
   auto_accept BOOLEAN DEFAULT FALSE,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'completed')),
@@ -619,7 +619,7 @@ const dmSubscription = supabase
 | Minimum advance notice | 1 hour |
 | Maximum advance notice | 1 year |
 | Minimum participants | 2 (host + 1) |
-| Maximum participants | 100 |
+| Maximum participants | 50 |
 | Description limit | 2000 characters |
 | Host cancellation deadline | 24 hours before |
 | Leave deadline (public) | 1 hour before |

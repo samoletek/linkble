@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { Typography } from '../constants/typography';
 import FeedScreen from '../screens/feed/FeedScreen';
 import MapScreen from '../screens/map/MapScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import ProfileNavigator from './ProfileNavigator';
+import CreateEventModal from '../components/events/CreateEventModal';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -41,13 +42,14 @@ function CreateButton({ onPress, colors }: CreateButtonProps) {
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const handleCreatePress = () => {
-    // TODO: Open create event bottom sheet
-    console.log('Create pressed');
+    setCreateModalVisible(true);
   };
 
   return (
+    <>
     <Tab.Navigator
       initialRouteName="Feed"
       screenOptions={{
@@ -120,7 +122,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
@@ -129,6 +131,11 @@ export default function MainNavigator() {
         }}
       />
     </Tab.Navigator>
+    <CreateEventModal
+      visible={createModalVisible}
+      onClose={() => setCreateModalVisible(false)}
+    />
+    </>
   );
 }
 

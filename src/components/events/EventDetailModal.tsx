@@ -17,16 +17,36 @@ import { X, MapPin, Calendar, Users, Clock } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
 import Button from '../common/Button';
-import { Event } from './EventCard';
+import { EventWithHost } from '../../types/database';
 
 interface EventDetailModalProps {
   visible: boolean;
-  event: Event | null;
+  event: EventWithHost | null;
   onClose: () => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_HEIGHT = 200;
+
+// Format date for display
+const formatEventDate = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+// Format time for display
+const formatEventTime = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
 
 export default function EventDetailModal({
   visible,
@@ -104,7 +124,9 @@ export default function EventDetailModal({
 
   if (!event) return null;
 
-  const spotsLeft = event.spotsTotal - event.spotsTaken;
+  const hostName = event.host?.full_name || 'Unknown';
+  const hostAvatar = event.host?.avatar_url;
+  const spotsLeft = event.max_participants; // TODO: subtract actual participants when available
 
   return (
     <Modal
@@ -154,15 +176,7 @@ export default function EventDetailModal({
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {event.image ? (
-              <Image
-                source={{ uri: event.image }}
-                style={styles.headerImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
-            )}
+            <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
 
             <View style={styles.contentPadding}>
               <Text style={[styles.title, { color: colors.text.primary }]}>
@@ -179,7 +193,7 @@ export default function EventDetailModal({
                       Date
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {event.date}
+                      {formatEventDate(event.start_time)}
                     </Text>
                   </View>
                 </View>
@@ -193,7 +207,7 @@ export default function EventDetailModal({
                       Time
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {event.time}
+                      {formatEventTime(event.start_time)}
                     </Text>
                   </View>
                 </View>
@@ -207,7 +221,7 @@ export default function EventDetailModal({
                       Location
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {event.location}
+                      {event.location_address}
                     </Text>
                   </View>
                 </View>
@@ -221,7 +235,7 @@ export default function EventDetailModal({
                       Spots
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {spotsLeft} of {event.spotsTotal} available
+                      {spotsLeft} available
                     </Text>
                   </View>
                 </View>
@@ -242,9 +256,9 @@ export default function EventDetailModal({
                 Host
               </Text>
               <View style={styles.hostContainer}>
-                {event.hostAvatar ? (
+                {hostAvatar ? (
                   <Image
-                    source={{ uri: event.hostAvatar }}
+                    source={{ uri: hostAvatar }}
                     style={styles.hostAvatar}
                   />
                 ) : (
@@ -256,12 +270,12 @@ export default function EventDetailModal({
                     ]}
                   >
                     <Text style={styles.hostInitial}>
-                      {event.hostName.charAt(0).toUpperCase()}
+                      {hostName.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
                 <Text style={[styles.hostName, { color: colors.text.primary }]}>
-                  {event.hostName}
+                  {hostName}
                 </Text>
               </View>
             </View>

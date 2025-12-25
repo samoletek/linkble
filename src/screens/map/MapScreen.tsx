@@ -1,26 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Typography } from '../../constants/typography';
+import { Typography } from '../../constants';
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background.primary, paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={[styles.title, { color: colors.text.primary }]}>Map</Text>
       </View>
       <View style={styles.content}>
-        <MapPin size={64} color={colors.text.tertiary} weight="thin" />
         <Text style={[styles.placeholder, { color: colors.text.secondary }]}>
-          Map view coming soon
-        </Text>
-        <Text style={[styles.hint, { color: colors.text.tertiary }]}>
-          Find events on the map
+          Map coming soon
         </Text>
       </View>
     </View>
@@ -33,7 +28,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
   },
   title: {
     ...Typography.h1,
@@ -42,14 +37,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 100,
   },
   placeholder: {
     ...Typography.body,
-    marginTop: 16,
-  },
-  hint: {
-    ...Typography.caption,
-    marginTop: 8,
   },
 });

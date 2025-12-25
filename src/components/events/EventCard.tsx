@@ -9,26 +9,32 @@ import {
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
-
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  date: string;
-  time: string;
-  location: string;
-  hostName: string;
-  hostAvatar?: string;
-  image?: string;
-  spotsTotal: number;
-  spotsTaken: number;
-}
+import { EventWithHost } from '../../types/database';
+import { CATEGORY_COLORS } from '../../utils/constants';
 
 interface EventCardProps {
-  event: Event;
-  onPress: (event: Event) => void;
+  event: EventWithHost;
+  onPress: (event: EventWithHost) => void;
 }
+
+// Format date for display
+const formatEventDate = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// Format time for display
+const formatEventTime = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
 
 export default function EventCard({ event, onPress }: EventCardProps) {
   const { colors } = useTheme();
@@ -49,6 +55,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
     }).start();
   };
 
+  const categoryColor = event.category?.color || CATEGORY_COLORS[event.category?.name || ''] || colors.accent.primary;
+
   return (
     <TouchableOpacity
       activeOpacity={1}
@@ -65,14 +73,22 @@ export default function EventCard({ event, onPress }: EventCardProps) {
           },
         ]}
       >
-        {event.image ? (
+        {/* Category indicator */}
+        <View style={[styles.categoryIndicator, { backgroundColor: categoryColor }]} />
+
+        {/* Avatar */}
+        {event.host?.avatar_url ? (
           <Image
-            source={{ uri: event.image }}
-            style={styles.image}
+            source={{ uri: event.host.avatar_url }}
+            style={styles.avatar}
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.image, styles.imagePlaceholder, { backgroundColor: colors.background.tertiary }]} />
+          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.background.tertiary }]}>
+            <Text style={[styles.avatarInitial, { color: colors.text.secondary }]}>
+              {event.host?.full_name?.charAt(0) || '?'}
+            </Text>
+          </View>
         )}
 
         <View style={styles.content}>
@@ -87,19 +103,26 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             style={[styles.hostName, { color: colors.text.secondary }]}
             numberOfLines={1}
           >
-            {event.hostName}
+            {event.host?.full_name || 'Unknown host'}
           </Text>
 
           <Text
             style={[styles.location, { color: colors.text.secondary }]}
             numberOfLines={1}
           >
-            {event.location}
+            {event.location_address}
           </Text>
 
-          <Text style={[styles.time, { color: colors.text.secondary }]}>
-            {event.time}
-          </Text>
+          <View style={styles.footer}>
+            <Text style={[styles.time, { color: colors.text.secondary }]}>
+              {formatEventDate(event.start_time)} at {formatEventTime(event.start_time)}
+            </Text>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
+              <Text style={[styles.categoryText, { color: categoryColor }]}>
+                {event.category?.display_name || 'Event'}
+              </Text>
+            </View>
+          </View>
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -113,14 +136,29 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: Spacing.borderRadius.md,
+  categoryIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopLeftRadius: Spacing.borderRadius.lg,
+    borderBottomLeftRadius: Spacing.borderRadius.lg,
   },
-  imagePlaceholder: {
-    backgroundColor: '#1F2937',
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginLeft: 8,
+  },
+  avatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    ...Typography.h3,
   },
   content: {
     flex: 1,
@@ -129,7 +167,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h4,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   hostName: {
     ...Typography.bodySmall,
@@ -137,9 +175,23 @@ const styles = StyleSheet.create({
   },
   location: {
     ...Typography.bodySmall,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   time: {
-    ...Typography.bodySmall,
+    ...Typography.caption,
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  categoryText: {
+    ...Typography.caption,
+    fontWeight: '600',
   },
 });

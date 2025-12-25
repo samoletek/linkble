@@ -1,111 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
-import EventCard, { Event } from '../../components/events/EventCard';
+import EventCard from '../../components/events/EventCard';
 import EventDetailModal from '../../components/events/EventDetailModal';
-
-const MOCK_EVENTS: Event[] = [
-  {
-    id: '1',
-    title: 'Morning Run in Central Park',
-    description: 'Join us for a refreshing 5K morning run through Central Park. All fitness levels welcome. We will meet at the fountain near the entrance.',
-    category: 'Sports',
-    date: 'Dec 28, 2025',
-    time: '7:00 AM',
-    location: 'Central Park, New York',
-    hostName: 'Alex',
-    hostAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=400&h=400&fit=crop',
-    spotsTotal: 10,
-    spotsTaken: 6,
-  },
-  {
-    id: '2',
-    title: 'New Year Eve Party',
-    description: 'Celebrate the new year with great music, drinks, and amazing people. Dress code: smart casual. Bring your positive vibes!',
-    category: 'Parties',
-    date: 'Dec 31, 2025',
-    time: '9:00 PM',
-    location: 'Rooftop Bar, Downtown',
-    hostName: 'Maria',
-    hostAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=400&fit=crop',
-    spotsTotal: 30,
-    spotsTaken: 24,
-  },
-  {
-    id: '3',
-    title: 'Startup Networking Breakfast',
-    description: 'Connect with fellow entrepreneurs and investors over coffee. Share ideas, find co-founders, and expand your network.',
-    category: 'Business',
-    date: 'Jan 3, 2026',
-    time: '8:30 AM',
-    location: 'WeWork, 5th Avenue',
-    hostName: 'David',
-    hostAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&h=400&fit=crop',
-    spotsTotal: 20,
-    spotsTaken: 12,
-  },
-  {
-    id: '4',
-    title: 'Board Games Night',
-    description: 'Bring your favorite games or try something new. We have Catan, Ticket to Ride, and many more. Snacks provided!',
-    category: 'Free Time',
-    date: 'Dec 29, 2025',
-    time: '6:00 PM',
-    location: 'The Game Cafe, Brooklyn',
-    hostName: 'Sophie',
-    hostAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=400&h=400&fit=crop',
-    spotsTotal: 8,
-    spotsTaken: 3,
-  },
-  {
-    id: '5',
-    title: 'JavaScript Study Group',
-    description: 'Weekly meetup to practice coding together. This week: async/await and promises. Laptops required.',
-    category: 'Studies',
-    date: 'Jan 2, 2026',
-    time: '5:00 PM',
-    location: 'Public Library, Main Branch',
-    hostName: 'Mike',
-    hostAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=400&fit=crop',
-    spotsTotal: 12,
-    spotsTaken: 8,
-  },
-  {
-    id: '6',
-    title: 'Jazz Night Live',
-    description: 'Local jazz band performing classic standards. Great venue with intimate atmosphere. Doors open at 7 PM.',
-    category: 'Concerts',
-    date: 'Jan 5, 2026',
-    time: '8:00 PM',
-    location: 'Blue Note Jazz Club',
-    hostName: 'Chris',
-    hostAvatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop',
-    spotsTotal: 15,
-    spotsTaken: 11,
-  },
-  {
-    id: '7',
-    title: 'Birthday Dinner',
-    description: 'Celebrating my 25th birthday with close friends. Italian restaurant, good wine, great company. Invite only.',
-    category: 'Private',
-    date: 'Jan 10, 2026',
-    time: '7:30 PM',
-    location: 'Trattoria Roma, Manhattan',
-    hostName: 'Emma',
-    hostAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face',
-    image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=400&h=400&fit=crop',
-    spotsTotal: 12,
-    spotsTaken: 9,
-  },
-];
+import { useEventsStore } from '../../stores/eventsStore';
+import { EventWithHost } from '../../types/database';
 
 const HEADER_MAX_HEIGHT = 52;
 const HEADER_MIN_HEIGHT = 40;
@@ -115,18 +23,43 @@ const TITLE_MIN_SIZE = 20;
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+
+  // Store
+  const events = useEventsStore((state) => state.events);
+  const isLoading = useEventsStore((state) => state.isLoading);
+  const error = useEventsStore((state) => state.error);
+  const loadNearbyEvents = useEventsStore((state) => state.loadNearbyEvents);
+  const loadCategories = useEventsStore((state) => state.loadCategories);
+
+  // Local state
+  const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const handleEventPress = (event: Event) => {
+  // Load data on mount
+  useEffect(() => {
+    loadCategories();
+    // TODO: Get actual user location
+    // For now, use default location (New York)
+    loadNearbyEvents(40.7484, -73.9857);
+  }, []);
+
+  const handleEventPress = (event: EventWithHost) => {
     setSelectedEvent(event);
     setModalVisible(true);
   };
 
   const handleCloseModal = () => {
     setModalVisible(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // TODO: Get actual user location
+    await loadNearbyEvents(40.7484, -73.9857);
+    setRefreshing(false);
   };
 
   const headerHeight = scrollY.interpolate({
@@ -141,9 +74,19 @@ export default function FeedScreen() {
     extrapolate: 'clamp',
   });
 
-
-  const renderItem = ({ item }: { item: Event }) => (
+  const renderItem = ({ item }: { item: EventWithHost }) => (
     <EventCard event={item} onPress={handleEventPress} />
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
+        No events nearby
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
+        Be the first to create an event in your area
+      </Text>
+    </View>
   );
 
   return (
@@ -169,18 +112,41 @@ export default function FeedScreen() {
         </Animated.Text>
       </Animated.View>
 
-      <Animated.FlatList
-        data={MOCK_EVENTS}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      />
+      {isLoading && events.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.status.error }]}>
+            {error}
+          </Text>
+        </View>
+      ) : (
+        <Animated.FlatList
+          data={events}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContent,
+            events.length === 0 && styles.listContentEmpty,
+          ]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent.primary}
+            />
+          }
+        />
+      )}
 
       <EventDetailModal
         visible={modalVisible}
@@ -207,5 +173,37 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,
+  },
+  listContentEmpty: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    ...Typography.body,
+    textAlign: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    ...Typography.h2,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    ...Typography.body,
+    textAlign: 'center',
   },
 });

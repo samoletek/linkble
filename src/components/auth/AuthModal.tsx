@@ -9,13 +9,17 @@ import {
   PanResponder,
   Keyboard,
   Platform,
+  Alert,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
 import { getResponsiveValue } from '../../utils/responsive';
 import Button from '../common/Button';
+import TextInput from '../common/TextInput';
+import { useAuthStore } from '../../stores/authStore';
 
 interface AuthModalProps {
   visible: boolean;
@@ -23,19 +27,39 @@ interface AuthModalProps {
 }
 
 type AuthStep = 'initial' | 'email' | 'login' | 'register';
+type AuthMode = 'login' | 'register';
 
 export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Auth store
+  const authSignIn = useAuthStore((state) => state.signIn);
+  const authSignUp = useAuthStore((state) => state.signUp);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const authError = useAuthStore((state) => state.error);
+  const clearAuthError = useAuthStore((state) => state.clearError);
 
   // Animation values
   const slideY = useRef(new Animated.Value(500)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const keyboardOffset = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(1)).current;
 
+  // Form state
   const [step, setStep] = useState<AuthStep>('initial');
-  const [isDragging, setIsDragging] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('register');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Validation errors
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [dobError, setDobError] = useState('');
 
   // Pan responder for drag-to-dismiss
   const panResponder = useRef(
@@ -43,9 +67,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) =>
         Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 2,
-      onPanResponderGrant: () => {
-        setIsDragging(true);
-      },
+      onPanResponderGrant: () => {},
       onPanResponderMove: (_, gestureState) => {
         const y = Math.max(0, gestureState.dy);
         dragY.setValue(y);
@@ -58,7 +80,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             duration: 180,
             useNativeDriver: true,
           }).start(() => {
-            onClose();
+            handleClose();
             dragY.setValue(0);
           });
         } else {
@@ -68,8 +90,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             bounciness: 6,
           }).start();
         }
-        setIsDragging(false);
-      },
+        },
     })
   ).current;
 
@@ -80,7 +101,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
 
     const onKeyboardShow = (e: any) => {
       Animated.timing(keyboardOffset, {
-        toValue: -e.endCoordinates.height,
+        toValue: -e.endCoordinates.height * 0.5,
         duration: Platform.OS === 'ios' ? e.duration || 250 : 250,
         useNativeDriver: true,
       }).start();
@@ -106,8 +127,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   // Animate modal on visibility change
   useEffect(() => {
     if (visible) {
-      setStep('initial');
-      // Slide in
+      resetForm();
       Animated.parallel([
         Animated.spring(slideY, {
           toValue: 0,
@@ -122,7 +142,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         }),
       ]).start();
     } else {
-      // Slide out
       Animated.parallel([
         Animated.timing(slideY, {
           toValue: 500,
@@ -135,14 +154,99 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
           useNativeDriver: true,
         }),
       ]).start();
-      // Reset keyboard offset
       keyboardOffset.setValue(0);
     }
   }, [visible, slideY, blurOpacity, keyboardOffset]);
 
+  const resetForm = () => {
+    setStep('initial');
+    setAuthMode('register');
+    setEmail('');
+    setPassword('');
+    setDateOfBirth(null);
+    setShowDatePicker(false);
+    setShowPassword(false);
+    setEmailError('');
+    setPasswordError('');
+    setDobError('');
+  };
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    resetForm();
+    clearAuthError();
+    onClose();
+  };
+
+  const animateStepChange = (newStep: AuthStep) => {
+    Animated.sequence([
+      Animated.timing(contentOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setStep(newStep);
+  };
+
+  const validateEmail = (value: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!value.trim()) {
+      setEmailError('Email is required');
+      return false;
+    }
+    if (!emailRegex.test(value)) {
+      setEmailError('Please enter a valid email');
+      return false;
+    }
+    setEmailError('');
+    return true;
+  };
+
+  const validatePassword = (value: string): boolean => {
+    if (!value) {
+      setPasswordError('Password is required');
+      return false;
+    }
+    if (value.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return false;
+    }
+    setPasswordError('');
+    return true;
+  };
+
+  const calculateAge = (birthDate: Date): number => {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const validateDateOfBirth = (date: Date | null): boolean => {
+    if (!date) {
+      setDobError('Date of birth is required');
+      return false;
+    }
+    const age = calculateAge(date);
+    if (age < 16) {
+      setDobError('You must be at least 16 years old to use Linkble');
+      return false;
+    }
+    setDobError('');
+    return true;
+  };
+
   const handleEmailPress = () => {
-    // TODO: Implement email auth flow
-    setStep('email');
+    animateStepChange('email');
   };
 
   const handleApplePress = () => {
@@ -156,12 +260,368 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   };
 
   const handleBack = () => {
-    setStep('initial');
+    Keyboard.dismiss();
+    if (step === 'login' || step === 'register') {
+      animateStepChange('email');
+    } else {
+      animateStepChange('initial');
+    }
+  };
+
+  const handleContinueWithEmail = () => {
+    if (!validateEmail(email)) return;
+
+    if (authMode === 'login') {
+      animateStepChange('login');
+    } else {
+      animateStepChange('register');
+    }
+  };
+
+  const handleLogin = async () => {
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+
+    if (isEmailValid && isPasswordValid) {
+      const result = await authSignIn({ email, password });
+      if (result.success) {
+        handleClose();
+      } else {
+        Alert.alert('Sign In Failed', result.error || 'Please check your credentials and try again.');
+      }
+    }
+  };
+
+  const handleRegister = async () => {
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+    const isDobValid = validateDateOfBirth(dateOfBirth);
+
+    if (isEmailValid && isPasswordValid && isDobValid && dateOfBirth) {
+      const result = await authSignUp({
+        email,
+        password,
+        fullName: email.split('@')[0], // Temporary: use email prefix as name
+        dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+      });
+      if (result.success) {
+        Alert.alert(
+          'Account Created',
+          'Please check your email to verify your account.',
+          [{ text: 'OK', onPress: handleClose }]
+        );
+      } else {
+        Alert.alert('Registration Failed', result.error || 'Please try again.');
+      }
+    }
+  };
+
+  const handleDateChange = (_event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDateOfBirth(selectedDate);
+      setDobError('');
+    }
+  };
+
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   const padding = getResponsiveValue(14, 16, 18);
   const buttonSpacing = getResponsiveValue(10, 12, 14);
   const titleSize = getResponsiveValue(18, 20, 22);
+
+  const getTitle = (): string => {
+    switch (step) {
+      case 'initial':
+        return 'Continue with';
+      case 'email':
+        return authMode === 'login' ? 'Sign In' : 'Create Account';
+      case 'login':
+        return 'Sign In';
+      case 'register':
+        return 'Create Account';
+      default:
+        return '';
+    }
+  };
+
+  const renderInitialStep = () => (
+    <>
+      <TouchableOpacity
+        style={[
+          styles.authButton,
+          {
+            backgroundColor: colors.background.secondary,
+            borderColor: colors.border.primary,
+          },
+        ]}
+        onPress={handleEmailPress}
+      >
+        <Text style={[Typography.button, { color: colors.text.primary }]}>
+          Continue with Email
+        </Text>
+      </TouchableOpacity>
+
+      {Platform.OS === 'ios' && (
+        <TouchableOpacity
+          style={[
+            styles.authButton,
+            {
+              backgroundColor: colors.background.secondary,
+              borderColor: colors.border.primary,
+            },
+          ]}
+          onPress={handleApplePress}
+        >
+          <Text style={[Typography.button, { color: colors.text.primary }]}>
+            Sign in with Apple
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={[
+          styles.authButton,
+          {
+            backgroundColor: colors.background.secondary,
+            borderColor: colors.border.primary,
+          },
+        ]}
+        onPress={handleGooglePress}
+      >
+        <Text style={[Typography.button, { color: colors.text.primary }]}>
+          Sign in with Google
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderEmailStep = () => (
+    <>
+      {/* Auth mode toggle */}
+      <View style={[styles.modeToggle, { backgroundColor: colors.background.tertiary }]}>
+        <TouchableOpacity
+          style={[
+            styles.modeButton,
+            authMode === 'register' && {
+              backgroundColor: colors.accent.primary,
+            },
+          ]}
+          onPress={() => setAuthMode('register')}
+        >
+          <Text
+            style={[
+              Typography.buttonSmall,
+              {
+                color: authMode === 'register' ? '#FFFFFF' : colors.text.secondary,
+              },
+            ]}
+          >
+            Create Account
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.modeButton,
+            authMode === 'login' && {
+              backgroundColor: colors.accent.primary,
+            },
+          ]}
+          onPress={() => setAuthMode('login')}
+        >
+          <Text
+            style={[
+              Typography.buttonSmall,
+              {
+                color: authMode === 'login' ? '#FFFFFF' : colors.text.secondary,
+              },
+            ]}
+          >
+            Sign In
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={(text) => {
+          setEmail(text);
+          if (emailError) setEmailError('');
+        }}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        error={emailError}
+      />
+
+      <View style={{ height: buttonSpacing }} />
+
+      <Button
+        title="Continue"
+        onPress={handleContinueWithEmail}
+        variant="primary"
+      />
+    </>
+  );
+
+  const renderLoginStep = () => (
+    <>
+      <Text style={[styles.emailDisplay, { color: colors.text.secondary }]}>
+        {email}
+      </Text>
+
+      <TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (passwordError) setPasswordError('');
+        }}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        error={passwordError}
+        rightIcon={
+          <Text style={{ color: colors.text.secondary }}>
+            {showPassword ? 'Hide' : 'Show'}
+          </Text>
+        }
+        onRightIconPress={() => setShowPassword(!showPassword)}
+      />
+
+      <View style={{ height: buttonSpacing }} />
+
+      <Button
+        title="Sign In"
+        onPress={handleLogin}
+        variant="primary"
+        disabled={isAuthLoading}
+      />
+
+      <TouchableOpacity style={styles.forgotPassword}>
+        <Text style={[Typography.bodySmall, { color: colors.accent.primary }]}>
+          Forgot password?
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderRegisterStep = () => (
+    <>
+      <Text style={[styles.emailDisplay, { color: colors.text.secondary }]}>
+        {email}
+      </Text>
+
+      <TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (passwordError) setPasswordError('');
+        }}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        error={passwordError}
+        rightIcon={
+          <Text style={{ color: colors.text.secondary }}>
+            {showPassword ? 'Hide' : 'Show'}
+          </Text>
+        }
+        onRightIconPress={() => setShowPassword(!showPassword)}
+      />
+
+      <View style={{ height: buttonSpacing }} />
+
+      {/* Date of Birth */}
+      <TouchableOpacity
+        style={[
+          styles.dobButton,
+          {
+            backgroundColor: colors.background.secondary,
+            borderColor: dobError ? colors.status.error : colors.border.primary,
+          },
+        ]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text
+          style={[
+            Typography.body,
+            {
+              color: dateOfBirth ? colors.text.primary : colors.text.placeholder,
+            },
+          ]}
+        >
+          {dateOfBirth ? formatDate(dateOfBirth) : 'Date of Birth'}
+        </Text>
+      </TouchableOpacity>
+      {dobError && (
+        <Text style={[styles.dobError, { color: colors.status.error }]}>
+          {dobError}
+        </Text>
+      )}
+
+      {showDatePicker && (
+        <View style={styles.datePickerContainer}>
+          <DateTimePicker
+            value={dateOfBirth || new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+            minimumDate={new Date(1900, 0, 1)}
+            themeVariant="dark"
+          />
+          {Platform.OS === 'ios' && (
+            <Button
+              title="Done"
+              onPress={() => setShowDatePicker(false)}
+              variant="outline"
+              style={{ marginTop: Spacing.sm }}
+            />
+          )}
+        </View>
+      )}
+
+      <View style={{ height: buttonSpacing }} />
+
+      <Button
+        title="Create Account"
+        onPress={handleRegister}
+        variant="primary"
+        disabled={isAuthLoading}
+      />
+
+      <Text style={[styles.termsText, { color: colors.text.tertiary }]}>
+        By creating an account, you agree to our{' '}
+        <Text style={{ color: colors.accent.primary }}>Terms of Service</Text>
+        {' '}and{' '}
+        <Text style={{ color: colors.accent.primary }}>Privacy Policy</Text>
+      </Text>
+    </>
+  );
+
+  const renderContent = () => {
+    switch (step) {
+      case 'initial':
+        return renderInitialStep();
+      case 'email':
+        return renderEmailStep();
+      case 'login':
+        return renderLoginStep();
+      case 'register':
+        return renderRegisterStep();
+      default:
+        return null;
+    }
+  };
 
   return (
     <Modal
@@ -169,7 +629,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       animationType="none"
       presentationStyle="overFullScreen"
       transparent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       {/* Backdrop with blur */}
       <Animated.View style={[styles.backdrop, { opacity: blurOpacity }]}>
@@ -177,7 +637,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
           <TouchableOpacity
             style={styles.backdropTouchable}
             activeOpacity={1}
-            onPress={onClose}
+            onPress={handleClose}
           />
         </BlurView>
       </Animated.View>
@@ -225,80 +685,17 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
                 { fontSize: titleSize, color: colors.text.primary },
               ]}
             >
-              {step === 'initial' ? 'Continue with' : 'Sign in'}
+              {getTitle()}
             </Text>
             <View style={styles.backButtonContainer} />
           </View>
 
           {/* Content */}
-          <View style={[styles.buttonsContainer, { gap: buttonSpacing }]}>
-            {step === 'initial' && (
-              <>
-                {/* Email button */}
-                <TouchableOpacity
-                  style={[
-                    styles.authButton,
-                    {
-                      backgroundColor: colors.background.secondary,
-                      borderColor: colors.border.primary,
-                    },
-                  ]}
-                  onPress={handleEmailPress}
-                >
-                  <Text style={[Typography.button, { color: colors.text.primary }]}>
-                    Continue with Email
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Apple Sign In (iOS only) */}
-                {Platform.OS === 'ios' && (
-                  <TouchableOpacity
-                    style={[
-                      styles.authButton,
-                      {
-                        backgroundColor: colors.background.secondary,
-                        borderColor: colors.border.primary,
-                      },
-                    ]}
-                    onPress={handleApplePress}
-                  >
-                    <Text style={[Typography.button, { color: colors.text.primary }]}>
-                      Sign in with Apple
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Google Sign In */}
-                <TouchableOpacity
-                  style={[
-                    styles.authButton,
-                    {
-                      backgroundColor: colors.background.secondary,
-                      borderColor: colors.border.primary,
-                    },
-                  ]}
-                  onPress={handleGooglePress}
-                >
-                  <Text style={[Typography.button, { color: colors.text.primary }]}>
-                    Sign in with Google
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {step === 'email' && (
-              <>
-                <Text style={[Typography.body, { color: colors.text.secondary, textAlign: 'center', marginBottom: 16 }]}>
-                  Email authentication will be implemented in the next phase.
-                </Text>
-                <Button
-                  title="Back to options"
-                  onPress={handleBack}
-                  variant="outline"
-                />
-              </>
-            )}
-          </View>
+          <Animated.View
+            style={[styles.buttonsContainer, { gap: buttonSpacing, opacity: contentOpacity }]}
+          >
+            {renderContent()}
+          </Animated.View>
         </Animated.View>
       </View>
     </Modal>
@@ -366,5 +763,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    borderRadius: Spacing.borderRadius.md,
+    padding: 4,
+    marginBottom: Spacing.lg,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: Spacing.borderRadius.sm,
+  },
+  emailDisplay: {
+    ...Typography.bodySmall,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  forgotPassword: {
+    alignSelf: 'center',
+    marginTop: Spacing.lg,
+  },
+  dobButton: {
+    paddingVertical: Spacing.inputPadding,
+    paddingHorizontal: Spacing.inputPadding,
+    borderRadius: Spacing.borderRadius.md,
+    borderWidth: 1,
+  },
+  dobError: {
+    ...Typography.caption,
+    marginTop: Spacing.xs,
+    marginLeft: Spacing.xs,
+  },
+  datePickerContainer: {
+    marginTop: Spacing.sm,
+  },
+  termsText: {
+    ...Typography.caption,
+    textAlign: 'center',
+    marginTop: Spacing.lg,
+    lineHeight: 18,
   },
 });
