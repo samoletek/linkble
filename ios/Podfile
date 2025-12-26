@@ -20,6 +20,10 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 
 prepare_react_native_project!
 
+pre_install do |installer|
+  $RNMapboxMaps.pre_install(installer)
+end
+
 target 'templinkupp' do
   use_expo_modules!
 
@@ -56,5 +60,6 @@ target 'templinkupp' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+    $RNMapboxMaps.post_install(installer)
   end
 end

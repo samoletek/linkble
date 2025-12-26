@@ -631,7 +631,7 @@ const dmSubscription = supabase
 | Rule | Value |
 |------|-------|
 | Minimum age | 16 years |
-| Maximum interests | 5 |
+| Maximum interests | 10 |
 | Minimum interests | 3 (recommended) |
 | Username change frequency | Every 30 days |
 | Concurrent events | 1 at a time |

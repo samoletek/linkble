@@ -10,7 +10,7 @@ import { Typography } from '../constants/typography';
 // Import screens
 import FeedScreen from '../screens/feed/FeedScreen';
 import MapScreen from '../screens/map/MapScreen';
-import ChatListScreen from '../screens/chat/ChatListScreen';
+import ChatNavigator from './ChatNavigator';
 import ProfileNavigator from './ProfileNavigator';
 import CreateEventModal from '../components/events/CreateEventModal';
 
@@ -112,7 +112,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="Chat"
-        component={ChatListScreen}
+        component={ChatNavigator}
         options={{
           tabBarLabel: 'Chats',
           tabBarIcon: ({ color, size }) => (

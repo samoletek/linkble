@@ -20,6 +20,8 @@ import { useTheme, ThemePreference } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ProfileStackParamList } from '../../types';
 
 interface SettingsItemProps {
   icon: React.ReactNode;
@@ -56,9 +58,10 @@ function SettingsItem({ icon, label, onPress, showArrow = true, danger, colors }
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, themePreference, setThemePreference } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const [showAppearanceModal, setShowAppearanceModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // Auth & User stores
   const signOut = useAuthStore((state) => state.signOut);
@@ -69,7 +72,7 @@ export default function SettingsScreen() {
   };
 
   const handleEditProfile = () => {
-    // TODO: Navigate to EditProfile
+    navigation.navigate('EditProfile');
   };
 
   const handleNotifications = () => {
@@ -77,7 +80,7 @@ export default function SettingsScreen() {
   };
 
   const handlePrivacy = () => {
-    // TODO: Open privacy settings
+    setShowPrivacyModal(true);
   };
 
   const handleAppearance = () => {
@@ -279,6 +282,52 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.aboutContent}>
+              <Text style={[styles.aboutText, { color: colors.text.secondary }]}>
+                Linkble is the social infrastructure for local life. Discover local activities, create events, and meet people who share your interests.
+              </Text>
+              <Text style={[styles.aboutText, { color: colors.text.secondary }]}>
+                Less friction. More participation.
+              </Text>
+              <Text style={[styles.aboutVersion, { color: colors.text.tertiary }]}>
+                Version 1.0.0
+              </Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://www.linkble-app.com/')}
+                activeOpacity={0.7}
+                style={styles.learnMoreButton}
+              >
+                <Text style={[styles.learnMoreText, { color: colors.accent.primary }]}>
+                  Learn more
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={showPrivacyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPrivacyModal(false)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Privacy</Text>
+              <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
+                <X size={24} color={colors.text.secondary} weight="regular" />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={[styles.themeOption, { borderBottomColor: colors.border.primary }]}
               onPress={handlePrivacyPolicy}
@@ -408,5 +457,26 @@ const styles = StyleSheet.create({
   },
   themeOptionLabel: {
     ...Typography.body,
+  },
+  aboutContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  aboutText: {
+    ...Typography.body,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  aboutVersion: {
+    ...Typography.caption,
+    textAlign: 'center',
+  },
+  learnMoreButton: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  learnMoreText: {
+    ...Typography.body,
+    fontWeight: '500',
   },
 });

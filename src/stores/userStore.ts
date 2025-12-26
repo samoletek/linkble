@@ -5,6 +5,7 @@ import {
   getCurrentProfile,
   updateProfile,
   uploadAvatar,
+  deleteAvatar,
   deleteAccount,
 } from '../services/auth';
 
@@ -17,6 +18,7 @@ interface UserState {
   loadProfile: (userId?: string) => Promise<void>;
   updateProfile: (updates: ProfileUpdate) => Promise<{ success: boolean; error?: string }>;
   uploadAvatar: (file: { uri: string; type: string; name: string }) => Promise<{ success: boolean; url?: string; error?: string }>;
+  deleteAvatar: () => Promise<{ success: boolean; error?: string }>;
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   clearProfile: () => void;
   clearError: () => void;
@@ -82,6 +84,29 @@ export const useUserStore = create<UserState>((set, get) => ({
     }));
 
     return { success: true, url: result.url || undefined };
+  },
+
+  deleteAvatar: async () => {
+    const { profile } = get();
+    if (!profile) {
+      return { success: false, error: 'No profile loaded' };
+    }
+
+    set({ isLoading: true, error: null });
+
+    const result = await deleteAvatar(profile.id);
+
+    if (result.error) {
+      set({ isLoading: false, error: result.error.message });
+      return { success: false, error: result.error.message };
+    }
+
+    set((state) => ({
+      profile: state.profile ? { ...state.profile, avatar_url: null } : null,
+      isLoading: false,
+    }));
+
+    return { success: true };
   },
 
   deleteAccount: async () => {

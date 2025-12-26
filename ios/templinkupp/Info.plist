@@ -51,5 +51,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Linkble needs your location to show events near you and display your position on the map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Linkble needs your location to show events near you and notify you about nearby activities.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Linkble needs access to your photo library to set your profile picture.</string>
 </dict>
 </plist>

@@ -174,6 +174,63 @@ export const getUserEvents = async (userId: string): Promise<EventWithHost[]> =>
 };
 
 // ============================================
+// Event Image Upload
+// ============================================
+
+export const uploadEventImage = async (
+  imageUri: string
+): Promise<{ url: string | null; error: Error | null }> => {
+  const userId = await getCurrentUserId();
+  console.log('uploadEventImage - userId:', userId);
+
+  if (!userId) {
+    return { url: null, error: new Error('Not authenticated') };
+  }
+
+  try {
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${userId}/${timestamp}.${fileExt}`;
+    console.log('uploadEventImage - fileName:', fileName);
+
+    // Fetch the image and convert to ArrayBuffer (React Native compatible)
+    const response = await fetch(imageUri);
+    console.log('uploadEventImage - fetch response ok:', response.ok);
+
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('uploadEventImage - arrayBuffer size:', arrayBuffer.byteLength);
+
+    // Determine content type
+    const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+
+    // Upload to Supabase Storage using ArrayBuffer
+    const { error: uploadError } = await supabase.storage
+      .from('event-images')
+      .upload(fileName, arrayBuffer, {
+        contentType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.log('uploadEventImage - uploadError:', uploadError);
+      return { url: null, error: new Error(uploadError.message) };
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('event-images')
+      .getPublicUrl(fileName);
+
+    console.log('uploadEventImage - success, publicUrl:', publicUrl);
+    return { url: publicUrl, error: null };
+  } catch (error: any) {
+    console.log('uploadEventImage - catch error:', error);
+    return { url: null, error: new Error(error?.message || 'Failed to upload image') };
+  }
+};
+
+// ============================================
 // Event CRUD
 // ============================================
 

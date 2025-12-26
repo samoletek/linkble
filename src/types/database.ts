@@ -50,6 +50,7 @@ export interface Event {
   max_participants: number;
   is_private: boolean;
   auto_accept: boolean;
+  image_url: string | null;
   status: 'active' | 'cancelled' | 'completed';
   created_at: string;
   updated_at: string;
@@ -192,7 +193,7 @@ export interface ProfileInsert {
 export interface ProfileUpdate {
   username?: string;
   full_name?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   bio?: string;
   interests?: number[];
   push_token?: string;
@@ -212,6 +213,7 @@ export interface EventInsert {
   max_participants?: number;
   is_private?: boolean;
   auto_accept?: boolean;
+  image_url?: string;
 }
 
 export interface EventUpdate {
@@ -226,6 +228,7 @@ export interface EventUpdate {
   max_participants?: number;
   is_private?: boolean;
   auto_accept?: boolean;
+  image_url?: string;
   status?: Event['status'];
 }
 

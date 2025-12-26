@@ -137,6 +137,49 @@ export const updatePassword = async (newPassword: string): Promise<{ error: Auth
   return { error };
 };
 
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<{ error: Error | null }> => {
+  const user = await getCurrentUser();
+  if (!user?.email) {
+    return { error: new Error('Not authenticated') };
+  }
+
+  // Verify current password by re-authenticating
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return { error: new Error('Current password is incorrect') };
+  }
+
+  // Update to new password
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    return { error: new Error(error.message) };
+  }
+
+  return { error: null };
+};
+
+export const updateEmail = async (newEmail: string): Promise<{ error: Error | null }> => {
+  const { error } = await supabase.auth.updateUser({
+    email: newEmail,
+  });
+
+  if (error) {
+    return { error: new Error(error.message) };
+  }
+
+  return { error: null };
+};
+
 // ============================================
 // Session Management
 // ============================================
@@ -187,27 +230,33 @@ export const updateProfile = async (
   updates: ProfileUpdate
 ): Promise<{ profile: Profile | null; error: Error | null }> => {
   // Handle username change restriction (30 days)
-  if (updates.username) {
+  if (updates.username !== undefined) {
     const { data: currentProfile } = await (supabase
       .from('profiles') as any)
-      .select('last_username_change')
+      .select('username, last_username_change')
       .eq('id', userId)
       .single();
 
-    if (currentProfile?.last_username_change) {
+    // Only check restriction if username is actually changing
+    const isUsernameChanging = updates.username !== currentProfile?.username;
+
+    if (isUsernameChanging && currentProfile?.last_username_change) {
       const lastChange = new Date(currentProfile.last_username_change);
       const daysSinceChange = (Date.now() - lastChange.getTime()) / (1000 * 60 * 60 * 24);
 
       if (daysSinceChange < 30) {
+        const daysRemaining = Math.ceil(30 - daysSinceChange);
         return {
           profile: null,
-          error: new Error(`You can change your username in ${Math.ceil(30 - daysSinceChange)} days`),
+          error: new Error(`You can change your username in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`),
         };
       }
     }
 
-    // Add timestamp for username change
-    (updates as any).last_username_change = new Date().toISOString();
+    // Add timestamp for username change only if it's actually changing
+    if (isUsernameChanging && updates.username) {
+      (updates as any).last_username_change = new Date().toISOString();
+    }
   }
 
   const { data, error } = await (supabase
@@ -234,13 +283,13 @@ export const uploadAvatar = async (
   const fileExt = file.name.split('.').pop();
   const fileName = `${userId}/avatar.${fileExt}`;
 
-  // Convert URI to blob for upload
+  // Read file as base64 for React Native
   const response = await fetch(file.uri);
-  const blob = await response.blob();
+  const arrayBuffer = await response.arrayBuffer();
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(fileName, blob, {
+    .upload(fileName, arrayBuffer, {
       upsert: true,
       contentType: file.type,
     });
@@ -253,10 +302,43 @@ export const uploadAvatar = async (
     .from('avatars')
     .getPublicUrl(fileName);
 
-  // Update profile with new avatar URL
-  await updateProfile(userId, { avatar_url: publicUrl });
+  // Add cache buster to prevent stale images
+  const avatarUrl = `${publicUrl}?t=${Date.now()}`;
 
-  return { url: publicUrl, error: null };
+  // Update profile with new avatar URL
+  await updateProfile(userId, { avatar_url: avatarUrl });
+
+  return { url: avatarUrl, error: null };
+};
+
+export const deleteAvatar = async (
+  userId: string
+): Promise<{ error: Error | null }> => {
+  // List files in user's avatar folder
+  const { data: files, error: listError } = await supabase.storage
+    .from('avatars')
+    .list(userId);
+
+  if (listError) {
+    return { error: new Error(listError.message) };
+  }
+
+  // Delete all avatar files for this user
+  if (files && files.length > 0) {
+    const filePaths = files.map((file) => `${userId}/${file.name}`);
+    const { error: deleteError } = await supabase.storage
+      .from('avatars')
+      .remove(filePaths);
+
+    if (deleteError) {
+      return { error: new Error(deleteError.message) };
+    }
+  }
+
+  // Update profile to remove avatar URL
+  await updateProfile(userId, { avatar_url: null });
+
+  return { error: null };
 };
 
 // ============================================
@@ -269,18 +351,52 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
     return { error: new Error('Not authenticated') };
   }
 
-  // Delete profile (cascade will handle related data)
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .delete()
-    .eq('id', user.id);
+  const userId = user.id;
 
-  if (profileError) {
-    return { error: new Error(profileError.message) };
+  try {
+    // 1. Delete avatar from storage
+    const { data: avatarFiles } = await supabase.storage
+      .from('avatars')
+      .list(userId);
+
+    if (avatarFiles && avatarFiles.length > 0) {
+      const filePaths = avatarFiles.map((file) => `${userId}/${file.name}`);
+      await supabase.storage.from('avatars').remove(filePaths);
+    }
+
+    // Note: Events and messages in events are preserved for participants
+    // They will be available in the events archive
+
+    // 2. Delete user's direct messages
+    await supabase.from('direct_messages').delete().eq('sender_id', userId);
+
+    // 3. Delete user's conversations
+    await supabase.from('conversations').delete().or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+    // 4. Delete blocked users (both directions)
+    await supabase.from('blocked_users').delete().or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+
+    // 5. Delete user's reports
+    await supabase.from('reports').delete().eq('reporter_id', userId);
+
+    // 6. Delete user's notifications
+    await supabase.from('notifications').delete().eq('user_id', userId);
+
+    // 7. Delete profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (profileError) {
+      return { error: new Error(profileError.message) };
+    }
+
+    // 8. Sign out
+    await signOut();
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error : new Error('Failed to delete account') };
   }
-
-  // Sign out
-  await signOut();
-
-  return { error: null };
 };

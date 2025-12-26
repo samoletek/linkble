@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,25 +10,30 @@ import {
   PanResponder,
   Image,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Users, Clock } from 'phosphor-react-native';
+import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, Tag } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
 import Button from '../common/Button';
-import { EventWithHost } from '../../types/database';
+import { EventWithHost, EventWithDetails } from '../../types/database';
+import { useUserStore } from '../../stores/userStore';
+import { getEvent, requestToJoin, leaveEvent, cancelEvent } from '../../services/events';
 
 interface EventDetailModalProps {
   visible: boolean;
   event: EventWithHost | null;
   onClose: () => void;
+  onOpenChat?: (eventId: string) => void;
+  onJoinSuccess?: () => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_HEIGHT = 200;
 
-// Format date for display
 const formatEventDate = (isoDate: string): string => {
   const date = new Date(isoDate);
   return date.toLocaleDateString('en-US', {
@@ -38,7 +43,6 @@ const formatEventDate = (isoDate: string): string => {
   });
 };
 
-// Format time for display
 const formatEventTime = (isoDate: string): string => {
   const date = new Date(isoDate);
   return date.toLocaleTimeString('en-US', {
@@ -52,9 +56,16 @@ export default function EventDetailModal({
   visible,
   event,
   onClose,
+  onOpenChat,
+  onJoinSuccess,
 }: EventDetailModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const currentUser = useUserStore((state) => state.profile);
+
+  const [eventDetails, setEventDetails] = useState<EventWithDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const slideY = useRef(new Animated.Value(600)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
@@ -91,6 +102,19 @@ export default function EventDetailModal({
     })
   ).current;
 
+  // Load full event details when modal opens
+  useEffect(() => {
+    if (visible && event) {
+      setIsLoading(true);
+      getEvent(event.id).then((details) => {
+        setEventDetails(details);
+        setIsLoading(false);
+      });
+    } else {
+      setEventDetails(null);
+    }
+  }, [visible, event?.id]);
+
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -122,11 +146,196 @@ export default function EventDetailModal({
     }
   }, [visible, slideY, blurOpacity]);
 
+  const handleJoinRequest = useCallback(async () => {
+    if (!event) return;
+
+    setIsActionLoading(true);
+
+    const { status, error: joinError } = await requestToJoin(event.id);
+
+    setIsActionLoading(false);
+
+    if (joinError) {
+      Alert.alert('Cannot Join', joinError.message);
+      return;
+    }
+
+    // Refresh event details
+    const details = await getEvent(event.id);
+    setEventDetails(details);
+
+    if (status === 'accepted') {
+      Alert.alert('Joined', 'You have joined the event.');
+    } else {
+      Alert.alert('Request Sent', 'Your request has been sent to the host.');
+    }
+
+    onJoinSuccess?.();
+  }, [event, onJoinSuccess]);
+
+  const handleLeaveEvent = useCallback(async () => {
+    if (!event || !eventDetails) return;
+
+    const startTime = new Date(event.start_time);
+    const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const deadline = event.is_private ? 24 : 1;
+
+    if (hoursUntilStart < deadline) {
+      Alert.alert(
+        'Cannot Leave',
+        `You cannot leave a ${event.is_private ? 'private' : 'public'} event less than ${deadline} hour(s) before it starts.`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Leave Event',
+      'Are you sure you want to leave this event?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            setIsActionLoading(true);
+            const { error: leaveError } = await leaveEvent(event.id);
+            setIsActionLoading(false);
+
+            if (leaveError) {
+              Alert.alert('Error', leaveError.message);
+              return;
+            }
+
+            const details = await getEvent(event.id);
+            setEventDetails(details);
+            onJoinSuccess?.();
+          },
+        },
+      ]
+    );
+  }, [event, eventDetails, onJoinSuccess]);
+
+  const handleCancelEvent = useCallback(async () => {
+    if (!event) return;
+
+    const startTime = new Date(event.start_time);
+    const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilStart < 24) {
+      Alert.alert(
+        'Cannot Cancel',
+        'You cannot cancel an event less than 24 hours before it starts.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Event',
+      'Are you sure you want to cancel this event? This action cannot be undone.',
+      [
+        { text: 'Keep Event', style: 'cancel' },
+        {
+          text: 'Cancel Event',
+          style: 'destructive',
+          onPress: async () => {
+            setIsActionLoading(true);
+            const { error: cancelError } = await cancelEvent(event.id);
+            setIsActionLoading(false);
+
+            if (cancelError) {
+              Alert.alert('Error', cancelError.message);
+              return;
+            }
+
+            Alert.alert('Cancelled', 'The event has been cancelled.');
+            onClose();
+            onJoinSuccess?.();
+          },
+        },
+      ]
+    );
+  }, [event, onClose, onJoinSuccess]);
+
   if (!event) return null;
 
   const hostName = event.host?.full_name || 'Unknown';
   const hostAvatar = event.host?.avatar_url;
-  const spotsLeft = event.max_participants; // TODO: subtract actual participants when available
+  const isHost = currentUser?.id === event.host_id;
+  const participantStatus = eventDetails?.participant_status;
+  const participantsCount = eventDetails?.participants_count || 1;
+  const spotsLeft = event.max_participants - participantsCount;
+
+  // Determine button state
+  const renderActionButton = () => {
+    if (isLoading || isActionLoading) {
+      return (
+        <View style={styles.loadingButton}>
+          <ActivityIndicator color={colors.accent.primary} />
+        </View>
+      );
+    }
+
+    if (isHost) {
+      return (
+        <Button
+          title="Cancel Event"
+          variant="secondary"
+          onPress={handleCancelEvent}
+        />
+      );
+    }
+
+    if (participantStatus === 'accepted') {
+      return (
+        <Button
+          title="Leave Event"
+          variant="secondary"
+          onPress={handleLeaveEvent}
+        />
+      );
+    }
+
+    if (participantStatus === 'pending') {
+      return (
+        <View style={[styles.statusButton, { backgroundColor: colors.background.tertiary }]}>
+          <Hourglass size={20} color={colors.text.secondary} weight="bold" />
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Request Pending
+          </Text>
+        </View>
+      );
+    }
+
+    if (participantStatus === 'rejected') {
+      return (
+        <View style={[styles.statusButton, { backgroundColor: colors.background.tertiary }]}>
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Request Declined
+          </Text>
+        </View>
+      );
+    }
+
+    if (spotsLeft <= 0) {
+      return (
+        <View style={[styles.statusButton, { backgroundColor: colors.background.tertiary }]}>
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Event Full
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <Button
+        title={event.auto_accept ? 'Join Event' : 'Request to Join'}
+        onPress={handleJoinRequest}
+      />
+    );
+  };
+
+  // Show chat button only for participants and host
+  const canAccessChat = isHost || participantStatus === 'accepted';
 
   return (
     <Modal
@@ -176,7 +385,15 @@ export default function EventDetailModal({
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
+            {event.image_url ? (
+              <Image
+                source={{ uri: event.image_url }}
+                style={styles.headerImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
+            )}
 
             <View style={styles.contentPadding}>
               <Text style={[styles.title, { color: colors.text.primary }]}>
@@ -184,6 +401,20 @@ export default function EventDetailModal({
               </Text>
 
               <View style={styles.infoSection}>
+                <View style={styles.infoRow}>
+                  <View style={[styles.iconContainer, { backgroundColor: event.category?.color + '20' }]}>
+                    <Tag size={18} color={event.category?.color || colors.accent.primary} weight="bold" />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
+                      Category
+                    </Text>
+                    <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                      {event.category?.display_name || 'Other'}
+                    </Text>
+                  </View>
+                </View>
+
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
                     <Calendar size={18} color={colors.accent.primary} weight="bold" />
@@ -235,7 +466,8 @@ export default function EventDetailModal({
                       Spots
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {spotsLeft} available
+                      {participantsCount}/{event.max_participants} joined
+                      {spotsLeft > 0 && ` (${spotsLeft} left)`}
                     </Text>
                   </View>
                 </View>
@@ -277,17 +509,32 @@ export default function EventDetailModal({
                 <Text style={[styles.hostName, { color: colors.text.primary }]}>
                   {hostName}
                 </Text>
+                {isHost && (
+                  <View style={[styles.youBadge, { backgroundColor: colors.accent.primary }]}>
+                    <Text style={styles.youBadgeText}>You</Text>
+                  </View>
+                )}
               </View>
             </View>
           </ScrollView>
 
           <View style={styles.footer}>
-            <Button
-              title="Request to Join"
-              onPress={() => {
-                onClose();
-              }}
-            />
+            <View style={styles.footerButtons}>
+              {canAccessChat && onOpenChat && (
+                <TouchableOpacity
+                  style={[styles.chatButton, { backgroundColor: colors.background.tertiary }]}
+                  onPress={() => {
+                    onClose();
+                    onOpenChat(event.id);
+                  }}
+                >
+                  <ChatCircle size={22} color={colors.text.primary} weight="bold" />
+                </TouchableOpacity>
+              )}
+              <View style={styles.joinButtonContainer}>
+                {renderActionButton()}
+              </View>
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -426,9 +673,51 @@ const styles = StyleSheet.create({
   },
   hostName: {
     ...Typography.bodyMedium,
+    flex: 1,
+  },
+  youBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  youBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  chatButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  joinButtonContainer: {
+    flex: 1,
+  },
+  loadingButton: {
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusButton: {
+    height: 52,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusText: {
+    ...Typography.bodyMedium,
   },
 });

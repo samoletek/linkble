@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,22 @@ import {
   Animated,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  TextInput,
+  Keyboard,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { MapPin, MagnifyingGlass, X, NavigationArrow } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Typography } from '../../constants/typography';
+import { Typography, Spacing } from '../../constants';
 import EventCard from '../../components/events/EventCard';
 import EventDetailModal from '../../components/events/EventDetailModal';
 import { useEventsStore } from '../../stores/eventsStore';
+import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
 
 const HEADER_MAX_HEIGHT = 52;
@@ -20,31 +29,76 @@ const HEADER_MIN_HEIGHT = 40;
 const TITLE_MAX_SIZE = 32;
 const TITLE_MIN_SIZE = 20;
 
+const RADIUS_OPTIONS = [10, 20, 30, 50, 50000];
+
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
 
-  // Store
+  // Events store
   const events = useEventsStore((state) => state.events);
   const isLoading = useEventsStore((state) => state.isLoading);
   const error = useEventsStore((state) => state.error);
+  const searchRadius = useEventsStore((state) => state.searchRadius);
+  const setSearchRadius = useEventsStore((state) => state.setSearchRadius);
   const loadNearbyEvents = useEventsStore((state) => state.loadNearbyEvents);
   const loadCategories = useEventsStore((state) => state.loadCategories);
+
+  // Location store
+  const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
+  const manualAddress = useLocationStore((state) => state.manualAddress);
+  const gpsPermissionGranted = useLocationStore((state) => state.gpsPermissionGranted);
+  const isLocationLoading = useLocationStore((state) => state.isLoading);
+  const locationError = useLocationStore((state) => state.error);
+  const requestGpsLocation = useLocationStore((state) => state.requestGpsLocation);
+  const setManualAddress = useLocationStore((state) => state.setManualAddress);
+  const clearManualAddress = useLocationStore((state) => state.clearManualAddress);
 
   // Local state
   const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [radiusModalVisible, setRadiusModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'public' | 'private'>('public');
+  const [addressInput, setAddressInput] = useState('');
+
+  // Filtered and sorted events (nearest in time first)
+  // Private tab: category.display_name === 'Private Events'
+  // Public tab: all other categories
+  const filteredEvents = useMemo(() => {
+    return events
+      .filter(event => {
+        const isPrivateCategory = event.category?.display_name === 'Private Events';
+        return filter === 'public' ? !isPrivateCategory : isPrivateCategory;
+      })
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  }, [events, filter]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Load data on mount
+  // Initialize location on mount
   useEffect(() => {
     loadCategories();
-    // TODO: Get actual user location
-    // For now, use default location (New York)
-    loadNearbyEvents(40.7484, -73.9857);
+    initializeLocation();
   }, []);
+
+  // Reload events when location or radius changes
+  useEffect(() => {
+    if (effectiveLocation) {
+      loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    }
+  }, [effectiveLocation, searchRadius]);
+
+  const initializeLocation = async () => {
+    // Try GPS first
+    const gpsGranted = await requestGpsLocation();
+
+    // If GPS denied and no manual address set, show hint
+    if (!gpsGranted && !manualAddress) {
+      // User will see empty state prompting them to set location
+    }
+  };
 
   const handleEventPress = (event: EventWithHost) => {
     setSelectedEvent(event);
@@ -55,11 +109,63 @@ export default function FeedScreen() {
     setModalVisible(false);
   };
 
+  const handleOpenChat = (eventId: string) => {
+    navigation.navigate('Chat', {
+      screen: 'EventChat',
+      params: { eventId },
+      initial: false,
+    });
+  };
+
+  const handleJoinSuccess = () => {
+    // Refresh events after join/leave
+    if (effectiveLocation) {
+      loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    // TODO: Get actual user location
-    await loadNearbyEvents(40.7484, -73.9857);
+    if (effectiveLocation) {
+      await loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    }
     setRefreshing(false);
+  };
+
+  const handleRadiusSelect = (radius: number) => {
+    setSearchRadius(radius);
+  };
+
+  const handleAddressSubmit = async () => {
+    if (!addressInput.trim()) return;
+
+    Keyboard.dismiss();
+    const result = await setManualAddress(addressInput.trim());
+
+    if (result.success) {
+      setRadiusModalVisible(false);
+      setAddressInput('');
+    } else {
+      Alert.alert('Error', result.error || 'Could not find address');
+    }
+  };
+
+  const handleUseGps = async () => {
+    const granted = await requestGpsLocation();
+    if (granted) {
+      clearManualAddress();
+      setRadiusModalVisible(false);
+    } else {
+      Alert.alert(
+        'Location Access',
+        'Please enable location access in your device settings to use GPS.'
+      );
+    }
+  };
+
+  const handleClearManualAddress = () => {
+    clearManualAddress();
+    setAddressInput('');
   };
 
   const headerHeight = scrollY.interpolate({
@@ -74,6 +180,18 @@ export default function FeedScreen() {
     extrapolate: 'clamp',
   });
 
+  const filterScale = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.85],
+    extrapolate: 'clamp',
+  });
+
+  const filterMargin = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [12, 6],
+    extrapolate: 'clamp',
+  });
+
   const renderItem = ({ item }: { item: EventWithHost }) => (
     <EventCard event={item} onPress={handleEventPress} />
   );
@@ -84,7 +202,7 @@ export default function FeedScreen() {
         No events nearby
       </Text>
       <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
-        Be the first to create an event in your area
+        Try increasing the search radius or create an event
       </Text>
     </View>
   );
@@ -112,6 +230,62 @@ export default function FeedScreen() {
         </Animated.Text>
       </Animated.View>
 
+      <Animated.View
+        style={[
+          styles.filterContainer,
+          {
+            transform: [{ scale: filterScale }],
+            marginBottom: filterMargin,
+            transformOrigin: 'left center',
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filter === 'public' && { backgroundColor: colors.accent.primary },
+          ]}
+          onPress={() => setFilter('public')}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'public' ? '#FFFFFF' : colors.text.secondary },
+            ]}
+          >
+            Public
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filter === 'private' && { backgroundColor: colors.accent.primary },
+          ]}
+          onPress={() => setFilter('private')}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'private' ? '#FFFFFF' : colors.text.secondary },
+            ]}
+          >
+            Private
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.filterSpacer} />
+
+        <TouchableOpacity
+          style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
+          onPress={() => setRadiusModalVisible(true)}
+        >
+          <MapPin size={14} color={colors.text.secondary} weight="bold" />
+          <Text style={[styles.radiusText, { color: colors.text.secondary }]}>
+            {searchRadius >= 50000 ? '>50 km' : `${searchRadius} km`}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+
       {isLoading && events.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent.primary} />
@@ -124,13 +298,10 @@ export default function FeedScreen() {
         </View>
       ) : (
         <Animated.FlatList
-          data={events}
+          data={filteredEvents}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContent,
-            events.length === 0 && styles.listContentEmpty,
-          ]}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -152,7 +323,146 @@ export default function FeedScreen() {
         visible={modalVisible}
         event={selectedEvent}
         onClose={handleCloseModal}
+        onOpenChat={handleOpenChat}
+        onJoinSuccess={handleJoinSuccess}
       />
+
+      {/* Location & Radius Modal */}
+      <Modal
+        visible={radiusModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setRadiusModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            Keyboard.dismiss();
+            setRadiusModalVisible(false);
+          }}
+        >
+          <Pressable
+            style={[
+              styles.radiusModal,
+              { backgroundColor: colors.background.secondary }
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Location Section */}
+            <Text style={[styles.radiusModalTitle, { color: colors.text.primary }]}>
+              Location
+            </Text>
+
+            {/* Current location display */}
+            {gpsPermissionGranted && !manualAddress && (
+              <View style={[styles.currentLocationRow, { backgroundColor: colors.background.tertiary }]}>
+                <NavigationArrow size={16} color={colors.accent.primary} weight="fill" />
+                <Text style={[styles.currentLocationText, { color: colors.text.primary }]}>
+                  Using GPS location
+                </Text>
+              </View>
+            )}
+
+            {manualAddress && (
+              <View style={[styles.currentLocationRow, { backgroundColor: colors.background.tertiary }]}>
+                <MapPin size={16} color={colors.accent.primary} weight="fill" />
+                <Text style={[styles.currentLocationText, { color: colors.text.primary }]} numberOfLines={1}>
+                  {manualAddress}
+                </Text>
+                <TouchableOpacity onPress={handleClearManualAddress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <X size={16} color={colors.text.tertiary} weight="bold" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!effectiveLocation && (
+              <Text style={[styles.locationHint, { color: colors.text.secondary }]}>
+                Set your location to see nearby events
+              </Text>
+            )}
+
+            {/* Address input */}
+            <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
+              <MagnifyingGlass size={18} color={colors.text.tertiary} />
+              <TextInput
+                style={[styles.addressInput, { color: colors.text.primary }]}
+                placeholder="Enter address or city..."
+                placeholderTextColor={colors.text.tertiary}
+                value={addressInput}
+                onChangeText={setAddressInput}
+                onSubmitEditing={handleAddressSubmit}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {isLocationLoading && (
+                <ActivityIndicator size="small" color={colors.accent.primary} />
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.addressSubmitButton, { backgroundColor: colors.accent.primary }]}
+              onPress={handleAddressSubmit}
+              disabled={!addressInput.trim() || isLocationLoading}
+            >
+              <Text style={styles.addressSubmitText}>
+                {isLocationLoading ? 'Searching...' : 'Set Location'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Use GPS button */}
+            <TouchableOpacity
+              style={[styles.useGpsButton, { borderColor: colors.border.primary }]}
+              onPress={handleUseGps}
+            >
+              <NavigationArrow size={16} color={colors.accent.primary} weight="bold" />
+              <Text style={[styles.useGpsText, { color: colors.accent.primary }]}>
+                Use GPS Location
+              </Text>
+            </TouchableOpacity>
+
+            {locationError && (
+              <Text style={[styles.locationErrorText, { color: colors.status.error }]}>
+                {locationError}
+              </Text>
+            )}
+
+            {/* Radius Section */}
+            <Text style={[styles.radiusModalTitle, { color: colors.text.primary, marginTop: 20 }]}>
+              Search Radius
+            </Text>
+
+            <View style={styles.radiusOptionsRow}>
+              {RADIUS_OPTIONS.map((radius) => (
+                <TouchableOpacity
+                  key={radius}
+                  style={[
+                    styles.radiusChip,
+                    { backgroundColor: searchRadius === radius ? colors.accent.primary : colors.background.tertiary }
+                  ]}
+                  onPress={() => handleRadiusSelect(radius)}
+                >
+                  <Text
+                    style={[
+                      styles.radiusChipText,
+                      { color: searchRadius === radius ? '#FFFFFF' : colors.text.secondary }
+                    ]}
+                  >
+                    {radius >= 50000 ? '>50 km' : `${radius} km`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Done button */}
+            <TouchableOpacity
+              style={[styles.doneButton, { backgroundColor: colors.background.tertiary }]}
+              onPress={() => setRadiusModalVisible(false)}
+            >
+              <Text style={[styles.doneButtonText, { color: colors.text.primary }]}>Done</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -170,12 +480,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 38,
   },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    alignItems: 'center',
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterSpacer: {
+    flex: 1,
+  },
+  radiusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 4,
+  },
+  radiusText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,
-  },
-  listContentEmpty: {
-    flex: 1,
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -205,5 +544,116 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...Typography.body,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radiusModal: {
+    width: '90%',
+    maxWidth: 340,
+    borderRadius: Spacing.borderRadius.lg,
+    padding: 20,
+  },
+  radiusModalTitle: {
+    ...Typography.h4,
+    marginBottom: 12,
+  },
+  currentLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: Spacing.borderRadius.md,
+    marginBottom: 12,
+    gap: 8,
+  },
+  currentLocationText: {
+    ...Typography.body,
+    flex: 1,
+  },
+  locationHint: {
+    ...Typography.caption,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  addressInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Spacing.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressInput: {
+    flex: 1,
+    ...Typography.body,
+    padding: 0,
+  },
+  addressSubmitButton: {
+    paddingVertical: 12,
+    borderRadius: Spacing.borderRadius.md,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addressSubmitText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  useGpsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: Spacing.borderRadius.md,
+    borderWidth: 1,
+    gap: 6,
+    marginBottom: 8,
+  },
+  useGpsText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  locationErrorText: {
+    ...Typography.caption,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  radiusOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  radiusChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  radiusChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  doneButton: {
+    paddingVertical: 12,
+    borderRadius: Spacing.borderRadius.md,
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  radiusOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  radiusOptionText: {
+    ...Typography.body,
   },
 });

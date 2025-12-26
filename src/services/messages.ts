@@ -13,6 +13,105 @@ import {
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 // ============================================
+// Event Chats List
+// ============================================
+
+export interface EventChatPreview {
+  event_id: string;
+  event_title: string;
+  event_image: string | null;
+  host_name: string;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export const getEventChats = async (): Promise<EventChatPreview[]> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  // Get events where user is accepted participant or host
+  const { data: participations, error: participationsError } = await supabase
+    .from('event_participants')
+    .select(`
+      event_id,
+      event:events(
+        id,
+        title,
+        image_url,
+        host_id,
+        host:profiles!events_host_id_fkey(full_name)
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'accepted');
+
+  // Get events where user is host
+  const { data: hostedEvents, error: hostedError } = await supabase
+    .from('events')
+    .select(`
+      id,
+      title,
+      image_url,
+      host_id,
+      host:profiles!events_host_id_fkey(full_name)
+    `)
+    .eq('host_id', userId)
+    .eq('status', 'active');
+
+  if (participationsError || hostedError) {
+    console.error('Error fetching event chats:', participationsError || hostedError);
+    return [];
+  }
+
+  // Combine events
+  const eventMap = new Map<string, any>();
+
+  // Add hosted events
+  (hostedEvents || []).forEach((event) => {
+    eventMap.set(event.id, event);
+  });
+
+  // Add participated events
+  (participations || []).forEach((p) => {
+    if (p.event && !eventMap.has((p.event as any).id)) {
+      eventMap.set((p.event as any).id, p.event);
+    }
+  });
+
+  // Get last message for each event
+  const chats = await Promise.all(
+    Array.from(eventMap.values()).map(async (event) => {
+      const { data: lastMsg } = await supabase
+        .from('messages')
+        .select('content, created_at')
+        .eq('event_id', event.id)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      return {
+        event_id: event.id,
+        event_title: event.title,
+        event_image: event.image_url,
+        host_name: (event.host as any)?.full_name || 'Unknown',
+        last_message: lastMsg?.content || null,
+        last_message_at: lastMsg?.created_at || event.created_at || null,
+        unread_count: 0, // TODO: implement unread tracking
+      };
+    })
+  );
+
+  // Sort by last message time
+  return chats.sort((a, b) => {
+    if (!a.last_message_at) return 1;
+    if (!b.last_message_at) return -1;
+    return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+  });
+};
+
+// ============================================
 // Event Chat Messages
 // ============================================
 

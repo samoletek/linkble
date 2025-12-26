@@ -76,6 +76,14 @@ PODS:
   - hermes-engine (0.81.5):
     - hermes-engine/Pre-built (= 0.81.5)
   - hermes-engine/Pre-built (0.81.5)
+  - MapboxCommon (24.16.6):
+    - Turf (= 4.0.0)
+  - MapboxCoreMaps (11.16.6):
+    - MapboxCommon (= 24.16.6)
+  - MapboxMaps (11.16.6):
+    - MapboxCommon (= 24.16.6)
+    - MapboxCoreMaps (= 11.16.6)
+    - Turf (= 4.0.0)
   - RCTDeprecation (0.81.5)
   - RCTRequired (0.81.5)
   - RCTTypeSafety (0.81.5):
@@ -1887,6 +1895,33 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - rnmapbox-maps (10.2.10):
+    - MapboxMaps (~> 11.16.2)
+    - React
+    - React-Core
+    - rnmapbox-maps/DynamicLibrary (= 10.2.10)
+    - Turf
+  - rnmapbox-maps/DynamicLibrary (10.2.10):
+    - hermes-engine
+    - MapboxMaps (~> 11.16.2)
+    - RCTRequired
+    - RCTTypeSafety
+    - React
+    - React-Core
+    - React-Core-prebuilt
+    - React-featureflags
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Turf
+    - Yoga
   - RNScreens (4.19.0):
     - hermes-engine
     - RCTRequired
@@ -1979,6 +2014,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - Turf (4.0.0)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2068,9 +2104,17 @@ DEPENDENCIES:
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - "rnmapbox-maps (from `../node_modules/@rnmapbox/maps`)"
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
+
+SPEC REPOS:
+  trunk:
+    - MapboxCommon
+    - MapboxCoreMaps
+    - MapboxMaps
+    - Turf
 
 EXTERNAL SOURCES:
   EXApplication:
@@ -2244,6 +2288,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/datetimepicker"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+  rnmapbox-maps:
+    :path: "../node_modules/@rnmapbox/maps"
   RNScreens:
     :path: "../node_modules/react-native-screens"
   RNSVG:
@@ -2268,6 +2314,9 @@ SPEC CHECKSUMS:
   ExpoModulesCore: e8ec7f8727caf51a49d495598303dd420ca994bf
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
+  MapboxCommon: 10cbf74edb23c9abcfe2424899d804f288a47334
+  MapboxCoreMaps: f19680d20681797067268284b2292349de861730
+  MapboxMaps: 04c7bf46d66265ad0f4b98484a251777a926c423
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
   RCTTypeSafety: 16a4144ca3f959583ab019b57d5633df10b5e97c
@@ -2337,10 +2386,12 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNDateTimePicker: 19ffa303c4524ec0a2dfdee2658198451c16b7f1
   RNGestureHandler: 723f29dac55e25f109d263ed65cecc4b9c4bd46a
+  rnmapbox-maps: 6135ab50fda2676f742555f210d1e1657a5b6378
   RNScreens: 6f7a6128b0d33ce66e60309b6c998a2235abe1f3
   RNSVG: cf9ae78f2edf2988242c71a6392d15ff7dd62522
+  Turf: c9eb11a65d96af58cac523460fd40fec5061b081
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: 4adaafb0bbff6be79abb8b4c122682b237b18cd6
+PODFILE CHECKSUM: ced721d06a0166e9593fd4913062955184d94e73
 
 COCOAPODS: 1.16.2

@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import type { ProfileStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -16,6 +17,7 @@ export default function ProfileNavigator() {
     >
       <Stack.Screen name="ProfileHome" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   );
 }

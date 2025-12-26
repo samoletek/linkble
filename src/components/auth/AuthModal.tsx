@@ -30,7 +30,7 @@ type AuthStep = 'initial' | 'email' | 'login' | 'register';
 type AuthMode = 'login' | 'register';
 
 export default function AuthModal({ visible, onClose }: AuthModalProps) {
-  const { colors } = useTheme();
+  const { colors, activeTheme } = useTheme();
   const insets = useSafeAreaInsets();
 
   // Auth store
@@ -577,7 +577,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             onChange={handleDateChange}
             maximumDate={new Date()}
             minimumDate={new Date(1900, 0, 1)}
-            themeVariant="dark"
+            themeVariant={activeTheme}
           />
           {Platform.OS === 'ios' && (
             <Button

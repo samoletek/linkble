@@ -76,8 +76,14 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         {/* Category indicator */}
         <View style={[styles.categoryIndicator, { backgroundColor: categoryColor }]} />
 
-        {/* Avatar */}
-        {event.host?.avatar_url ? (
+        {/* Event image or host avatar */}
+        {event.image_url ? (
+          <Image
+            source={{ uri: event.image_url }}
+            style={styles.eventImage}
+            resizeMode="cover"
+          />
+        ) : event.host?.avatar_url ? (
           <Image
             source={{ uri: event.host.avatar_url }}
             style={styles.avatar}
@@ -119,7 +125,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             </Text>
             <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
               <Text style={[styles.categoryText, { color: categoryColor }]}>
-                {event.category?.display_name || 'Event'}
+                {event.category?.display_name === 'Private Events' ? 'Private' : (event.category?.display_name || 'Event')}
               </Text>
             </View>
           </View>
@@ -151,6 +157,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    marginLeft: 8,
+  },
+  eventImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     marginLeft: 8,
   },
   avatarPlaceholder: {

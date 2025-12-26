@@ -15,9 +15,10 @@ import {
   PanResponder,
   Animated,
   Alert,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Clock, Users, ImageSquare } from 'phosphor-react-native';
+import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
@@ -25,6 +26,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import TextInput from '../common/TextInput';
 import { useEventsStore } from '../../stores/eventsStore';
+import { uploadEventImage } from '../../services/events';
+import { geocodeAddress } from '../../utils/geocoding';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -103,9 +106,12 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [spots, setSpots] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  const [autoAccept, setAutoAccept] = useState(true);
 
   const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
-    setShowDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
     if (date) {
       setSelectedDate(date);
     }
@@ -148,6 +154,28 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
     setIsCreating(true);
 
     try {
+      // Upload image if selected
+      let imageUrl: string | undefined;
+      if (image) {
+        console.log('Uploading image:', image);
+        const uploadResult = await uploadEventImage(image);
+        console.log('Upload result:', uploadResult);
+        if (uploadResult.error) {
+          Alert.alert('Upload Error', uploadResult.error.message);
+          setIsCreating(false);
+          return;
+        }
+        imageUrl = uploadResult.url || undefined;
+      }
+
+      // Geocode the address to get coordinates
+      const geocodeResult = await geocodeAddress(location);
+      if (!geocodeResult.success || !geocodeResult.location) {
+        Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+        setIsCreating(false);
+        return;
+      }
+
       // Map category string ID to numeric ID (1-based index + 1)
       const categoryIndex = CATEGORIES.findIndex(c => c.id === selectedCategory);
       const categoryId = categoryIndex >= 0 ? categoryIndex + 1 : 4; // Default to freetime (4)
@@ -164,11 +192,13 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
         title,
         description: description || 'No description',
         category_id: categoryId,
-        location_address: location,
-        location_lat: 40.7484, // TODO: Get from location picker
-        location_lng: -73.9857,
+        location_address: geocodeResult.formattedAddress || location,
+        location_lat: geocodeResult.location.latitude,
+        location_lng: geocodeResult.location.longitude,
         start_time: startTime,
         max_participants: parseInt(spots, 10) || 10,
+        image_url: imageUrl,
+        auto_accept: autoAccept,
       });
 
       if (result.success) {
@@ -194,6 +224,7 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
     setShowTimePicker(false);
     setSpots('');
     setImage(null);
+    setAutoAccept(true);
     onClose();
   };
 
@@ -239,19 +270,9 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
             <TouchableOpacity
               onPress={handleCreate}
               disabled={!isValid}
-              style={[
-                styles.createButton,
-                { backgroundColor: isValid ? colors.accent.primary : colors.background.tertiary },
-              ]}
+              style={styles.checkButton}
             >
-              <Text
-                style={[
-                  styles.createButtonText,
-                  { color: isValid ? '#FFFFFF' : colors.text.tertiary },
-                ]}
-              >
-                Create
-              </Text>
+              <Check size={24} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
           </View>
 
@@ -413,32 +434,6 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
               </View>
             </View>
 
-            {showDatePicker && (
-              <View style={styles.datePickerContainer}>
-                <DateTimePicker
-                  value={selectedDate || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  onChange={handleDateChange}
-                  minimumDate={new Date()}
-                  themeVariant={activeTheme}
-                />
-              </View>
-            )}
-
-            {showTimePicker && (
-              <View style={styles.datePickerContainer}>
-                <DateTimePicker
-                  value={selectedTime || new Date()}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleTimeChange}
-                  themeVariant={activeTheme}
-                  is24Hour={false}
-                  locale="en-US"
-                />
-              </View>
-            )}
 
             <TextInput
               label="Spots available"
@@ -450,11 +445,95 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
               icon={<Users size={20} color={colors.text.secondary} />}
             />
 
+            <View style={styles.switchContainer}>
+              <View style={styles.switchTextContainer}>
+                <Text style={[styles.switchLabel, { color: colors.text.primary }]}>
+                  Auto-accept participants
+                </Text>
+                <Text style={[styles.switchDescription, { color: colors.text.secondary }]}>
+                  {autoAccept
+                    ? 'People will join automatically'
+                    : 'You will approve each request manually'}
+                </Text>
+              </View>
+              <Switch
+                value={autoAccept}
+                onValueChange={setAutoAccept}
+                trackColor={{ false: colors.border.primary, true: colors.accent.primary }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
             <View style={{ height: 40 }} />
           </ScrollView>
           </KeyboardAvoidingView>
         </Animated.View>
       </View>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background.secondary }]}>
+                <View style={styles.pickerHeader}>
+                  <Text style={[styles.pickerTitle, { color: colors.text.primary }]}>Select Date</Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Text style={[styles.pickerDone, { color: colors.accent.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={selectedDate || new Date()}
+                  mode="date"
+                  display="inline"
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                  themeVariant={activeTheme}
+                  style={styles.picker}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={showTimePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTimePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background.secondary }]}>
+                <View style={styles.pickerHeader}>
+                  <Text style={[styles.pickerTitle, { color: colors.text.primary }]}>Select Time</Text>
+                  <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                    <Text style={[styles.pickerDone, { color: colors.accent.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={selectedTime || new Date()}
+                  mode="time"
+                  display="spinner"
+                  onChange={handleTimeChange}
+                  themeVariant={activeTheme}
+                  is24Hour={false}
+                  locale="en-US"
+                  style={styles.timePicker}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </Modal>
   );
 }
@@ -500,17 +579,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
+  checkButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
   headerTitle: {
     ...Typography.h3,
-  },
-  createButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Spacing.borderRadius.md,
-  },
-  createButtonText: {
-    ...Typography.bodySmall,
-    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -594,5 +670,54 @@ const styles = StyleSheet.create({
   },
   datePickerContainer: {
     marginTop: -10,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerModal: {
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    maxWidth: 360,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pickerTitle: {
+    ...Typography.h3,
+  },
+  pickerDone: {
+    ...Typography.body,
+    fontWeight: '600',
+  },
+  picker: {
+    height: 320,
+  },
+  timePicker: {
+    height: 200,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  switchTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  switchLabel: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  switchDescription: {
+    ...Typography.caption,
+    marginTop: 2,
   },
 });
