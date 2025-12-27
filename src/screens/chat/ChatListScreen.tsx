@@ -235,7 +235,7 @@ export default function ChatListScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            filter === 'events' && { backgroundColor: colors.accent.primary },
+            { backgroundColor: filter === 'events' ? colors.accent.primary : colors.background.tertiary },
           ]}
           onPress={() => setFilter('events')}
         >
@@ -251,7 +251,7 @@ export default function ChatListScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            filter === 'direct' && { backgroundColor: colors.accent.primary },
+            { backgroundColor: filter === 'direct' ? colors.accent.primary : colors.background.tertiary },
           ]}
           onPress={() => setFilter('direct')}
         >
@@ -335,7 +335,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
   },
   filterText: {
     fontSize: 14,

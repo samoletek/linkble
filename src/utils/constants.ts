@@ -1,13 +1,13 @@
 // Categories matching database schema
 // Note: Actual categories are loaded from Supabase, these are fallback/reference values
 export const CATEGORIES = [
-  { id: 1, name: 'sports_hobbies', displayName: 'Sports & Hobbies', icon: 'sports', color: '#34C759' },
-  { id: 2, name: 'parties', displayName: 'Parties', icon: 'party', color: '#FF2D55' },
-  { id: 3, name: 'business', displayName: 'Business', icon: 'briefcase', color: '#5856D6' },
-  { id: 4, name: 'free_time', displayName: 'Free Time', icon: 'coffee', color: '#FF9500' },
-  { id: 5, name: 'studies', displayName: 'Studies', icon: 'book', color: '#007AFF' },
-  { id: 6, name: 'concerts', displayName: 'Concerts', icon: 'music', color: '#AF52DE' },
-  { id: 7, name: 'private_events', displayName: 'Private Events', icon: 'lock', color: '#8E8E93' },
+  { id: 1, name: 'sports_hobbies', displayName: 'Sports & Hobbies', icon: 'SoccerBall', color: '#34C759' },
+  { id: 2, name: 'parties', displayName: 'Parties', icon: 'Wine', color: '#FF2D55' },
+  { id: 3, name: 'business', displayName: 'Business', icon: 'Briefcase', color: '#5856D6' },
+  { id: 4, name: 'free_time', displayName: 'Free Time', icon: 'Coffee', color: '#FF9500' },
+  { id: 5, name: 'studies', displayName: 'Studies', icon: 'GraduationCap', color: '#007AFF' },
+  { id: 6, name: 'concerts', displayName: 'Concerts', icon: 'MusicNotes', color: '#AF52DE' },
+  { id: 7, name: 'private_events', displayName: 'Private Events', icon: 'LockSimple', color: '#8E8E93' },
 ];
 
 // Category colors for quick lookup
@@ -21,15 +21,15 @@ export const CATEGORY_COLORS: Record<string, string> = {
   private_events: '#8E8E93',
 };
 
-// Category icons mapping
+// Category icons mapping (Phosphor icon names)
 export const CATEGORY_ICONS: Record<string, string> = {
-  sports_hobbies: 'fitness-center',
-  parties: 'celebration',
-  business: 'business-center',
-  free_time: 'coffee',
-  studies: 'menu-book',
-  concerts: 'music-note',
-  private_events: 'lock',
+  sports_hobbies: 'SoccerBall',
+  parties: 'Wine',
+  business: 'Briefcase',
+  free_time: 'Coffee',
+  studies: 'GraduationCap',
+  concerts: 'MusicNotes',
+  private_events: 'LockSimple',
 };
 
 // Event settings

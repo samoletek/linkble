@@ -65,6 +65,26 @@ export const getNearbyEvents = async (
   return (eventsWithDetails as EventWithHost[]) || [];
 };
 
+export const getAllEvents = async (): Promise<EventWithHost[]> => {
+  const { data, error } = await supabase
+    .from('events')
+    .select(`
+      *,
+      host:profiles(*),
+      category:categories(*)
+    `)
+    .eq('status', 'active')
+    .gt('start_time', new Date().toISOString())
+    .order('start_time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching all events:', error);
+    return [];
+  }
+
+  return (data as EventWithHost[]) || [];
+};
+
 export const getEventsByCategory = async (
   categoryId: number,
   latitude?: number,

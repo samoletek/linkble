@@ -18,7 +18,7 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare } from 'phosphor-react-native';
+import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare, SoccerBall, Wine, Briefcase, Coffee, GraduationCap, MusicNotes, LockSimple } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
@@ -33,13 +33,13 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 const CATEGORIES = [
-  { id: 'sports', label: 'Sports', color: '#34C759' },
-  { id: 'parties', label: 'Parties', color: '#FF2D55' },
-  { id: 'business', label: 'Business', color: '#5856D6' },
-  { id: 'freetime', label: 'Free Time', color: '#FF9500' },
-  { id: 'studies', label: 'Studies', color: '#007AFF' },
-  { id: 'concerts', label: 'Concerts', color: '#AF52DE' },
-  { id: 'private', label: 'Private', color: '#8E8E93' },
+  { id: 'sports', label: 'Sports', color: '#34C759', Icon: SoccerBall },
+  { id: 'parties', label: 'Parties', color: '#FF2D55', Icon: Wine },
+  { id: 'business', label: 'Business', color: '#5856D6', Icon: Briefcase },
+  { id: 'freetime', label: 'Free Time', color: '#FF9500', Icon: Coffee },
+  { id: 'studies', label: 'Studies', color: '#007AFF', Icon: GraduationCap },
+  { id: 'concerts', label: 'Concerts', color: '#AF52DE', Icon: MusicNotes },
+  { id: 'private', label: 'Private', color: '#8E8E93', Icon: LockSimple },
 ];
 
 interface CreateEventModalProps {
@@ -340,39 +340,43 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
             <View style={styles.fieldContainer}>
               <Text style={[styles.label, { color: colors.text.secondary }]}>Category</Text>
               <View style={styles.categoriesContainer}>
-                {CATEGORIES.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.categoryChip,
-                      {
-                        backgroundColor:
-                          selectedCategory === category.id
+                {CATEGORIES.map((category) => {
+                  const IconComponent = category.Icon;
+                  const isSelected = selectedCategory === category.id;
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: isSelected
                             ? category.color
                             : colors.background.secondary,
-                        borderColor:
-                          selectedCategory === category.id
+                          borderColor: isSelected
                             ? category.color
                             : colors.border.primary,
-                      },
-                    ]}
-                    onPress={() => { closePickers(); setSelectedCategory(category.id); }}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        {
-                          color:
-                            selectedCategory === category.id
-                              ? '#FFFFFF'
-                              : colors.text.secondary,
                         },
                       ]}
+                      onPress={() => { closePickers(); setSelectedCategory(category.id); }}
                     >
-                      {category.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <IconComponent
+                        size={16}
+                        color={isSelected ? '#FFFFFF' : colors.text.secondary}
+                        weight="bold"
+                      />
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          {
+                            color: isSelected ? '#FFFFFF' : colors.text.secondary,
+                          },
+                        ]}
+                      >
+                        {category.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -621,6 +625,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,

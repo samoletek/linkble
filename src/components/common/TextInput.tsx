@@ -64,7 +64,7 @@ export default function TextInput({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.text.secondary }]}>
+        <Text style={[styles.label, { color: colors.text.primary }]}>
           {label}
         </Text>
       )}
@@ -116,8 +116,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    ...Typography.caption,
-    marginBottom: Spacing.xs,
+    ...Typography.body,
+    fontWeight: '600',
+    marginBottom: 12,
     marginLeft: Spacing.xs,
   },
   inputContainer: {

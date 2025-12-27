@@ -74,6 +74,8 @@ export default function Button({
         return {
           ...base,
           backgroundColor: colors.background.secondary,
+          borderWidth: 1,
+          borderColor: colors.border.primary,
         };
       case 'outline':
         return {
@@ -106,6 +108,7 @@ export default function Button({
         style={[
           getButtonStyle(),
           disabled && styles.disabled,
+          style,
         ]}
         onPress={onPress}
         onPressIn={handlePressIn}

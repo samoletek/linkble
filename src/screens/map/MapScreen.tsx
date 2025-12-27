@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,25 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { CrosshairSimple } from 'phosphor-react-native';
+import { NavigationArrow } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Mapbox from '@rnmapbox/maps';
+import Mapbox, { ShapeSource } from '@rnmapbox/maps';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Typography, Spacing } from '../../constants';
-import { getNearbyEvents } from '../../services/events';
+import { Typography } from '../../constants';
+import { getAllEvents } from '../../services/events';
+import { supabase } from '../../config/supabase';
 import { useLocationStore } from '../../stores/locationStore';
-import { useEventsStore } from '../../stores/eventsStore';
 import { EventWithHost } from '../../types/database';
 import EventDetailModal from '../../components/events/EventDetailModal';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const DEFAULT_CENTER: [number, number] = [-73.9857, 40.7484]; // New York [lng, lat]
-const RADIUS_OPTIONS = [10, 20, 30, 50, 50000];
+
+// Clustering configuration
+const CLUSTER_RADIUS = 50;
+const CLUSTER_MAX_ZOOM = 14;
+const CLUSTER_MIN_POINTS = 2;
 
 // Convert events to GeoJSON FeatureCollection
 const eventsToGeoJSON = (events: EventWithHost[]): GeoJSON.FeatureCollection => ({
@@ -43,22 +47,18 @@ const eventsToGeoJSON = (events: EventWithHost[]): GeoJSON.FeatureCollection => 
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, activeTheme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const shapeSourceRef = useRef<ShapeSource>(null);
 
   // Location store
   const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
   const gpsPermissionGranted = useLocationStore((state) => state.gpsPermissionGranted);
   const manualAddress = useLocationStore((state) => state.manualAddress);
 
-  // Events store - use the same radius as FeedScreen
-  const searchRadius = useEventsStore((state) => state.searchRadius);
-
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<EventWithHost[]>([]);
-  const [radiusKm, setRadiusKm] = useState(searchRadius);
   const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -67,56 +67,62 @@ export default function MapScreen() {
     ? [effectiveLocation.longitude, effectiveLocation.latitude]
     : DEFAULT_CENTER;
 
-  // Initialize on mount
-  useEffect(() => {
-    // Location is already initialized by FeedScreen or will be available from store
-    setLoading(false);
+  // Filter events to only show upcoming ones (not started yet)
+  const filterUpcomingEvents = useCallback((eventsList: EventWithHost[]) => {
+    const now = new Date();
+    return eventsList.filter((event) => new Date(event.start_time) > now);
   }, []);
 
-  // Sync radius with events store
-  useEffect(() => {
-    setRadiusKm(searchRadius);
-  }, [searchRadius]);
-
-  // Load events when location or radius changes
+  // Load all events worldwide
   const loadEvents = useCallback(async () => {
-    if (!effectiveLocation) return;
-    const nearbyEvents = await getNearbyEvents(
-      effectiveLocation.latitude,
-      effectiveLocation.longitude,
-      radiusKm
-    );
-    setEvents(nearbyEvents);
-  }, [effectiveLocation, radiusKm]);
+    const allEvents = await getAllEvents();
+    setEvents(filterUpcomingEvents(allEvents));
+  }, [filterUpcomingEvents]);
 
+  // Initialize and load events
   useEffect(() => {
-    if (!loading && effectiveLocation) {
-      loadEvents();
-    }
-  }, [loading, loadEvents, effectiveLocation]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadEvents();
-    setRefreshing(false);
+    loadEvents();
+    setLoading(false);
   }, [loadEvents]);
 
-  const handleRadiusChange = (newRadius: number) => {
-    setRadiusKm(newRadius);
-    // Adjust zoom based on radius
-    const zoomLevels: Record<number, number> = {
-      10: 12,
-      20: 11,
-      30: 10.5,
-      50: 10,
-      50000: 1, // World view
+  // Reload events when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadEvents();
+    }, [loadEvents])
+  );
+
+  // Real-time subscription for events
+  useEffect(() => {
+    const channel = supabase
+      .channel('map-events-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events',
+        },
+        () => {
+          // Reload events on any change
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    cameraRef.current?.setCamera({
-      centerCoordinate: mapCenter,
-      zoomLevel: zoomLevels[newRadius] || 12,
-      animationDuration: 500,
-    });
-  };
+  }, [loadEvents]);
+
+  // Auto-remove started events every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEvents((current) => filterUpcomingEvents(current));
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [filterUpcomingEvents]);
 
   const handleMarkerPress = (event: EventWithHost) => {
     setSelectedEvent(event);
@@ -131,17 +137,9 @@ export default function MapScreen() {
   const handleCenterOnLocation = () => {
     if (!effectiveLocation) return;
 
-    const zoomLevels: Record<number, number> = {
-      10: 12,
-      20: 11,
-      30: 10.5,
-      50: 10,
-      50000: 1,
-    };
-
     cameraRef.current?.setCamera({
       centerCoordinate: [effectiveLocation.longitude, effectiveLocation.latitude],
-      zoomLevel: zoomLevels[radiusKm] || 12,
+      zoomLevel: 12,
       animationDuration: 500,
     });
   };
@@ -153,72 +151,148 @@ export default function MapScreen() {
     });
   };
 
-  const geojson = eventsToGeoJSON(events);
+  const geojson = useMemo(() => eventsToGeoJSON(events), [events]);
 
-  // Cluster layer style
-  const clusterLayerStyle: Mapbox.CircleLayerStyle = {
+  // Cluster outer circle style - scales with point count
+  const clusterOuterStyle = {
     circleColor: colors.accent.primary,
     circleRadius: [
       'step',
       ['get', 'point_count'],
-      20, // default size
-      10, 28, // 10+ points
-      25, 36, // 25+ points
+      22,
+      10, 28,
+      50, 36,
+      100, 44,
     ],
-    circleOpacity: 0.9,
-  };
+    circleOpacity: 0.85,
+  } as Mapbox.CircleLayerStyle;
+
+  // Cluster inner circle style - white ring effect
+  const clusterInnerStyle = {
+    circleColor: '#FFFFFF',
+    circleRadius: [
+      'step',
+      ['get', 'point_count'],
+      16,
+      10, 20,
+      50, 26,
+      100, 32,
+    ],
+    circleOpacity: 0.25,
+  } as Mapbox.CircleLayerStyle;
 
   // Cluster count text style
-  const clusterCountStyle: Mapbox.SymbolLayerStyle = {
+  const clusterCountStyle = {
     textField: ['get', 'point_count_abbreviated'],
-    textSize: 14,
+    textSize: [
+      'step',
+      ['get', 'point_count'],
+      14,
+      10, 16,
+      50, 18,
+      100, 20,
+    ],
     textColor: '#FFFFFF',
     textAllowOverlap: true,
-  };
+  } as Mapbox.SymbolLayerStyle;
 
-  // Individual marker style
-  const markerStyle: Mapbox.CircleLayerStyle = {
+  // Pin marker shadow style - scales with zoom
+  const markerShadowStyle = {
+    circleColor: '#000000',
+    circleRadius: [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 10,
+      14, 14,
+      18, 18,
+    ],
+    circleOpacity: 0.12,
+    circleTranslate: [0, 2],
+    circleBlur: 0.6,
+  } as Mapbox.CircleLayerStyle;
+
+  // Pin marker main style - category colored, scales with zoom
+  const markerStyle = {
     circleColor: ['get', 'categoryColor'],
-    circleRadius: 12,
+    circleRadius: [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 8,
+      14, 12,
+      18, 16,
+    ],
     circleStrokeColor: '#FFFFFF',
-    circleStrokeWidth: 2,
-  };
+    circleStrokeWidth: [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 2,
+      14, 3,
+      18, 4,
+    ],
+  } as Mapbox.CircleLayerStyle;
+
+  // Pin marker inner dot style - scales with zoom
+  const markerInnerStyle = {
+    circleColor: '#FFFFFF',
+    circleRadius: [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 3,
+      14, 4,
+      18, 5,
+    ],
+  } as Mapbox.CircleLayerStyle;
+
+  // Handle tap on cluster or pin
+  const handleShapePress = useCallback(async (e: any) => {
+    const feature = e.features?.[0];
+    if (!feature) return;
+
+    const props = feature.properties || {};
+
+    // Check if it's a cluster (has point_count)
+    if (props.point_count) {
+      try {
+        // Get the optimal zoom level to expand this cluster
+        const clusterId = props.cluster_id;
+        const expansionZoom = await shapeSourceRef.current?.getClusterExpansionZoom(clusterId);
+        const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+
+        cameraRef.current?.setCamera({
+          centerCoordinate: coordinates,
+          zoomLevel: Math.min(expansionZoom ?? 14, 18),
+          animationDuration: 300,
+        });
+      } catch {
+        // Fallback: zoom in by 2 levels
+        const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+        cameraRef.current?.setCamera({
+          centerCoordinate: coordinates,
+          zoomLevel: 14,
+          animationDuration: 300,
+        });
+      }
+    } else {
+      // Individual marker - show event detail
+      const eventId = props.id;
+      const event = events.find((e) => e.id === eventId);
+      if (event) {
+        handleMarkerPress(event);
+      }
+    }
+  }, [events]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={[styles.title, { color: colors.text.primary }]}>Map</Text>
         <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
-          {events.length} {events.length === 1 ? 'event' : 'events'} nearby
+          {events.length} {events.length === 1 ? 'event' : 'events'} worldwide
         </Text>
-      </View>
-
-      {/* Radius selector */}
-      <View style={[styles.radiusContainer, { backgroundColor: colors.background.secondary }]}>
-        {RADIUS_OPTIONS.map((radius) => (
-          <TouchableOpacity
-            key={radius}
-            style={[
-              styles.radiusButton,
-              {
-                backgroundColor:
-                  radiusKm === radius ? colors.accent.primary : colors.background.tertiary,
-              },
-            ]}
-            onPress={() => handleRadiusChange(radius)}
-          >
-            <Text
-              style={[
-                styles.radiusButtonText,
-                {
-                  color: radiusKm === radius ? '#FFFFFF' : colors.text.secondary,
-                },
-              ]}
-            >
-              {radius >= 50000 ? '>50km' : `${radius}km`}
-            </Text>
-          </TouchableOpacity>
-        ))}
       </View>
 
       <View style={styles.mapContainer}>
@@ -229,7 +303,7 @@ export default function MapScreen() {
         ) : (
           <Mapbox.MapView
             style={styles.map}
-            styleURL={Mapbox.StyleURL.Street}
+            styleURL={activeTheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
             onPress={() => {
               // Deselect when tapping map
               if (selectedEvent && !modalVisible) {
@@ -276,81 +350,56 @@ export default function MapScreen() {
             {/* Events layer with clustering */}
             <Mapbox.ShapeSource
               id="events"
+              ref={shapeSourceRef}
               shape={geojson}
               cluster
-              clusterRadius={50}
-              clusterMaxZoomLevel={14}
-              onPress={(e) => {
-                const feature = e.features?.[0];
-                if (!feature) return;
-
-                // Check if it's a cluster
-                if (feature.properties?.cluster) {
-                  // Zoom into cluster
-                  const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-                  cameraRef.current?.setCamera({
-                    centerCoordinate: coordinates,
-                    zoomLevel: (cameraRef.current as any)?._zoomLevel + 2 || 14,
-                    animationDuration: 300,
-                  });
-                } else {
-                  // Individual marker - show event detail
-                  const eventId = feature.properties?.id;
-                  const event = events.find((e) => e.id === eventId);
-                  if (event) {
-                    handleMarkerPress(event);
-                  }
-                }
-              }}
+              clusterRadius={CLUSTER_RADIUS}
+              clusterMaxZoomLevel={CLUSTER_MAX_ZOOM}
+              clusterMinPoints={CLUSTER_MIN_POINTS}
+              onPress={handleShapePress}
             >
-              {/* Cluster circles */}
+              {/* Cluster outer circle */}
               <Mapbox.CircleLayer
                 id="clusters"
                 filter={['has', 'point_count']}
-                style={clusterLayerStyle}
+                style={clusterOuterStyle}
               />
 
-              {/* Cluster count */}
+              {/* Cluster inner circle - white ring effect */}
+              <Mapbox.CircleLayer
+                id="clusters-inner"
+                filter={['has', 'point_count']}
+                style={clusterInnerStyle}
+              />
+
+              {/* Cluster count text */}
               <Mapbox.SymbolLayer
                 id="cluster-count"
                 filter={['has', 'point_count']}
                 style={clusterCountStyle}
               />
 
-              {/* Individual markers */}
+              {/* Individual markers - shadow */}
+              <Mapbox.CircleLayer
+                id="unclustered-shadow"
+                filter={['!', ['has', 'point_count']]}
+                style={markerShadowStyle}
+              />
+
+              {/* Individual markers - main pin (category colored) */}
               <Mapbox.CircleLayer
                 id="unclustered-points"
                 filter={['!', ['has', 'point_count']]}
                 style={markerStyle}
               />
-            </Mapbox.ShapeSource>
 
-            {/* Radius circle visualization - hide for worldwide */}
-            {radiusKm < 50000 && (
-              <Mapbox.ShapeSource
-                id="radius-circle"
-                shape={{
-                  type: 'Feature',
-                  geometry: {
-                    type: 'Point',
-                    coordinates: mapCenter,
-                  },
-                  properties: {},
-                }}
-              >
-                <Mapbox.CircleLayer
-                  id="radius-fill"
-                  style={{
-                    circleRadius: radiusKm * 50, // Approximate visual size
-                    circleColor: colors.accent.primary,
-                    circleOpacity: 0.1,
-                    circleStrokeColor: colors.accent.primary,
-                    circleStrokeWidth: 1,
-                    circleStrokeOpacity: 0.3,
-                  }}
-                />
-              </Mapbox.ShapeSource>
-            )}
+              {/* Individual markers - inner dot */}
+              <Mapbox.CircleLayer
+                id="unclustered-inner"
+                filter={['!', ['has', 'point_count']]}
+                style={markerInnerStyle}
+              />
+            </Mapbox.ShapeSource>
           </Mapbox.MapView>
         )}
 
@@ -359,22 +408,7 @@ export default function MapScreen() {
           style={[styles.centerButton, { backgroundColor: colors.background.secondary }]}
           onPress={handleCenterOnLocation}
         >
-          <CrosshairSimple size={22} color={colors.accent.primary} weight="bold" />
-        </TouchableOpacity>
-
-        {/* Refresh button */}
-        <TouchableOpacity
-          style={[styles.refreshButton, { backgroundColor: colors.background.secondary }]}
-          onPress={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color={colors.accent.primary} />
-          ) : (
-            <Text style={[styles.refreshText, { color: colors.accent.primary }]}>
-              Refresh
-            </Text>
-          )}
+          <NavigationArrow size={22} color={colors.accent.primary} weight="bold" />
         </TouchableOpacity>
       </View>
 
@@ -405,26 +439,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     marginTop: 4,
   },
-  radiusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: Spacing.borderRadius.md,
-    gap: 8,
-  },
-  radiusButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Spacing.borderRadius.sm,
-  },
-  radiusButtonText: {
-    ...Typography.caption,
-    fontWeight: '600',
-  },
   mapContainer: {
     flex: 1,
     position: 'relative',
@@ -439,8 +453,8 @@ const styles = StyleSheet.create({
   },
   centerButton: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
+    bottom: 47,
+    right: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -451,22 +465,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  refreshButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: Spacing.borderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  refreshText: {
-    ...Typography.caption,
-    fontWeight: '600',
   },
 });

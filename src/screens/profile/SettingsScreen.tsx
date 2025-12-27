@@ -289,9 +289,6 @@ export default function SettingsScreen() {
               <Text style={[styles.aboutText, { color: colors.text.secondary }]}>
                 Less friction. More participation.
               </Text>
-              <Text style={[styles.aboutVersion, { color: colors.text.tertiary }]}>
-                Version 1.0.0
-              </Text>
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://www.linkble-app.com/')}
                 activeOpacity={0.7}
@@ -466,10 +463,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     textAlign: 'center',
     marginBottom: 8,
-  },
-  aboutVersion: {
-    ...Typography.caption,
-    textAlign: 'center',
   },
   learnMoreButton: {
     marginTop: 12,

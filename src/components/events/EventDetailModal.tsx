@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, Tag } from 'phosphor-react-native';
+import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass } from 'phosphor-react-native';
+import CategoryIcon from '../common/CategoryIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
 import Button from '../common/Button';
@@ -281,6 +282,8 @@ export default function EventDetailModal({
           title="Cancel Event"
           variant="secondary"
           onPress={handleCancelEvent}
+          style={{ backgroundColor: colors.background.tertiary, borderRadius: 12, height: 48, paddingVertical: 0 }}
+          textStyle={{ color: colors.status.error }}
         />
       );
     }
@@ -403,7 +406,11 @@ export default function EventDetailModal({
               <View style={styles.infoSection}>
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: event.category?.color + '20' }]}>
-                    <Tag size={18} color={event.category?.color || colors.accent.primary} weight="bold" />
+                    <CategoryIcon
+                      categoryName={event.category?.name || 'sports_hobbies'}
+                      size={18}
+                      color={event.category?.color || colors.accent.primary}
+                    />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>

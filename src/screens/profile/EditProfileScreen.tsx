@@ -261,7 +261,6 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Email</Text>
             <TextInput
-              label="Email"
               placeholder="your@email.com"
               value={email}
               onChangeText={setEmail}
@@ -287,21 +286,18 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Change Password</Text>
             <TextInput
-              label="Current Password"
               placeholder="Enter current password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
             />
             <TextInput
-              label="New Password"
               placeholder="Enter new password"
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
             />
             <TextInput
-              label="Confirm New Password"
               placeholder="Confirm new password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}

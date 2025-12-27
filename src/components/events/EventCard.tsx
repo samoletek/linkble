@@ -11,6 +11,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { EventWithHost } from '../../types/database';
 import { CATEGORY_COLORS } from '../../utils/constants';
+import CategoryIcon from '../common/CategoryIcon';
 
 interface EventCardProps {
   event: EventWithHost;
@@ -124,6 +125,11 @@ export default function EventCard({ event, onPress }: EventCardProps) {
               {formatEventDate(event.start_time)} at {formatEventTime(event.start_time)}
             </Text>
             <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
+              <CategoryIcon
+                categoryName={event.category?.name || 'sports_hobbies'}
+                size={12}
+                color={categoryColor}
+              />
               <Text style={[styles.categoryText, { color: categoryColor }]}>
                 {event.category?.display_name === 'Private Events' ? 'Private' : (event.category?.display_name || 'Event')}
               </Text>
@@ -198,6 +204,9 @@ const styles = StyleSheet.create({
     ...Typography.caption,
   },
   categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,

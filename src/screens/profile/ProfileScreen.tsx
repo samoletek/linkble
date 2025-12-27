@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, TextInput, Keyboard, TouchableWithoutFeedback, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, GearSix, PencilSimple, PlusCircle } from 'phosphor-react-native';
+import { User, GearSix, PencilSimple, Plus } from 'phosphor-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -215,10 +215,10 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Interests</Text>
           <TouchableOpacity
             onPress={() => setShowInterestsModal(true)}
-            style={[styles.addInterestsButton, { backgroundColor: colors.background.secondary }]}
+            style={[styles.addInterestsButton, { backgroundColor: colors.accent.primary }]}
             activeOpacity={0.7}
           >
-            <PlusCircle size={20} color={colors.accent.primary} weight="fill" />
+            <Plus size={20} color="#FFFFFF" weight="bold" />
           </TouchableOpacity>
         </View>
         {userInterests.length > 0 ? (
@@ -411,6 +411,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#00A8FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   interestsList: {
     flexDirection: 'row',

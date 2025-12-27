@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { MapPin, MagnifyingGlass, X, NavigationArrow } from 'phosphor-react-native';
+import { MagnifyingGlass, NavigationArrow } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import EventCard from '../../components/events/EventCard';
@@ -29,7 +29,7 @@ const HEADER_MIN_HEIGHT = 40;
 const TITLE_MAX_SIZE = 32;
 const TITLE_MIN_SIZE = 20;
 
-const RADIUS_OPTIONS = [10, 20, 30, 50, 50000];
+const RADIUS_OPTIONS = [10, 20, 30, 50000];
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
@@ -48,7 +48,6 @@ export default function FeedScreen() {
   // Location store
   const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
   const manualAddress = useLocationStore((state) => state.manualAddress);
-  const gpsPermissionGranted = useLocationStore((state) => state.gpsPermissionGranted);
   const isLocationLoading = useLocationStore((state) => state.isLoading);
   const locationError = useLocationStore((state) => state.error);
   const requestGpsLocation = useLocationStore((state) => state.requestGpsLocation);
@@ -61,7 +60,8 @@ export default function FeedScreen() {
   const [radiusModalVisible, setRadiusModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'public' | 'private'>('public');
-  const [addressInput, setAddressInput] = useState('');
+  const [addressInput, setAddressInput] = useState(manualAddress || '');
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
 
   // Filtered and sorted events (nearest in time first)
   // Private tab: category.display_name === 'Private Events'
@@ -70,10 +70,13 @@ export default function FeedScreen() {
     return events
       .filter(event => {
         const isPrivateCategory = event.category?.display_name === 'Private Events';
-        return filter === 'public' ? !isPrivateCategory : isPrivateCategory;
+        const matchesFilter = filter === 'public' ? !isPrivateCategory : isPrivateCategory;
+        const matchesSearch = !eventSearchQuery.trim() ||
+          event.title.toLowerCase().includes(eventSearchQuery.toLowerCase().trim());
+        return matchesFilter && matchesSearch;
       })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [events, filter]);
+  }, [events, filter, eventSearchQuery]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -89,6 +92,13 @@ export default function FeedScreen() {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
     }
   }, [effectiveLocation, searchRadius]);
+
+  // Sync address input when modal opens
+  useEffect(() => {
+    if (radiusModalVisible) {
+      setAddressInput(manualAddress || '');
+    }
+  }, [radiusModalVisible, manualAddress]);
 
   const initializeLocation = async () => {
     // Try GPS first
@@ -144,7 +154,6 @@ export default function FeedScreen() {
 
     if (result.success) {
       setRadiusModalVisible(false);
-      setAddressInput('');
     } else {
       Alert.alert('Error', result.error || 'Could not find address');
     }
@@ -154,6 +163,7 @@ export default function FeedScreen() {
     const granted = await requestGpsLocation();
     if (granted) {
       clearManualAddress();
+      setAddressInput('');
       setRadiusModalVisible(false);
     } else {
       Alert.alert(
@@ -161,11 +171,6 @@ export default function FeedScreen() {
         'Please enable location access in your device settings to use GPS.'
       );
     }
-  };
-
-  const handleClearManualAddress = () => {
-    clearManualAddress();
-    setAddressInput('');
   };
 
   const headerHeight = scrollY.interpolate({
@@ -243,7 +248,7 @@ export default function FeedScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            filter === 'public' && { backgroundColor: colors.accent.primary },
+            { backgroundColor: filter === 'public' ? colors.accent.primary : colors.background.tertiary },
           ]}
           onPress={() => setFilter('public')}
         >
@@ -259,7 +264,7 @@ export default function FeedScreen() {
         <TouchableOpacity
           style={[
             styles.filterButton,
-            filter === 'private' && { backgroundColor: colors.accent.primary },
+            { backgroundColor: filter === 'private' ? colors.accent.primary : colors.background.tertiary },
           ]}
           onPress={() => setFilter('private')}
         >
@@ -279,10 +284,7 @@ export default function FeedScreen() {
           style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
           onPress={() => setRadiusModalVisible(true)}
         >
-          <MapPin size={14} color={colors.text.secondary} weight="bold" />
-          <Text style={[styles.radiusText, { color: colors.text.secondary }]}>
-            {searchRadius >= 50000 ? '>50 km' : `${searchRadius} km`}
-          </Text>
+          <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -346,34 +348,12 @@ export default function FeedScreen() {
               styles.radiusModal,
               { backgroundColor: colors.background.secondary }
             ]}
-            onPress={(e) => e.stopPropagation()}
+            onPress={() => Keyboard.dismiss()}
           >
             {/* Location Section */}
             <Text style={[styles.radiusModalTitle, { color: colors.text.primary }]}>
               Location
             </Text>
-
-            {/* Current location display */}
-            {gpsPermissionGranted && !manualAddress && (
-              <View style={[styles.currentLocationRow, { backgroundColor: colors.background.tertiary }]}>
-                <NavigationArrow size={16} color={colors.accent.primary} weight="fill" />
-                <Text style={[styles.currentLocationText, { color: colors.text.primary }]}>
-                  Using GPS location
-                </Text>
-              </View>
-            )}
-
-            {manualAddress && (
-              <View style={[styles.currentLocationRow, { backgroundColor: colors.background.tertiary }]}>
-                <MapPin size={16} color={colors.accent.primary} weight="fill" />
-                <Text style={[styles.currentLocationText, { color: colors.text.primary }]} numberOfLines={1}>
-                  {manualAddress}
-                </Text>
-                <TouchableOpacity onPress={handleClearManualAddress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <X size={16} color={colors.text.tertiary} weight="bold" />
-                </TouchableOpacity>
-              </View>
-            )}
 
             {!effectiveLocation && (
               <Text style={[styles.locationHint, { color: colors.text.secondary }]}>
@@ -416,7 +396,7 @@ export default function FeedScreen() {
             >
               <NavigationArrow size={16} color={colors.accent.primary} weight="bold" />
               <Text style={[styles.useGpsText, { color: colors.accent.primary }]}>
-                Use GPS Location
+                Use my location
               </Text>
             </TouchableOpacity>
 
@@ -426,8 +406,25 @@ export default function FeedScreen() {
               </Text>
             )}
 
-            {/* Radius Section */}
+            {/* Event Search */}
             <Text style={[styles.radiusModalTitle, { color: colors.text.primary, marginTop: 20 }]}>
+              Search Events
+            </Text>
+            <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
+              <MagnifyingGlass size={18} color={colors.text.tertiary} />
+              <TextInput
+                style={[styles.addressInput, { color: colors.text.primary }]}
+                placeholder="Event name..."
+                placeholderTextColor={colors.text.tertiary}
+                value={eventSearchQuery}
+                onChangeText={setEventSearchQuery}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Radius Section */}
+            <Text style={[styles.radiusModalTitle, { color: colors.text.primary, marginTop: 12 }]}>
               Search Radius
             </Text>
 
@@ -447,7 +444,7 @@ export default function FeedScreen() {
                       { color: searchRadius === radius ? '#FFFFFF' : colors.text.secondary }
                     ]}
                   >
-                    {radius >= 50000 ? '>50 km' : `${radius} km`}
+                    {radius >= 50000 ? 'All' : `${radius} km`}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -490,7 +487,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
   },
   filterText: {
     fontSize: 14,
@@ -502,7 +498,8 @@ const styles = StyleSheet.create({
   radiusButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    height: 34,
     paddingHorizontal: 12,
     borderRadius: 20,
     gap: 4,
@@ -561,18 +558,6 @@ const styles = StyleSheet.create({
     ...Typography.h4,
     marginBottom: 12,
   },
-  currentLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: Spacing.borderRadius.md,
-    marginBottom: 12,
-    gap: 8,
-  },
-  currentLocationText: {
-    ...Typography.body,
-    flex: 1,
-  },
   locationHint: {
     ...Typography.caption,
     textAlign: 'center',
@@ -583,14 +568,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: Spacing.borderRadius.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    height: 44,
     gap: 8,
     marginBottom: 10,
   },
   addressInput: {
     flex: 1,
-    ...Typography.body,
+    fontSize: 16,
     padding: 0,
+    margin: 0,
+    height: 44,
+    textAlignVertical: 'center',
   },
   addressSubmitButton: {
     paddingVertical: 12,
