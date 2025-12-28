@@ -1,4 +1,4 @@
-package com.templinkupp
+package com.samoletek.linkble
 
 import android.os.Build
 import android.os.Bundle

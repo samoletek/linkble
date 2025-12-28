@@ -9,9 +9,6 @@ import { useAuthStore } from '../stores/authStore';
 import { useUserStore } from '../stores/userStore';
 import type { RootStackParamList } from '../types';
 
-// DEV: Set to true to skip authentication during development
-const DEV_SKIP_AUTH = false;
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
@@ -73,7 +70,7 @@ export default function RootNavigator() {
     );
   }
 
-  const isAuthenticated = DEV_SKIP_AUTH || !!session;
+  const isAuthenticated = !!session;
 
   return (
     <>

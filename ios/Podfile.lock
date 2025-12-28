@@ -1,14 +1,14 @@
 PODS:
-  - EXApplication (7.0.7):
+  - EXApplication (7.0.8):
     - ExpoModulesCore
-  - EXConstants (18.0.10):
+  - EXConstants (18.0.12):
     - ExpoModulesCore
   - EXImageLoader (6.0.0):
     - ExpoModulesCore
     - React-Core
-  - EXNotifications (0.32.13):
+  - EXNotifications (0.32.15):
     - ExpoModulesCore
-  - Expo (54.0.25):
+  - Expo (54.0.30):
     - ExpoModulesCore
     - hermes-engine
     - RCTRequired
@@ -33,23 +33,23 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoAsset (12.0.10):
+  - ExpoAsset (12.0.12):
     - ExpoModulesCore
   - ExpoBlur (15.0.8):
     - ExpoModulesCore
-  - ExpoDevice (8.0.9):
+  - ExpoDevice (8.0.10):
     - ExpoModulesCore
-  - ExpoFileSystem (19.0.19):
+  - ExpoFileSystem (19.0.21):
     - ExpoModulesCore
-  - ExpoFont (14.0.9):
+  - ExpoFont (14.0.10):
     - ExpoModulesCore
-  - ExpoImagePicker (17.0.8):
+  - ExpoImagePicker (17.0.10):
     - ExpoModulesCore
-  - ExpoKeepAwake (15.0.7):
+  - ExpoKeepAwake (15.0.8):
     - ExpoModulesCore
-  - ExpoLocation (19.0.7):
+  - ExpoLocation (19.0.8):
     - ExpoModulesCore
-  - ExpoModulesCore (3.0.26):
+  - ExpoModulesCore (3.0.29):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -76,14 +76,13 @@ PODS:
   - hermes-engine (0.81.5):
     - hermes-engine/Pre-built (= 0.81.5)
   - hermes-engine/Pre-built (0.81.5)
-  - MapboxCommon (24.16.6):
-    - Turf (= 4.0.0)
-  - MapboxCoreMaps (11.16.6):
-    - MapboxCommon (= 24.16.6)
-  - MapboxMaps (11.16.6):
-    - MapboxCommon (= 24.16.6)
-    - MapboxCoreMaps (= 11.16.6)
-    - Turf (= 4.0.0)
+  - MapboxCommon (24.8.0)
+  - MapboxCoreMaps (11.8.0):
+    - MapboxCommon (~> 24.8)
+  - MapboxMaps (11.8.0):
+    - MapboxCommon (= 24.8.0)
+    - MapboxCoreMaps (= 11.8.0)
+    - Turf (= 3.0.0)
   - RCTDeprecation (0.81.5)
   - RCTRequired (0.81.5)
   - RCTTypeSafety (0.81.5):
@@ -1873,7 +1872,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNGestureHandler (2.29.1):
+  - RNGestureHandler (2.30.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -1895,15 +1894,15 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - rnmapbox-maps (10.2.10):
-    - MapboxMaps (~> 11.16.2)
+  - rnmapbox-maps (10.1.30):
+    - MapboxMaps (= 11.8.0)
     - React
     - React-Core
-    - rnmapbox-maps/DynamicLibrary (= 10.2.10)
+    - rnmapbox-maps/DynamicLibrary (= 10.1.30)
     - Turf
-  - rnmapbox-maps/DynamicLibrary (10.2.10):
+  - rnmapbox-maps/DynamicLibrary (10.1.30):
     - hermes-engine
-    - MapboxMaps (~> 11.16.2)
+    - MapboxMaps (= 11.8.0)
     - RCTRequired
     - RCTTypeSafety
     - React
@@ -2014,7 +2013,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - Turf (4.0.0)
+  - Turf (3.0.0)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2298,25 +2297,25 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  EXApplication: 296622817d459f46b6c5fe8691f4aac44d2b79e7
-  EXConstants: fd688cef4e401dcf798a021cfb5d87c890c30ba3
+  EXApplication: 1e98d4b1dccdf30627f92917f4b2c5a53c330e5f
+  EXConstants: 805f35b1b295c542ca6acce836f21a1f9ee104d5
   EXImageLoader: 189e3476581efe3ad4d1d3fb4735b7179eb26f05
-  EXNotifications: a62e1f8e3edd258dc3b155d3caa49f32920f1c6c
-  Expo: 111394d38f32be09385d4c7f70cc96d2da438d0d
-  ExpoAsset: d839c8eae8124470332408427327e8f88beb2dfd
+  EXNotifications: 983f04ad4ad879b181179e326bf220541e478386
+  Expo: 60c21ba34593688a2a6e8445c1f8b44abb0e3fae
+  ExpoAsset: f867e55ceb428aab99e1e8c082b5aee7c159ea18
   ExpoBlur: b90747a3f22a8b6ceffd9cb0dc41a4184efdc656
-  ExpoDevice: 148accb4071873d19fba80a2506c58ffa433d620
-  ExpoFileSystem: 77157a101e03150a4ea4f854b4dd44883c93ae0a
-  ExpoFont: cf9d90ec1d3b97c4f513211905724c8171f82961
-  ExpoImagePicker: d251aab45a1b1857e4156fed88511b278b4eee1c
-  ExpoKeepAwake: 1a2e820692e933c94a565ec3fbbe38ac31658ffe
-  ExpoLocation: 93d7faa0c2adbd5a04686af0c1a61bc6ed3ee2f7
-  ExpoModulesCore: e8ec7f8727caf51a49d495598303dd420ca994bf
+  ExpoDevice: 6327c3c200816795708885adf540d26ecab83d1a
+  ExpoFileSystem: 858a44267a3e6e9057e0888ad7c7cfbf55d52063
+  ExpoFont: 35ac6191ed86bbf56b3ebd2d9154eda9fad5b509
+  ExpoImagePicker: 1af3e4e31512d2f34c95c2a3018a3edc40aee748
+  ExpoKeepAwake: 55f75eca6499bb9e4231ebad6f3e9cb8f99c0296
+  ExpoLocation: d5b61cb4970fa982e39ca94246a206a0c3b812ca
+  ExpoModulesCore: f3da4f1ab5a8375d0beafab763739dbee8446583
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
-  MapboxCommon: 10cbf74edb23c9abcfe2424899d804f288a47334
-  MapboxCoreMaps: f19680d20681797067268284b2292349de861730
-  MapboxMaps: 04c7bf46d66265ad0f4b98484a251777a926c423
+  MapboxCommon: 95fe03b74d0d0ca39dc646ca14862deb06875151
+  MapboxCoreMaps: f2a82182c5f6c6262220b81547c6df708012932b
+  MapboxMaps: dbe1869006c5918d62efc6b475fb884947ea2ecd
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
   RCTTypeSafety: 16a4144ca3f959583ab019b57d5633df10b5e97c
@@ -2385,13 +2384,13 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: 71ce9c28beb282aa720ea7b46980fff9669f428a
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNDateTimePicker: 19ffa303c4524ec0a2dfdee2658198451c16b7f1
-  RNGestureHandler: 723f29dac55e25f109d263ed65cecc4b9c4bd46a
-  rnmapbox-maps: 6135ab50fda2676f742555f210d1e1657a5b6378
+  RNGestureHandler: e0d0bce5599f6120b7adf90c38d2805e2935795f
+  rnmapbox-maps: 3609f66bf48f915e9579643713998ef88fcada91
   RNScreens: 6f7a6128b0d33ce66e60309b6c998a2235abe1f3
   RNSVG: cf9ae78f2edf2988242c71a6392d15ff7dd62522
-  Turf: c9eb11a65d96af58cac523460fd40fec5061b081
+  Turf: a1604e74adce15c58462c9ae2acdbf049d5be35e
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: ced721d06a0166e9593fd4913062955184d94e73
+PODFILE CHECKSUM: 9797286f7c3145a47b4cf85f48497b994539ff23
 
 COCOAPODS: 1.16.2

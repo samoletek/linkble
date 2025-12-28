@@ -1,4 +1,4 @@
-package com.templinkupp
+package com.samoletek.linkble
 
 import android.app.Application
 import android.content.res.Configuration
