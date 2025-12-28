@@ -8,28 +8,28 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		36EF3FCB5B0BDEDE20ACC56E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F449AB53D3249E52289704C1 /* PrivacyInfo.xcprivacy */; };
+		16213F1A71E7AD06523CB66B /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70799125E258E197E59DF71A /* ExpoModulesProvider.swift */; };
+		2DBDE00AFB51796004F84362 /* libPods-Linkble.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ACEEF91721FA10344C8851E5 /* libPods-Linkble.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		818F77B7D30E73072A231184 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07347A8775DB9B0615CF3EB0 /* ExpoModulesProvider.swift */; };
+		68885E3D21FA1355A480FF37 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BDA1073426786C2C081E36F7 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F4A7026ACC1E06ADB16C3CCF /* libPods-Linkble.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8F74A6ECCB1572846AB47F34 /* libPods-Linkble.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		07347A8775DB9B0615CF3EB0 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Linkble/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Linkble.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Linkble.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Linkble/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Linkble/Info.plist; sourceTree = "<group>"; };
-		4BA5D15FA4C57C6CB8F5D732 /* Pods-Linkble.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Linkble.release.xcconfig"; path = "Target Support Files/Pods-Linkble/Pods-Linkble.release.xcconfig"; sourceTree = "<group>"; };
-		8F74A6ECCB1572846AB47F34 /* libPods-Linkble.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Linkble.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A3CD0FC28E81A0C2A79AC89D /* Pods-Linkble.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Linkble.debug.xcconfig"; path = "Target Support Files/Pods-Linkble/Pods-Linkble.debug.xcconfig"; sourceTree = "<group>"; };
+		3918FC8BB8626E38D010C440 /* Pods-Linkble.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Linkble.release.xcconfig"; path = "Target Support Files/Pods-Linkble/Pods-Linkble.release.xcconfig"; sourceTree = "<group>"; };
+		47945B0298CD3ED702A392B7 /* Pods-Linkble.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Linkble.debug.xcconfig"; path = "Target Support Files/Pods-Linkble/Pods-Linkble.debug.xcconfig"; sourceTree = "<group>"; };
+		70799125E258E197E59DF71A /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Linkble/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Linkble/SplashScreen.storyboard; sourceTree = "<group>"; };
+		ACEEF91721FA10344C8851E5 /* libPods-Linkble.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Linkble.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		BDA1073426786C2C081E36F7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Linkble/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Linkble/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Linkble-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Linkble-Bridging-Header.h"; path = "Linkble/Linkble-Bridging-Header.h"; sourceTree = "<group>"; };
-		F449AB53D3249E52289704C1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Linkble/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F4A7026ACC1E06ADB16C3CCF /* libPods-Linkble.a in Frameworks */,
+				2DBDE00AFB51796004F84362 /* libPods-Linkble.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,26 +53,34 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				F449AB53D3249E52289704C1 /* PrivacyInfo.xcprivacy */,
+				BDA1073426786C2C081E36F7 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Linkble;
+			sourceTree = "<group>";
+		};
+		1E1A7E3736B3B65DC9E3C160 /* Linkble */ = {
+			isa = PBXGroup;
+			children = (
+				70799125E258E197E59DF71A /* ExpoModulesProvider.swift */,
+			);
+			name = Linkble;
+			sourceTree = "<group>";
+		};
+		213A72BF0AF56177E228DC1E /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				1E1A7E3736B3B65DC9E3C160 /* Linkble */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				8F74A6ECCB1572846AB47F34 /* libPods-Linkble.a */,
+				ACEEF91721FA10344C8851E5 /* libPods-Linkble.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		76B72EC4D8631F7C5F7B2203 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				CD386A721599389D0AA1AAFB /* Linkble */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -89,8 +97,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				C27FA66EC7628F1718368881 /* Pods */,
-				76B72EC4D8631F7C5F7B2203 /* ExpoModulesProviders */,
+				C293A4FAC725399B8F923D84 /* Pods */,
+				213A72BF0AF56177E228DC1E /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -114,22 +122,14 @@
 			path = Linkble/Supporting;
 			sourceTree = "<group>";
 		};
-		C27FA66EC7628F1718368881 /* Pods */ = {
+		C293A4FAC725399B8F923D84 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				A3CD0FC28E81A0C2A79AC89D /* Pods-Linkble.debug.xcconfig */,
-				4BA5D15FA4C57C6CB8F5D732 /* Pods-Linkble.release.xcconfig */,
+				47945B0298CD3ED702A392B7 /* Pods-Linkble.debug.xcconfig */,
+				3918FC8BB8626E38D010C440 /* Pods-Linkble.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
-			sourceTree = "<group>";
-		};
-		CD386A721599389D0AA1AAFB /* Linkble */ = {
-			isa = PBXGroup;
-			children = (
-				07347A8775DB9B0615CF3EB0 /* ExpoModulesProvider.swift */,
-			);
-			name = Linkble;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Linkble" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				3141C6056BB0AEDC1BC4C367 /* [Expo] Configure project */,
+				7E1945A7F550F199210682D1 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				CF975C99F74F974387655AF4 /* [CP] Embed Pods Frameworks */,
+				6F56E534A7B16603B1D35182 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				36EF3FCB5B0BDEDE20ACC56E /* PrivacyInfo.xcprivacy in Resources */,
+				68885E3D21FA1355A480FF37 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,7 +242,37 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		3141C6056BB0AEDC1BC4C367 /* [Expo] Configure project */ = {
+		6F56E534A7B16603B1D35182 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Linkble/Pods-Linkble-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/MapboxMaps/MapboxMaps.framework",
+				"${BUILT_PRODUCTS_DIR}/Turf/Turf.framework",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/MapboxCommon/MapboxCommon.framework/MapboxCommon",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/MapboxCoreMaps/MapboxCoreMaps.framework/MapboxCoreMaps",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxMaps.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Turf.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxCommon.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxCoreMaps.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Linkble/Pods-Linkble-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		7E1945A7F550F199210682D1 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -302,36 +332,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Linkble/Pods-Linkble-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		CF975C99F74F974387655AF4 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Linkble/Pods-Linkble-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/MapboxMaps/MapboxMaps.framework",
-				"${BUILT_PRODUCTS_DIR}/Turf/Turf.framework",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/MapboxCommon/MapboxCommon.framework/MapboxCommon",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/MapboxCoreMaps/MapboxCoreMaps.framework/MapboxCoreMaps",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxMaps.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Turf.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxCommon.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MapboxCoreMaps.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Linkble/Pods-Linkble-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -340,7 +340,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				818F77B7D30E73072A231184 /* ExpoModulesProvider.swift in Sources */,
+				16213F1A71E7AD06523CB66B /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -349,7 +349,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A3CD0FC28E81A0C2A79AC89D /* Pods-Linkble.debug.xcconfig */;
+			baseConfigurationReference = 47945B0298CD3ED702A392B7 /* Pods-Linkble.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -385,7 +385,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4BA5D15FA4C57C6CB8F5D732 /* Pods-Linkble.release.xcconfig */;
+			baseConfigurationReference = 3918FC8BB8626E38D010C440 /* Pods-Linkble.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

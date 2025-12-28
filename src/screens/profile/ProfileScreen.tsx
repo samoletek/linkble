@@ -12,7 +12,6 @@ import { useEventsStore } from '../../stores/eventsStore';
 import type { ProfileStackParamList } from '../../types';
 import { getInterestsByIds } from '../../utils/interests';
 import InterestsModal from '../../components/profile/InterestsModal';
-import DraggableInterestsList from '../../components/profile/DraggableInterestsList';
 
 type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
@@ -118,9 +117,6 @@ export default function ProfileScreen() {
     await updateProfile({ interests });
   };
 
-  const handleReorderInterests = async (reorderedIds: number[]) => {
-    await updateProfile({ interests: reorderedIds });
-  };
 
   // Get interests from profile
   const userInterests = getInterestsByIds(profile?.interests || []);
@@ -222,10 +218,18 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
         {userInterests.length > 0 ? (
-          <DraggableInterestsList
-            interests={userInterests}
-            onReorder={handleReorderInterests}
-          />
+          <View style={styles.interestsList}>
+            {userInterests.map((interest) => (
+              <View
+                key={interest.id}
+                style={[styles.interestTag, { backgroundColor: colors.background.secondary }]}
+              >
+                <Text style={[styles.interestText, { color: colors.text.primary }]}>
+                  {interest.name}
+                </Text>
+              </View>
+            ))}
+          </View>
         ) : (
           <TouchableOpacity
             onPress={() => setShowInterestsModal(true)}

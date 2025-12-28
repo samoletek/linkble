@@ -578,6 +578,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             maximumDate={new Date()}
             minimumDate={new Date(1900, 0, 1)}
             themeVariant={activeTheme}
+            locale="en-GB"
           />
           {Platform.OS === 'ios' && (
             <Button

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass } from 'phosphor-react-native';
+import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple } from 'phosphor-react-native';
 import CategoryIcon from '../common/CategoryIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
@@ -30,6 +30,7 @@ interface EventDetailModalProps {
   onClose: () => void;
   onOpenChat?: (eventId: string) => void;
   onJoinSuccess?: () => void;
+  onEdit?: (event: EventWithHost) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -59,6 +60,7 @@ export default function EventDetailModal({
   onClose,
   onOpenChat,
   onJoinSuccess,
+  onEdit,
 }: EventDetailModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -72,31 +74,44 @@ export default function EventDetailModal({
   const blurOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 5,
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
         const y = Math.max(0, gestureState.dy);
         dragY.setValue(y);
       },
       onPanResponderRelease: (_, gestureState) => {
-        const shouldClose = gestureState.dy > 150 || gestureState.vy > 1.0;
+        const shouldClose = gestureState.dy > 100 || gestureState.vy > 0.5;
         if (shouldClose) {
-          Animated.timing(dragY, {
-            toValue: 600,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            onClose();
-            dragY.setValue(0);
+          const velocity = Math.max(gestureState.vy, 0.5);
+          const remainingDistance = 600 - gestureState.dy;
+          const duration = Math.min(300, remainingDistance / velocity);
+
+          Animated.parallel([
+            Animated.timing(dragY, {
+              toValue: 600,
+              duration,
+              useNativeDriver: true,
+            }),
+            Animated.timing(blurOpacity, {
+              toValue: 0,
+              duration,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            onCloseRef.current();
           });
         } else {
           Animated.spring(dragY, {
             toValue: 0,
             useNativeDriver: true,
-            bounciness: 6,
+            damping: 15,
+            stiffness: 150,
           }).start();
         }
       },
@@ -118,6 +133,7 @@ export default function EventDetailModal({
 
   useEffect(() => {
     if (visible) {
+      dragY.setValue(0);
       Animated.parallel([
         Animated.spring(slideY, {
           toValue: 0,
@@ -132,20 +148,11 @@ export default function EventDetailModal({
         }),
       ]).start();
     } else {
-      Animated.parallel([
-        Animated.timing(slideY, {
-          toValue: 600,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      slideY.setValue(600);
+      blurOpacity.setValue(0);
+      dragY.setValue(0);
     }
-  }, [visible, slideY, blurOpacity]);
+  }, [visible, slideY, blurOpacity, dragY]);
 
   const handleJoinRequest = useCallback(async () => {
     if (!event) return;
@@ -360,7 +367,6 @@ export default function EventDetailModal({
 
       <View style={styles.modalWrapper}>
         <Animated.View
-          {...panResponder.panHandlers}
           style={[
             styles.modalContent,
             {
@@ -374,9 +380,12 @@ export default function EventDetailModal({
             },
           ]}
         >
-          <View style={styles.handleContainer}>
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={styles.handleContainer}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
-          </View>
+          </Animated.View>
 
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <View style={[styles.closeButtonBg, { backgroundColor: colors.background.primary }]}>
@@ -538,6 +547,17 @@ export default function EventDetailModal({
                   <ChatCircle size={22} color={colors.text.primary} weight="bold" />
                 </TouchableOpacity>
               )}
+              {isHost && onEdit && (
+                <TouchableOpacity
+                  style={[styles.chatButton, { backgroundColor: colors.background.tertiary }]}
+                  onPress={() => {
+                    onClose();
+                    onEdit(event);
+                  }}
+                >
+                  <PencilSimple size={22} color={colors.text.primary} weight="bold" />
+                </TouchableOpacity>
+              )}
               <View style={styles.joinButtonContainer}>
                 {renderActionButton()}
               </View>
@@ -581,8 +601,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 12,
-    paddingBottom: 8,
+    height: 40,
+    justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
   },

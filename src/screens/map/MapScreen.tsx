@@ -11,22 +11,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Mapbox, { ShapeSource } from '@rnmapbox/maps';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants';
+import { CATEGORY_COLORS } from '../../utils/constants';
 import { getAllEvents } from '../../services/events';
 import { supabase } from '../../config/supabase';
 import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
 import EventDetailModal from '../../components/events/EventDetailModal';
+import CreateEventModal from '../../components/events/CreateEventModal';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePinImages } from '../../components/map/usePinImages';
 
 const DEFAULT_CENTER: [number, number] = [-73.9857, 40.7484]; // New York [lng, lat]
 
 // Clustering configuration
 const CLUSTER_RADIUS = 50;
 const CLUSTER_MAX_ZOOM = 14;
-const CLUSTER_MIN_POINTS = 2;
 
-// Convert events to GeoJSON FeatureCollection
+// Default category for events without category
+const DEFAULT_CATEGORY = 'sports_hobbies';
+
+// Convert events to GeoJSON FeatureCollection with category info
 const eventsToGeoJSON = (events: EventWithHost[]): GeoJSON.FeatureCollection => ({
   type: 'FeatureCollection',
   features: events.map((event) => ({
@@ -38,9 +43,8 @@ const eventsToGeoJSON = (events: EventWithHost[]): GeoJSON.FeatureCollection => 
     },
     properties: {
       id: event.id,
-      title: event.title,
-      category: event.category?.display_name || 'Event',
-      categoryColor: event.category?.color || '#007AFF',
+      categoryName: event.category?.name || DEFAULT_CATEGORY,
+      color: event.category?.color || CATEGORY_COLORS[event.category?.name || ''] || '#007AFF',
     },
   })),
 });
@@ -54,13 +58,16 @@ export default function MapScreen() {
 
   // Location store
   const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
-  const gpsPermissionGranted = useLocationStore((state) => state.gpsPermissionGranted);
-  const manualAddress = useLocationStore((state) => state.manualAddress);
+
+  // Pin images for custom markers
+  const { pinImages, isLoading: pinsLoading, PinGenerator } = usePinImages();
 
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventWithHost[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<EventWithHost | null>(null);
 
   // Derive map center from effective location
   const mapCenter: [number, number] = effectiveLocation
@@ -104,7 +111,6 @@ export default function MapScreen() {
           table: 'events',
         },
         () => {
-          // Reload events on any change
           loadEvents();
         }
       )
@@ -123,11 +129,6 @@ export default function MapScreen() {
 
     return () => clearInterval(interval);
   }, [filterUpcomingEvents]);
-
-  const handleMarkerPress = (event: EventWithHost) => {
-    setSelectedEvent(event);
-    setModalVisible(true);
-  };
 
   const handleCloseModal = () => {
     setModalVisible(false);
@@ -151,9 +152,14 @@ export default function MapScreen() {
     });
   };
 
+  const handleEditEvent = (event: EventWithHost) => {
+    setEventToEdit(event);
+    setEditModalVisible(true);
+  };
+
   const geojson = useMemo(() => eventsToGeoJSON(events), [events]);
 
-  // Cluster outer circle style - scales with point count
+  // Cluster outer circle style
   const clusterOuterStyle = {
     circleColor: colors.accent.primary,
     circleRadius: [
@@ -167,7 +173,7 @@ export default function MapScreen() {
     circleOpacity: 0.85,
   } as Mapbox.CircleLayerStyle;
 
-  // Cluster inner circle style - white ring effect
+  // Cluster inner circle style
   const clusterInnerStyle = {
     circleColor: '#FFFFFF',
     circleRadius: [
@@ -196,68 +202,24 @@ export default function MapScreen() {
     textAllowOverlap: true,
   } as Mapbox.SymbolLayerStyle;
 
-  // Pin marker shadow style - scales with zoom
-  const markerShadowStyle = {
-    circleColor: '#000000',
-    circleRadius: [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 10,
-      14, 14,
-      18, 18,
-    ],
-    circleOpacity: 0.12,
-    circleTranslate: [0, 2],
-    circleBlur: 0.6,
-  } as Mapbox.CircleLayerStyle;
+  // Unclustered point style - custom pin icons
+  const unclusteredPointStyle = {
+    iconImage: ['get', 'categoryName'],
+    iconSize: 0.2,
+    iconAnchor: 'bottom',
+    iconAllowOverlap: true,
+  } as Mapbox.SymbolLayerStyle;
 
-  // Pin marker main style - category colored, scales with zoom
-  const markerStyle = {
-    circleColor: ['get', 'categoryColor'],
-    circleRadius: [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 8,
-      14, 12,
-      18, 16,
-    ],
-    circleStrokeColor: '#FFFFFF',
-    circleStrokeWidth: [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 2,
-      14, 3,
-      18, 4,
-    ],
-  } as Mapbox.CircleLayerStyle;
-
-  // Pin marker inner dot style - scales with zoom
-  const markerInnerStyle = {
-    circleColor: '#FFFFFF',
-    circleRadius: [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 3,
-      14, 4,
-      18, 5,
-    ],
-  } as Mapbox.CircleLayerStyle;
-
-  // Handle tap on cluster or pin
+  // Handle tap on cluster or point
   const handleShapePress = useCallback(async (e: any) => {
     const feature = e.features?.[0];
     if (!feature) return;
 
     const props = feature.properties || {};
 
-    // Check if it's a cluster (has point_count)
+    // If it's a cluster, zoom in
     if (props.point_count) {
       try {
-        // Get the optimal zoom level to expand this cluster
         const clusterId = props.cluster_id;
         const expansionZoom = await shapeSourceRef.current?.getClusterExpansionZoom(clusterId);
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
@@ -268,7 +230,6 @@ export default function MapScreen() {
           animationDuration: 300,
         });
       } catch {
-        // Fallback: zoom in by 2 levels
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
         cameraRef.current?.setCamera({
           centerCoordinate: coordinates,
@@ -277,11 +238,12 @@ export default function MapScreen() {
         });
       }
     } else {
-      // Individual marker - show event detail
+      // It's a single point - find the event and show modal
       const eventId = props.id;
-      const event = events.find((e) => e.id === eventId);
+      const event = events.find((ev) => ev.id === eventId);
       if (event) {
-        handleMarkerPress(event);
+        setSelectedEvent(event);
+        setModalVisible(true);
       }
     }
   }, [events]);
@@ -296,7 +258,7 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.mapContainer}>
-        {loading ? (
+        {loading || pinsLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent.primary} />
           </View>
@@ -305,7 +267,6 @@ export default function MapScreen() {
             style={styles.map}
             styleURL={activeTheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
             onPress={() => {
-              // Deselect when tapping map
               if (selectedEvent && !modalVisible) {
                 setSelectedEvent(null);
               }
@@ -317,15 +278,47 @@ export default function MapScreen() {
               centerCoordinate={mapCenter}
             />
 
-            {/* User location - show GPS puck when available */}
-            {gpsPermissionGranted && !manualAddress && (
-              <Mapbox.LocationPuck puckBearingEnabled puckBearing="heading" />
-            )}
+            {/* Load custom pin images */}
+            {pinImages && <Mapbox.Images images={pinImages} />}
 
-            {/* Manual address marker */}
-            {manualAddress && effectiveLocation && (
+            {/* Clustering layer */}
+            <Mapbox.ShapeSource
+              id="events-clusters"
+              ref={shapeSourceRef}
+              shape={geojson}
+              cluster
+              clusterRadius={CLUSTER_RADIUS}
+              clusterMaxZoomLevel={CLUSTER_MAX_ZOOM}
+              onPress={handleShapePress}
+            >
+              {/* Cluster circles */}
+              <Mapbox.CircleLayer
+                id="clusters"
+                filter={['has', 'point_count']}
+                style={clusterOuterStyle}
+              />
+              <Mapbox.CircleLayer
+                id="clusters-inner"
+                filter={['has', 'point_count']}
+                style={clusterInnerStyle}
+              />
+              <Mapbox.SymbolLayer
+                id="cluster-count"
+                filter={['has', 'point_count']}
+                style={clusterCountStyle}
+              />
+              {/* Unclustered points - custom pin icons */}
+              <Mapbox.SymbolLayer
+                id="unclustered-points"
+                filter={['!', ['has', 'point_count']]}
+                style={unclusteredPointStyle}
+              />
+            </Mapbox.ShapeSource>
+
+            {/* User location marker - rendered below clusters */}
+            {effectiveLocation && (
               <Mapbox.ShapeSource
-                id="manual-location"
+                id="user-location"
                 shape={{
                   type: 'Feature',
                   geometry: {
@@ -336,7 +329,17 @@ export default function MapScreen() {
                 }}
               >
                 <Mapbox.CircleLayer
-                  id="manual-location-marker"
+                  id="user-location-pulse"
+                  belowLayerID="clusters"
+                  style={{
+                    circleRadius: 24,
+                    circleColor: colors.accent.primary,
+                    circleOpacity: 0.15,
+                  }}
+                />
+                <Mapbox.CircleLayer
+                  id="user-location-dot"
+                  belowLayerID="clusters"
                   style={{
                     circleRadius: 8,
                     circleColor: colors.accent.primary,
@@ -347,59 +350,6 @@ export default function MapScreen() {
               </Mapbox.ShapeSource>
             )}
 
-            {/* Events layer with clustering */}
-            <Mapbox.ShapeSource
-              id="events"
-              ref={shapeSourceRef}
-              shape={geojson}
-              cluster
-              clusterRadius={CLUSTER_RADIUS}
-              clusterMaxZoomLevel={CLUSTER_MAX_ZOOM}
-              clusterMinPoints={CLUSTER_MIN_POINTS}
-              onPress={handleShapePress}
-            >
-              {/* Cluster outer circle */}
-              <Mapbox.CircleLayer
-                id="clusters"
-                filter={['has', 'point_count']}
-                style={clusterOuterStyle}
-              />
-
-              {/* Cluster inner circle - white ring effect */}
-              <Mapbox.CircleLayer
-                id="clusters-inner"
-                filter={['has', 'point_count']}
-                style={clusterInnerStyle}
-              />
-
-              {/* Cluster count text */}
-              <Mapbox.SymbolLayer
-                id="cluster-count"
-                filter={['has', 'point_count']}
-                style={clusterCountStyle}
-              />
-
-              {/* Individual markers - shadow */}
-              <Mapbox.CircleLayer
-                id="unclustered-shadow"
-                filter={['!', ['has', 'point_count']]}
-                style={markerShadowStyle}
-              />
-
-              {/* Individual markers - main pin (category colored) */}
-              <Mapbox.CircleLayer
-                id="unclustered-points"
-                filter={['!', ['has', 'point_count']]}
-                style={markerStyle}
-              />
-
-              {/* Individual markers - inner dot */}
-              <Mapbox.CircleLayer
-                id="unclustered-inner"
-                filter={['!', ['has', 'point_count']]}
-                style={markerInnerStyle}
-              />
-            </Mapbox.ShapeSource>
           </Mapbox.MapView>
         )}
 
@@ -419,7 +369,21 @@ export default function MapScreen() {
         onClose={handleCloseModal}
         onOpenChat={handleOpenChat}
         onJoinSuccess={loadEvents}
+        onEdit={handleEditEvent}
       />
+
+      <CreateEventModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setEventToEdit(null);
+        }}
+        eventToEdit={eventToEdit}
+        onEditSuccess={loadEvents}
+      />
+
+      {/* Hidden component for generating pin images */}
+      {PinGenerator}
     </View>
   );
 }

@@ -20,6 +20,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import EventCard from '../../components/events/EventCard';
 import EventDetailModal from '../../components/events/EventDetailModal';
+import CreateEventModal from '../../components/events/CreateEventModal';
 import { useEventsStore } from '../../stores/eventsStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
@@ -62,6 +63,8 @@ export default function FeedScreen() {
   const [filter, setFilter] = useState<'public' | 'private'>('public');
   const [addressInput, setAddressInput] = useState(manualAddress || '');
   const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<EventWithHost | null>(null);
 
   // Filtered and sorted events (nearest in time first)
   // Private tab: category.display_name === 'Private Events'
@@ -129,6 +132,18 @@ export default function FeedScreen() {
 
   const handleJoinSuccess = () => {
     // Refresh events after join/leave
+    if (effectiveLocation) {
+      loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    }
+  };
+
+  const handleEditEvent = (event: EventWithHost) => {
+    setEventToEdit(event);
+    setEditModalVisible(true);
+  };
+
+  const handleEditSuccess = () => {
+    // Refresh events after edit
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
     }
@@ -237,55 +252,68 @@ export default function FeedScreen() {
 
       <Animated.View
         style={[
-          styles.filterContainer,
+          styles.filterRow,
           {
-            transform: [{ scale: filterScale }],
             marginBottom: filterMargin,
-            transformOrigin: 'left center',
           },
         ]}
       >
-        <TouchableOpacity
+        <Animated.View
           style={[
-            styles.filterButton,
-            { backgroundColor: filter === 'public' ? colors.accent.primary : colors.background.tertiary },
+            styles.filterButtonsContainer,
+            {
+              transform: [{ scale: filterScale }],
+              transformOrigin: 'left center',
+            },
           ]}
-          onPress={() => setFilter('public')}
         >
-          <Text
+          <TouchableOpacity
             style={[
-              styles.filterText,
-              { color: filter === 'public' ? '#FFFFFF' : colors.text.secondary },
+              styles.filterButton,
+              { backgroundColor: filter === 'public' ? colors.accent.primary : colors.background.tertiary },
             ]}
+            onPress={() => setFilter('public')}
           >
-            Public
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            { backgroundColor: filter === 'private' ? colors.accent.primary : colors.background.tertiary },
-          ]}
-          onPress={() => setFilter('private')}
-        >
-          <Text
+            <Text
+              style={[
+                styles.filterText,
+                { color: filter === 'public' ? '#FFFFFF' : colors.text.secondary },
+              ]}
+            >
+              Public
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[
-              styles.filterText,
-              { color: filter === 'private' ? '#FFFFFF' : colors.text.secondary },
+              styles.filterButton,
+              { backgroundColor: filter === 'private' ? colors.accent.primary : colors.background.tertiary },
             ]}
+            onPress={() => setFilter('private')}
           >
-            Private
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.filterText,
+                { color: filter === 'private' ? '#FFFFFF' : colors.text.secondary },
+              ]}
+            >
+              Private
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <View style={styles.filterSpacer} />
-
-        <TouchableOpacity
-          style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
-          onPress={() => setRadiusModalVisible(true)}
+        <Animated.View
+          style={{
+            transform: [{ scale: filterScale }],
+            transformOrigin: 'right center',
+          }}
         >
-          <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
+            onPress={() => setRadiusModalVisible(true)}
+          >
+            <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
 
       {isLoading && events.length === 0 ? (
@@ -327,6 +355,17 @@ export default function FeedScreen() {
         onClose={handleCloseModal}
         onOpenChat={handleOpenChat}
         onJoinSuccess={handleJoinSuccess}
+        onEdit={handleEditEvent}
+      />
+
+      <CreateEventModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setEventToEdit(null);
+        }}
+        eventToEdit={eventToEdit}
+        onEditSuccess={handleEditSuccess}
       />
 
       {/* Location & Radius Modal */}
@@ -477,9 +516,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 38,
   },
-  filterContainer: {
+  filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterButtonsContainer: {
+    flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
   },
@@ -491,9 +535,6 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  filterSpacer: {
-    flex: 1,
   },
   radiusButton: {
     flexDirection: 'row',

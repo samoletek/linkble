@@ -26,8 +26,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import TextInput from '../common/TextInput';
 import { useEventsStore } from '../../stores/eventsStore';
-import { uploadEventImage } from '../../services/events';
+import { uploadEventImage, updateEvent } from '../../services/events';
 import { geocodeAddress } from '../../utils/geocoding';
+import { EventWithHost } from '../../types/database';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -45,9 +46,11 @@ const CATEGORIES = [
 interface CreateEventModalProps {
   visible: boolean;
   onClose: () => void;
+  eventToEdit?: EventWithHost | null;
+  onEditSuccess?: () => void;
 }
 
-export default function CreateEventModal({ visible, onClose }: CreateEventModalProps) {
+export default function CreateEventModal({ visible, onClose, eventToEdit, onEditSuccess }: CreateEventModalProps) {
   const { colors, activeTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const createEvent = useEventsStore((state) => state.createEvent);
@@ -108,6 +111,37 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
   const [image, setImage] = useState<string | null>(null);
   const [autoAccept, setAutoAccept] = useState(true);
 
+  const isEditMode = !!eventToEdit;
+
+  // Populate fields when editing
+  useEffect(() => {
+    if (eventToEdit && visible) {
+      setTitle(eventToEdit.title);
+      setDescription(eventToEdit.description || '');
+      setLocation(eventToEdit.location_address);
+      setSpots(String(eventToEdit.max_participants));
+      setImage(eventToEdit.image_url || null);
+      setAutoAccept(eventToEdit.auto_accept);
+
+      // Map category_id to category string
+      const categoryMap: Record<number, string> = {
+        1: 'sports',
+        2: 'parties',
+        3: 'business',
+        4: 'freetime',
+        5: 'studies',
+        6: 'concerts',
+        7: 'private',
+      };
+      setSelectedCategory(categoryMap[eventToEdit.category_id] || null);
+
+      // Parse date and time
+      const eventDate = new Date(eventToEdit.start_time);
+      setSelectedDate(eventDate);
+      setSelectedTime(eventDate);
+    }
+  }, [eventToEdit, visible]);
+
   const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -154,26 +188,24 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
     setIsCreating(true);
 
     try {
-      // Upload image if selected
+      // Upload image if selected and it's a new local image (not existing URL)
       let imageUrl: string | undefined;
       if (image) {
-        console.log('Uploading image:', image);
-        const uploadResult = await uploadEventImage(image);
-        console.log('Upload result:', uploadResult);
-        if (uploadResult.error) {
-          Alert.alert('Upload Error', uploadResult.error.message);
-          setIsCreating(false);
-          return;
+        // Check if it's a new local image or existing URL
+        if (image.startsWith('file://') || image.startsWith('ph://')) {
+          console.log('Uploading image:', image);
+          const uploadResult = await uploadEventImage(image);
+          console.log('Upload result:', uploadResult);
+          if (uploadResult.error) {
+            Alert.alert('Upload Error', uploadResult.error.message);
+            setIsCreating(false);
+            return;
+          }
+          imageUrl = uploadResult.url || undefined;
+        } else {
+          // Keep existing URL
+          imageUrl = image;
         }
-        imageUrl = uploadResult.url || undefined;
-      }
-
-      // Geocode the address to get coordinates
-      const geocodeResult = await geocodeAddress(location);
-      if (!geocodeResult.success || !geocodeResult.location) {
-        Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
-        setIsCreating(false);
-        return;
       }
 
       // Map category string ID to numeric ID (1-based index + 1)
@@ -188,23 +220,73 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
         startTime = dateWithTime.toISOString();
       }
 
-      const result = await createEvent({
-        title,
-        description: description || 'No description',
-        category_id: categoryId,
-        location_address: geocodeResult.formattedAddress || location,
-        location_lat: geocodeResult.location.latitude,
-        location_lng: geocodeResult.location.longitude,
-        start_time: startTime,
-        max_participants: parseInt(spots, 10) || 10,
-        image_url: imageUrl,
-        auto_accept: autoAccept,
-      });
+      if (isEditMode && eventToEdit) {
+        // Check if location changed - only geocode if it did
+        let locationData: { address: string; lat: number; lng: number } | null = null;
+        if (location !== eventToEdit.location_address) {
+          const geocodeResult = await geocodeAddress(location);
+          if (!geocodeResult.success || !geocodeResult.location) {
+            Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+            setIsCreating(false);
+            return;
+          }
+          locationData = {
+            address: geocodeResult.formattedAddress || location,
+            lat: geocodeResult.location.latitude,
+            lng: geocodeResult.location.longitude,
+          };
+        }
 
-      if (result.success) {
-        handleClose();
+        // Update existing event
+        const result = await updateEvent(eventToEdit.id, {
+          title,
+          description: description || 'No description',
+          category_id: categoryId,
+          ...(locationData && {
+            location_address: locationData.address,
+            location_lat: locationData.lat,
+            location_lng: locationData.lng,
+          }),
+          start_time: startTime,
+          max_participants: parseInt(spots, 10) || 10,
+          image_url: imageUrl,
+          auto_accept: autoAccept,
+        });
+
+        if (result.event) {
+          onEditSuccess?.();
+          handleClose();
+        } else {
+          Alert.alert('Error', result.error?.message || 'Failed to update event');
+        }
       } else {
-        Alert.alert('Error', result.error || 'Failed to create event');
+        // Geocode the address to get coordinates
+        const geocodeResult = await geocodeAddress(location);
+        if (!geocodeResult.success || !geocodeResult.location) {
+          Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+          setIsCreating(false);
+          return;
+        }
+
+        // Create new event
+        const result = await createEvent({
+          title,
+          description: description || 'No description',
+          category_id: categoryId,
+          location_address: geocodeResult.formattedAddress || location,
+          location_lat: geocodeResult.location.latitude,
+          location_lng: geocodeResult.location.longitude,
+          start_time: startTime,
+          max_participants: parseInt(spots, 10) || 10,
+          image_url: imageUrl,
+          auto_accept: autoAccept,
+        });
+
+        if (result.success) {
+          handleClose();
+        } else {
+          Alert.alert('Error', result.error || 'Failed to create event');
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -266,7 +348,7 @@ export default function CreateEventModal({ visible, onClose }: CreateEventModalP
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text.primary }]}>New Event</Text>
+            <Text style={[styles.headerTitle, { color: colors.text.primary }]}>{isEditMode ? 'Edit Event' : 'New Event'}</Text>
             <TouchableOpacity
               onPress={handleCreate}
               disabled={!isValid}

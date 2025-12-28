@@ -36,4 +36,6 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
   Settings: undefined;
+  Security: undefined;
+  BlockedUsers: undefined;
 };

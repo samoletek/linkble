@@ -7,6 +7,7 @@ import {
   UserCircle,
   Bell,
   Shield,
+  ShieldCheck,
   Moon,
   Sun,
   DeviceMobile,
@@ -81,6 +82,10 @@ export default function SettingsScreen() {
 
   const handlePrivacy = () => {
     setShowPrivacyModal(true);
+  };
+
+  const handleSecurity = () => {
+    navigation.navigate('Security');
   };
 
   const handleAppearance = () => {
@@ -169,6 +174,12 @@ export default function SettingsScreen() {
               icon={<Shield size={24} color={colors.text.secondary} weight="regular" />}
               label="Privacy"
               onPress={handlePrivacy}
+              colors={colors}
+            />
+            <SettingsItem
+              icon={<ShieldCheck size={24} color={colors.text.secondary} weight="regular" />}
+              label="Security"
+              onPress={handleSecurity}
               colors={colors}
             />
           </View>

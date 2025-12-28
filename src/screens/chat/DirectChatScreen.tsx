@@ -10,11 +10,13 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt, DotsThreeVertical, Prohibit } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { ChatStackParamList, DirectMessageWithSender, Profile } from '../../types';
@@ -25,6 +27,7 @@ import {
   subscribeToDirectMessages,
   unsubscribe,
 } from '../../services/messages';
+import { blockUser, isBlockedByUser } from '../../services/users';
 import { supabase } from '../../config/supabase';
 
 type DirectChatRouteProp = RouteProp<ChatStackParamList, 'DirectChat'>;
@@ -45,6 +48,8 @@ export default function DirectChatScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [blockedByOther, setBlockedByOther] = useState(false);
 
   // Load conversation info and messages
   useEffect(() => {
@@ -73,6 +78,10 @@ export default function DirectChatScreen() {
         if (user) {
           setOtherUser(user as Profile);
         }
+
+        // Check if blocked
+        const blocked = await isBlockedByUser(currentUser.id, otherUserId);
+        setBlockedByOther(blocked);
       }
 
       // Load messages
@@ -83,6 +92,33 @@ export default function DirectChatScreen() {
 
     loadData();
   }, [conversationId, currentUser]);
+
+  const handleBlock = useCallback(() => {
+    if (!currentUser || !otherUser) return;
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${otherUser.full_name}? They won't be able to message you or view your profile.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(currentUser.id, otherUser.id);
+              setShowMenu(false);
+              Alert.alert('User Blocked', `${otherUser.full_name} has been blocked.`);
+              navigation.goBack();
+            } catch (error) {
+              console.error('Failed to block user:', error);
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, [currentUser, otherUser, navigation]);
 
   // Subscribe to new messages
   useEffect(() => {
@@ -199,6 +235,9 @@ export default function DirectChatScreen() {
             {otherUser?.full_name || 'Loading...'}
           </Text>
         </View>
+        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuButton}>
+          <DotsThreeVertical size={24} color={colors.text.primary} weight="bold" />
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -231,48 +270,97 @@ export default function DirectChatScreen() {
       )}
 
       {/* Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            backgroundColor: colors.background.primary,
-            borderTopColor: colors.border.primary,
-            paddingBottom: insets.bottom || 16,
-          },
-        ]}
-      >
-        <View style={[styles.inputWrapper, { backgroundColor: colors.background.secondary }]}>
-          <TextInput
-            style={[styles.input, { color: colors.text.primary }]}
-            placeholder="Message..."
-            placeholderTextColor={colors.text.placeholder}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={1000}
-          />
-        </View>
-        <TouchableOpacity
+      {blockedByOther ? (
+        <View
           style={[
-            styles.sendButton,
+            styles.blockedContainer,
             {
-              backgroundColor: inputText.trim() ? colors.accent.primary : colors.background.tertiary,
+              backgroundColor: colors.background.secondary,
+              paddingBottom: insets.bottom || 16,
             },
           ]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || isSending}
         >
-          {isSending ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <PaperPlaneTilt
-              size={20}
-              color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
-              weight="fill"
+          <Text style={[styles.blockedText, { color: colors.text.tertiary }]}>
+            You cannot message this user
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              backgroundColor: colors.background.primary,
+              borderTopColor: colors.border.primary,
+              paddingBottom: insets.bottom || 16,
+            },
+          ]}
+        >
+          <View style={[styles.inputWrapper, { backgroundColor: colors.background.secondary }]}>
+            <TextInput
+              style={[styles.input, { color: colors.text.primary }]}
+              placeholder="Message..."
+              placeholderTextColor={colors.text.placeholder}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={1000}
             />
-          )}
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: inputText.trim() ? colors.accent.primary : colors.background.tertiary,
+              },
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <PaperPlaneTilt
+                size={20}
+                color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
+                weight="fill"
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View
+            style={[styles.menuContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: colors.border.primary }]}
+              onPress={() => {
+                setShowMenu(false);
+                handleBlock();
+              }}
+              activeOpacity={0.7}
+            >
+              <Prohibit size={20} color={colors.status.error} weight="regular" />
+              <Text style={[styles.menuItemText, { color: colors.status.error }]}>
+                Block User
+              </Text>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
-      </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -311,6 +399,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...Typography.h4,
     flex: 1,
+  },
+  menuButton: {
+    padding: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -408,5 +499,37 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  menuContent: {
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  menuItemText: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  blockedContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  blockedText: {
+    ...Typography.body,
   },
 });

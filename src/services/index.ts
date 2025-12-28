@@ -52,3 +52,13 @@ export {
   subscribeToConversations,
   unsubscribe,
 } from './messages';
+
+// Users service
+export {
+  getBlockedUsers,
+  blockUser,
+  unblockUser,
+  isUserBlocked,
+  isBlockedByUser,
+  type BlockedUserWithProfile,
+} from './users';
