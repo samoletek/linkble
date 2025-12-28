@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { Profile, ProfileInsert, ProfileUpdate } from '../types/database';
+import { Profile, ProfileUpdate } from '../types/database';
 import { AuthError, Session, User } from '@supabase/supabase-js';
 
 // ============================================
@@ -45,38 +45,23 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
     };
   }
 
-  // Create auth user
+  // Create auth user with metadata
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        full_name: fullName,
+        date_of_birth: dateOfBirth,
+      },
+    },
   });
 
   if (authError || !authData.user) {
     return { user: null, session: null, error: authError };
   }
 
-  // Create profile
-  const profileData: ProfileInsert = {
-    id: authData.user.id,
-    full_name: fullName,
-    date_of_birth: dateOfBirth,
-    interests: [],
-  };
-
-  const { error: profileError } = await (supabase
-    .from('profiles') as any)
-    .insert(profileData);
-
-  if (profileError) {
-    // Rollback: delete auth user if profile creation fails
-    await supabase.auth.admin.deleteUser(authData.user.id).catch(() => {});
-    return {
-      user: null,
-      session: null,
-      error: { message: profileError.message, name: 'ProfileError', status: 400 } as AuthError,
-    };
-  }
-
+  // Profile will be created automatically by database trigger
   return {
     user: authData.user,
     session: authData.session,
