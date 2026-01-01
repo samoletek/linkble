@@ -384,6 +384,8 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h2,
+    fontSize: 16,
+    lineHeight: 24,
   },
   placeholder: {
     width: 40,

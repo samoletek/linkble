@@ -89,6 +89,7 @@ export interface DirectMessage {
   sender_id: string | null;
   content: string;
   is_deleted: boolean;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -97,6 +98,13 @@ export interface BlockedUser {
   blocker_id: string;
   blocked_id: string;
   created_at: string;
+}
+
+export interface MessageRead {
+  id: string;
+  message_id: string;
+  user_id: string;
+  read_at: string;
 }
 
 export interface Report {
@@ -164,6 +172,7 @@ export interface EventWithDetails extends EventWithHost {
 
 export interface MessageWithSender extends Message {
   sender: Profile | null;
+  is_read_by_others?: boolean;
 }
 
 export interface DirectMessageWithSender extends DirectMessage {
@@ -173,6 +182,7 @@ export interface DirectMessageWithSender extends DirectMessage {
 export interface ConversationWithUser extends Conversation {
   other_user: Profile;
   last_message: DirectMessage | null;
+  unread_count: number;
 }
 
 // ============================================
@@ -292,7 +302,7 @@ export interface Database {
       direct_messages: {
         Row: DirectMessage;
         Insert: DirectMessageInsert;
-        Update: Partial<Pick<DirectMessage, 'is_deleted'>>;
+        Update: Partial<Pick<DirectMessage, 'is_deleted' | 'is_read'>>;
       };
       blocked_users: {
         Row: BlockedUser;
@@ -308,6 +318,11 @@ export interface Database {
         Row: Notification;
         Insert: Omit<Notification, 'id' | 'created_at'>;
         Update: Partial<Pick<Notification, 'is_read'>>;
+      };
+      message_reads: {
+        Row: MessageRead;
+        Insert: Pick<MessageRead, 'message_id' | 'user_id'>;
+        Update: never;
       };
     };
     Functions: {

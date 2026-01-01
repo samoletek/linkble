@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, TextInput, Keyboard, TouchableWithoutFeedback, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, GearSix, PencilSimple, Plus } from 'phosphor-react-native';
+import { User, GearSix, PencilSimple, Plus, Bell } from 'phosphor-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,6 +12,7 @@ import { useEventsStore } from '../../stores/eventsStore';
 import type { ProfileStackParamList } from '../../types';
 import { getInterestsByIds } from '../../utils/interests';
 import InterestsModal from '../../components/profile/InterestsModal';
+import NotificationsModal from '../../components/profile/NotificationsModal';
 
 type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 
@@ -33,6 +34,9 @@ export default function ProfileScreen() {
   // Interests modal state
   const [showInterestsModal, setShowInterestsModal] = useState(false);
 
+  // Notifications modal state
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+
   // Edit name state
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(profile?.full_name || '');
@@ -51,6 +55,10 @@ export default function ProfileScreen() {
 
   const handleSettingsPress = () => {
     navigation.navigate('Settings');
+  };
+
+  const handleNotificationsPress = () => {
+    setShowNotificationsModal(true);
   };
 
   const handleEditName = () => {
@@ -138,13 +146,22 @@ export default function ProfileScreen() {
       <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={[styles.title, { color: colors.text.primary }]}>Profile</Text>
-        <TouchableOpacity
-          style={[styles.settingsButton, { backgroundColor: colors.background.secondary }]}
-          onPress={handleSettingsPress}
-          activeOpacity={0.7}
-        >
-          <GearSix size={24} color={colors.text.secondary} weight="regular" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={[styles.headerButton, { backgroundColor: colors.background.secondary }]}
+            onPress={handleNotificationsPress}
+            activeOpacity={0.7}
+          >
+            <Bell size={24} color={colors.text.secondary} weight="regular" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerButton, { backgroundColor: colors.background.secondary }]}
+            onPress={handleSettingsPress}
+            activeOpacity={0.7}
+          >
+            <GearSix size={24} color={colors.text.secondary} weight="regular" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.profileSection}>
@@ -251,6 +268,14 @@ export default function ProfileScreen() {
         />
       )}
 
+      {showNotificationsModal && profile?.id && (
+        <NotificationsModal
+          visible={showNotificationsModal}
+          userId={profile.id}
+          onClose={() => setShowNotificationsModal(false)}
+        />
+      )}
+
       <Modal
         visible={showAvatarModal}
         transparent
@@ -319,7 +344,12 @@ const styles = StyleSheet.create({
   title: {
     ...Typography.h1,
   },
-  settingsButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

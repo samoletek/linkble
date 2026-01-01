@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  ScrollView,
   PanResponder,
   Image,
   Dimensions,
@@ -15,14 +14,14 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple } from 'phosphor-react-native';
+import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple, CheckCircle } from 'phosphor-react-native';
 import CategoryIcon from '../common/CategoryIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
 import Button from '../common/Button';
-import { EventWithHost, EventWithDetails } from '../../types/database';
+import { EventWithHost, EventWithDetails, EventParticipant, Profile } from '../../types/database';
 import { useUserStore } from '../../stores/userStore';
-import { getEvent, requestToJoin, leaveEvent, cancelEvent } from '../../services/events';
+import { getEvent, requestToJoin, leaveEvent, cancelEvent, getEventParticipants, respondToRequest, kickParticipant } from '../../services/events';
 
 interface EventDetailModalProps {
   visible: boolean;
@@ -31,6 +30,7 @@ interface EventDetailModalProps {
   onOpenChat?: (eventId: string) => void;
   onJoinSuccess?: () => void;
   onEdit?: (event: EventWithHost) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -61,6 +61,7 @@ export default function EventDetailModal({
   onOpenChat,
   onJoinSuccess,
   onEdit,
+  onViewProfile,
 }: EventDetailModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -69,10 +70,13 @@ export default function EventDetailModal({
   const [eventDetails, setEventDetails] = useState<EventWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [participants, setParticipants] = useState<{ participant: EventParticipant; profile: Profile }[]>([]);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
   const slideY = useRef(new Animated.Value(600)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -118,18 +122,28 @@ export default function EventDetailModal({
     })
   ).current;
 
-  // Load full event details when modal opens
+  // Load full event details and participants when modal opens
+  const loadEventData = useCallback(async () => {
+    if (!event) return;
+
+    setIsLoading(true);
+    const [details, participantsList] = await Promise.all([
+      getEvent(event.id),
+      getEventParticipants(event.id),
+    ]);
+    setEventDetails(details);
+    setParticipants(participantsList);
+    setIsLoading(false);
+  }, [event?.id]);
+
   useEffect(() => {
     if (visible && event) {
-      setIsLoading(true);
-      getEvent(event.id).then((details) => {
-        setEventDetails(details);
-        setIsLoading(false);
-      });
+      loadEventData();
     } else {
       setEventDetails(null);
+      setParticipants([]);
     }
-  }, [visible, event?.id]);
+  }, [visible, event?.id, loadEventData]);
 
   useEffect(() => {
     if (visible) {
@@ -222,6 +236,51 @@ export default function EventDetailModal({
       ]
     );
   }, [event, eventDetails, onJoinSuccess]);
+
+  const handleRespondToRequest = useCallback(async (participantId: string, accept: boolean) => {
+    setRespondingTo(participantId);
+
+    const { error: respondError } = await respondToRequest(participantId, accept);
+
+    if (respondError) {
+      Alert.alert('Error', respondError.message);
+      setRespondingTo(null);
+      return;
+    }
+
+    // Reload data after response
+    await loadEventData();
+    setRespondingTo(null);
+  }, [loadEventData]);
+
+  const handleKickParticipant = useCallback(async (userId: string, userName: string) => {
+    if (!event) return;
+
+    Alert.alert(
+      'Remove Participant',
+      `Are you sure you want to remove ${userName} from this event?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRespondingTo(userId);
+            const { error: kickError } = await kickParticipant(event.id, userId);
+
+            if (kickError) {
+              Alert.alert('Error', kickError.message);
+              setRespondingTo(null);
+              return;
+            }
+
+            await loadEventData();
+            setRespondingTo(null);
+          },
+        },
+      ]
+    );
+  }, [event, loadEventData]);
 
   const handleCancelEvent = useCallback(async () => {
     if (!event) return;
@@ -393,19 +452,46 @@ export default function EventDetailModal({
             </View>
           </TouchableOpacity>
 
-          <ScrollView
+          <Animated.ScrollView
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-          >
-            {event.image_url ? (
-              <Image
-                source={{ uri: event.image_url }}
-                style={styles.headerImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
             )}
+          >
+            <Animated.View
+              style={[
+                styles.headerImageContainer,
+                {
+                  transform: [
+                    {
+                      translateY: scrollY.interpolate({
+                        inputRange: [-IMAGE_HEIGHT, 0, 1],
+                        outputRange: [-IMAGE_HEIGHT / 2, 0, 0],
+                      }),
+                    },
+                    {
+                      scale: scrollY.interpolate({
+                        inputRange: [-IMAGE_HEIGHT, 0, 1],
+                        outputRange: [2, 1, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {event.image_url ? (
+                <Image
+                  source={{ uri: event.image_url }}
+                  style={styles.headerImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
+              )}
+            </Animated.View>
 
             <View style={styles.contentPadding}>
               <Text style={[styles.title, { color: colors.text.primary }]}>
@@ -503,7 +589,17 @@ export default function EventDetailModal({
               <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
                 Host
               </Text>
-              <View style={styles.hostContainer}>
+              <TouchableOpacity
+                style={styles.hostContainer}
+                onPress={() => {
+                  if (!isHost && onViewProfile && event.host_id) {
+                    onClose();
+                    onViewProfile(event.host_id);
+                  }
+                }}
+                activeOpacity={isHost ? 1 : 0.7}
+                disabled={isHost}
+              >
                 {hostAvatar ? (
                   <Image
                     source={{ uri: hostAvatar }}
@@ -530,9 +626,117 @@ export default function EventDetailModal({
                     <Text style={styles.youBadgeText}>You</Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
+
+              {/* Participants Section */}
+              {participants.length > 0 && (
+                <>
+                  <View style={[styles.divider, { backgroundColor: colors.border.primary }]} />
+
+                  <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
+                    Participants
+                  </Text>
+
+                  {participants.map(({ participant, profile }) => {
+                    const isPending = participant.status === 'pending';
+                    const isRespondingToThis = respondingTo === participant.id;
+
+                    return (
+                      <View key={participant.id} style={styles.participantRow}>
+                        <TouchableOpacity
+                          style={styles.participantInfo}
+                          onPress={() => {
+                            if (onViewProfile && participant.user_id !== currentUser?.id) {
+                              onClose();
+                              onViewProfile(participant.user_id);
+                            }
+                          }}
+                          activeOpacity={participant.user_id === currentUser?.id ? 1 : 0.7}
+                          disabled={participant.user_id === currentUser?.id}
+                        >
+                          {profile.avatar_url ? (
+                            <Image
+                              source={{ uri: profile.avatar_url }}
+                              style={styles.participantAvatar}
+                            />
+                          ) : (
+                            <View
+                              style={[
+                                styles.participantAvatar,
+                                styles.hostAvatarPlaceholder,
+                                { backgroundColor: colors.accent.secondary },
+                              ]}
+                            >
+                              <Text style={styles.participantInitial}>
+                                {profile.full_name.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={styles.participantNameContainer}>
+                            <Text style={[styles.participantName, { color: colors.text.primary }]}>
+                              {profile.full_name}
+                            </Text>
+                            {isPending && (
+                              <Text style={[styles.pendingLabel, { color: colors.text.tertiary }]}>
+                                Pending approval
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Accept/Reject buttons for host on pending requests */}
+                        {isHost && isPending && (
+                          <View style={styles.participantActions}>
+                            {isRespondingToThis ? (
+                              <ActivityIndicator size="small" color={colors.accent.primary} />
+                            ) : (
+                              <>
+                                <TouchableOpacity
+                                  style={[styles.actionButton, styles.rejectButton, { backgroundColor: colors.background.tertiary }]}
+                                  onPress={() => handleRespondToRequest(participant.id, false)}
+                                >
+                                  <X size={18} color={colors.status.error} weight="bold" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.actionButton, styles.acceptButton, { backgroundColor: colors.status.success }]}
+                                  onPress={() => handleRespondToRequest(participant.id, true)}
+                                >
+                                  <CheckCircle size={18} color="#FFFFFF" weight="bold" />
+                                </TouchableOpacity>
+                              </>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Kick button for host on accepted participants */}
+                        {isHost && !isPending && participant.user_id !== currentUser?.id && (
+                          <View style={styles.participantActions}>
+                            {respondingTo === participant.user_id ? (
+                              <ActivityIndicator size="small" color={colors.accent.primary} />
+                            ) : (
+                              <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: colors.background.tertiary }]}
+                                onPress={() => handleKickParticipant(participant.user_id, profile.full_name)}
+                              >
+                                <X size={18} color={colors.status.error} weight="bold" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Show "You" badge if participant is current user */}
+                        {participant.user_id === currentUser?.id && (
+                          <View style={[styles.youBadge, { backgroundColor: colors.accent.primary }]}>
+                            <Text style={styles.youBadgeText}>You</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </>
+              )}
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
 
           <View style={styles.footer}>
             <View style={styles.footerButtons}>
@@ -626,6 +830,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
+  },
+  headerImageContainer: {
+    width: SCREEN_WIDTH,
+    height: IMAGE_HEIGHT,
+    overflow: 'hidden',
   },
   headerImage: {
     width: SCREEN_WIDTH,
@@ -747,4 +956,49 @@ const styles = StyleSheet.create({
   statusText: {
     ...Typography.bodyMedium,
   },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  participantInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  participantAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  participantInitial: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  participantNameContainer: {
+    flex: 1,
+  },
+  participantName: {
+    ...Typography.bodyMedium,
+  },
+  pendingLabel: {
+    ...Typography.caption,
+    marginTop: 2,
+  },
+  participantActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rejectButton: {},
+  acceptButton: {},
 });

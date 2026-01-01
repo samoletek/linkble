@@ -6,26 +6,34 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Image,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt, Crown } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt, Crown, Check, Checks, PushPin, Trash, Archive } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
-import { ChatStackParamList, MessageWithSender } from '../../types';
+import { ChatStackParamList, MessageWithSender, EventWithHost } from '../../types';
 import { useUserStore } from '../../stores/userStore';
 import {
   getEventMessages,
   sendEventMessage,
   subscribeToEventMessages,
   unsubscribe,
+  markEventMessagesAsRead,
+  getMessageReadStatus,
+  pinMessage,
+  deleteMessage,
 } from '../../services/messages';
 import { supabase } from '../../config/supabase';
+import EventDetailModal from '../../components/events/EventDetailModal';
 
 type EventChatRouteProp = RouteProp<ChatStackParamList, 'EventChat'>;
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
@@ -34,9 +42,39 @@ interface EventInfo {
   id: string;
   title: string;
   host_id: string;
+  description: string;
+  category_id: number;
+  location_lat: number;
+  location_lng: number;
+  location_address: string;
+  start_time: string;
+  end_time: string | null;
+  max_participants: number;
+  is_private: boolean;
+  auto_accept: boolean;
+  image_url: string | null;
+  status: 'active' | 'cancelled' | 'completed';
+  created_at: string;
+  updated_at: string;
   host: {
+    id: string;
     full_name: string;
     avatar_url: string | null;
+    username: string | null;
+    bio: string | null;
+    date_of_birth: string;
+    interests: number[];
+    push_token: string | null;
+    created_at: string;
+    updated_at: string;
+    last_username_change: string | null;
+  } | null;
+  category: {
+    id: number;
+    name: string;
+    display_name: string;
+    icon: string;
+    color: string;
   } | null;
 }
 
@@ -55,47 +93,86 @@ export default function EventChatScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [readMessageIds, setReadMessageIds] = useState<Set<string>>(new Set());
+  const [pinnedMessage, setPinnedMessage] = useState<MessageWithSender | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<MessageWithSender | null>(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   // Load event info and messages
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
 
-      // Load event info
+      // Load full event info
       const { data: event } = await supabase
         .from('events')
         .select(`
-          id,
-          title,
-          host_id,
-          host:profiles!events_host_id_fkey(full_name, avatar_url)
+          *,
+          host:profiles!events_host_id_fkey(*),
+          category:categories(*)
         `)
         .eq('id', eventId)
         .single();
 
       if (event) {
-        setEventInfo(event as unknown as EventInfo);
+        const eventData = event as unknown as EventInfo;
+        setEventInfo(eventData);
+        // Check if event has ended (start_time is in the past)
+        const eventStartTime = new Date(eventData.start_time);
+        setIsArchived(eventStartTime < new Date());
       }
 
       // Load messages
       const eventMessages = await getEventMessages(eventId);
       setMessages(eventMessages);
+
+      // Find pinned message
+      const pinned = eventMessages.find(m => m.is_pinned);
+      setPinnedMessage(pinned || null);
+
+      // Load read status for own messages
+      if (currentUser) {
+        const ownMessageIds = eventMessages
+          .filter(m => m.user_id === currentUser.id)
+          .map(m => m.id);
+        if (ownMessageIds.length > 0) {
+          const readIds = await getMessageReadStatus(ownMessageIds, currentUser.id);
+          setReadMessageIds(readIds);
+        }
+      }
+
       setIsLoading(false);
+
+      // Mark messages as read
+      await markEventMessagesAsRead(eventId);
     };
 
     loadData();
-  }, [eventId]);
+  }, [eventId, currentUser]);
 
-  // Subscribe to new messages
+  // Subscribe to new messages and read updates
   useEffect(() => {
-    const channel = subscribeToEventMessages(eventId, (newMessage) => {
-      setMessages((prev) => [...prev, newMessage]);
-    });
+    const channel = subscribeToEventMessages(
+      eventId,
+      async (newMessage) => {
+        setMessages((prev) => [...prev, newMessage]);
+        // Mark incoming messages as read immediately
+        if (newMessage.user_id !== currentUser?.id) {
+          await markEventMessagesAsRead(eventId);
+        }
+      },
+      (messageId) => {
+        // Update read status when someone reads a message
+        setReadMessageIds((prev) => new Set([...prev, messageId]));
+      }
+    );
 
     return () => {
       unsubscribe(channel);
     };
-  }, [eventId]);
+  }, [eventId, currentUser?.id]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -124,21 +201,104 @@ export default function EventChatScreen() {
 
   const isHost = currentUser?.id === eventInfo?.host_id;
 
+  const handleLongPress = useCallback((message: MessageWithSender) => {
+    // Disable actions for archived chats
+    if (isArchived) return;
+
+    // Only host can manage messages, or user can delete their own
+    const isOwnMessage = message.user_id === currentUser?.id;
+    if (!isHost && !isOwnMessage) return;
+
+    setSelectedMessage(message);
+    setShowActionMenu(true);
+  }, [isHost, currentUser?.id, isArchived]);
+
+  const handlePinMessage = useCallback(async () => {
+    if (!selectedMessage || !isHost) return;
+
+    const shouldPin = !selectedMessage.is_pinned;
+    const { error } = await pinMessage(selectedMessage.id, shouldPin);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      // Update local state
+      setMessages(prev => prev.map(m => ({
+        ...m,
+        is_pinned: m.id === selectedMessage.id ? shouldPin : false,
+      })));
+      setPinnedMessage(shouldPin ? { ...selectedMessage, is_pinned: true } : null);
+    }
+
+    setShowActionMenu(false);
+    setSelectedMessage(null);
+  }, [selectedMessage, isHost]);
+
+  const handleDeleteMessage = useCallback(async () => {
+    if (!selectedMessage) return;
+
+    Alert.alert(
+      'Delete Message',
+      'This message will be deleted for everyone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await deleteMessage(selectedMessage.id);
+
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
+              if (pinnedMessage?.id === selectedMessage.id) {
+                setPinnedMessage(null);
+              }
+            }
+
+            setShowActionMenu(false);
+            setSelectedMessage(null);
+          },
+        },
+      ]
+    );
+  }, [selectedMessage, pinnedMessage]);
+
+  const closeActionMenu = useCallback(() => {
+    setShowActionMenu(false);
+    setSelectedMessage(null);
+  }, []);
+
+  const handleViewProfile = useCallback((userId: string) => {
+    if (userId !== currentUser?.id) {
+      navigation.navigate('UserProfile', { userId });
+    }
+  }, [currentUser?.id, navigation]);
+
   const renderMessage = ({ item }: { item: MessageWithSender }) => {
     const isOwnMessage = item.user_id === currentUser?.id;
     const isHostMessage = item.user_id === eventInfo?.host_id;
     const senderName = item.sender?.full_name || 'Unknown';
     const senderAvatar = item.sender?.avatar_url;
+    const canManageMessage = isHost || isOwnMessage;
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onLongPress={() => canManageMessage && handleLongPress(item)}
+        delayLongPress={300}
         style={[
           styles.messageContainer,
           isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer,
         ]}
       >
         {!isOwnMessage && (
-          <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => item.user_id && handleViewProfile(item.user_id)}
+            activeOpacity={0.7}
+          >
             {senderAvatar ? (
               <Image source={{ uri: senderAvatar }} style={styles.avatar} />
             ) : (
@@ -148,18 +308,22 @@ export default function EventChatScreen() {
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         )}
         <View style={[styles.messageBubbleWrapper, isOwnMessage && styles.ownBubbleWrapper]}>
           {!isOwnMessage && (
-            <View style={styles.senderInfo}>
+            <TouchableOpacity
+              style={styles.senderInfo}
+              onPress={() => item.user_id && handleViewProfile(item.user_id)}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.senderName, { color: colors.text.secondary }]}>
                 {senderName}
               </Text>
               {isHostMessage && (
                 <Crown size={12} color={colors.accent.primary} weight="fill" style={styles.hostBadge} />
               )}
-            </View>
+            </TouchableOpacity>
           )}
           <View
             style={[
@@ -178,16 +342,48 @@ export default function EventChatScreen() {
               {item.content}
             </Text>
           </View>
-          <Text style={[styles.messageTime, { color: colors.text.tertiary }]}>
-            {new Date(item.created_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+          <View style={[styles.messageFooter, isOwnMessage && styles.ownMessageFooter]}>
+            <Text style={[styles.messageTime, { color: colors.text.tertiary }]}>
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {isOwnMessage && (
+              readMessageIds.has(item.id) ? (
+                <Checks size={14} color={colors.text.tertiary} weight="bold" />
+              ) : (
+                <Check size={14} color={colors.text.tertiary} weight="bold" />
+              )
+            )}
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
+
+  // Convert EventInfo to EventWithHost format for modal
+  const eventForModal = eventInfo ? {
+    id: eventInfo.id,
+    host_id: eventInfo.host_id,
+    title: eventInfo.title,
+    description: eventInfo.description,
+    category_id: eventInfo.category_id,
+    location_lat: eventInfo.location_lat,
+    location_lng: eventInfo.location_lng,
+    location_address: eventInfo.location_address,
+    start_time: eventInfo.start_time,
+    end_time: eventInfo.end_time,
+    max_participants: eventInfo.max_participants,
+    is_private: eventInfo.is_private,
+    auto_accept: eventInfo.auto_accept,
+    image_url: eventInfo.image_url,
+    status: eventInfo.status,
+    created_at: eventInfo.created_at,
+    updated_at: eventInfo.updated_at,
+    host: eventInfo.host as EventWithHost['host'],
+    category: eventInfo.category as EventWithHost['category'],
+  } as EventWithHost : null;
 
   return (
     <KeyboardAvoidingView
@@ -200,7 +396,11 @@ export default function EventChatScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
+        <TouchableOpacity
+          style={styles.headerCenter}
+          onPress={() => setShowEventModal(true)}
+          activeOpacity={0.7}
+        >
           <Text style={[styles.headerTitle, { color: colors.text.primary }]} numberOfLines={1}>
             {eventInfo?.title || 'Event Chat'}
           </Text>
@@ -212,8 +412,33 @@ export default function EventChatScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
+
+      {/* Pinned Message */}
+      {pinnedMessage && (
+        <TouchableOpacity
+          style={[styles.pinnedContainer, { backgroundColor: colors.background.secondary, borderBottomColor: colors.border.primary }]}
+          onPress={() => {
+            const index = messages.findIndex(m => m.id === pinnedMessage.id);
+            if (index !== -1) {
+              flatListRef.current?.scrollToIndex({ index, animated: true });
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <PushPin size={16} color={colors.accent.primary} weight="fill" />
+          <View style={styles.pinnedContent}>
+            <Text style={[styles.pinnedLabel, { color: colors.accent.primary }]}>
+              Pinned Message
+            </Text>
+            <Text style={[styles.pinnedText, { color: colors.text.secondary }]} numberOfLines={1}>
+              {pinnedMessage.content}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Messages */}
       {isLoading ? (
@@ -244,49 +469,123 @@ export default function EventChatScreen() {
         />
       )}
 
-      {/* Input */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            backgroundColor: colors.background.primary,
-            borderTopColor: colors.border.primary,
-            paddingBottom: insets.bottom || 16,
-          },
-        ]}
-      >
-        <View style={[styles.inputWrapper, { backgroundColor: colors.background.secondary }]}>
-          <TextInput
-            style={[styles.input, { color: colors.text.primary }]}
-            placeholder="Message..."
-            placeholderTextColor={colors.text.placeholder}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={1000}
-          />
-        </View>
-        <TouchableOpacity
+      {/* Input or Archived Banner */}
+      {isArchived ? (
+        <View
           style={[
-            styles.sendButton,
+            styles.archivedBanner,
             {
-              backgroundColor: inputText.trim() ? colors.accent.primary : colors.background.tertiary,
+              backgroundColor: colors.background.secondary,
+              borderTopColor: colors.border.primary,
+              paddingBottom: insets.bottom || 16,
             },
           ]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || isSending}
         >
-          {isSending ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <PaperPlaneTilt
-              size={20}
-              color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
-              weight="fill"
+          <Archive size={18} color={colors.text.tertiary} weight="fill" />
+          <Text style={[styles.archivedText, { color: colors.text.tertiary }]}>
+            This event has ended. Chat is read-only.
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              backgroundColor: colors.background.primary,
+              borderTopColor: colors.border.primary,
+              paddingBottom: insets.bottom || 16,
+            },
+          ]}
+        >
+          <View style={[styles.inputWrapper, { backgroundColor: colors.background.secondary }]}>
+            <TextInput
+              style={[styles.input, { color: colors.text.primary }]}
+              placeholder="Message..."
+              placeholderTextColor={colors.text.placeholder}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={1000}
             />
-          )}
-        </TouchableOpacity>
-      </View>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: inputText.trim() ? colors.accent.primary : colors.background.tertiary,
+              },
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <PaperPlaneTilt
+                size={20}
+                color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
+                weight="fill"
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Action Menu Modal */}
+      <Modal
+        visible={showActionMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={closeActionMenu}
+      >
+        <TouchableWithoutFeedback onPress={closeActionMenu}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.actionMenu, { backgroundColor: colors.background.secondary }]}>
+                {isHost && selectedMessage && (
+                  <TouchableOpacity
+                    style={styles.actionMenuItem}
+                    onPress={handlePinMessage}
+                  >
+                    <PushPin size={20} color={colors.text.primary} weight="bold" />
+                    <Text style={[styles.actionMenuText, { color: colors.text.primary }]}>
+                      {selectedMessage.is_pinned ? 'Unpin Message' : 'Pin Message'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.actionMenuItem}
+                  onPress={handleDeleteMessage}
+                >
+                  <Trash size={20} color={colors.status.error} weight="bold" />
+                  <Text style={[styles.actionMenuText, { color: colors.status.error }]}>
+                    Delete Message
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionMenuItem, styles.actionMenuCancel]}
+                  onPress={closeActionMenu}
+                >
+                  <Text style={[styles.actionMenuText, { color: colors.text.secondary }]}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        visible={showEventModal}
+        event={eventForModal}
+        onClose={() => setShowEventModal(false)}
+        onViewProfile={(userId) => {
+          setShowEventModal(false);
+          navigation.navigate('UserProfile', { userId });
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -303,23 +602,48 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    marginRight: 12,
+    width: 40,
     padding: 4,
   },
-  headerInfo: {
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 40,
   },
   headerTitle: {
     ...Typography.h4,
+    textAlign: 'center',
   },
   hostInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
   hostName: {
     ...Typography.caption,
     marginLeft: 4,
+  },
+  pinnedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  pinnedContent: {
+    flex: 1,
+  },
+  pinnedLabel: {
+    ...Typography.caption,
+    fontWeight: '600',
+  },
+  pinnedText: {
+    ...Typography.body,
+    fontSize: 13,
   },
   loadingContainer: {
     flex: 1,
@@ -401,7 +725,15 @@ const styles = StyleSheet.create({
   messageTime: {
     ...Typography.caption,
     fontSize: 10,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 4,
+  },
+  ownMessageFooter: {
+    justifyContent: 'flex-end',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -429,5 +761,46 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  actionMenu: {
+    width: '100%',
+    maxWidth: 300,
+    borderRadius: Spacing.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionMenuText: {
+    ...Typography.bodyMedium,
+  },
+  actionMenuCancel: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    justifyContent: 'center',
+  },
+  archivedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  archivedText: {
+    ...Typography.body,
+    fontSize: 14,
   },
 });

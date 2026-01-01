@@ -60,3 +60,32 @@ export async function isBlockedByUser(userId: string, otherUserId: string): Prom
   if (error) throw error;
   return !!data;
 }
+
+/**
+ * Get all user IDs that should be hidden from the current user:
+ * - Users the current user has blocked
+ * - Users who have blocked the current user
+ */
+export async function getBlockedUserIds(userId: string): Promise<string[]> {
+  // Users I blocked
+  const { data: blocked, error: blockedError } = await supabase
+    .from('blocked_users')
+    .select('blocked_id')
+    .eq('blocker_id', userId) as { data: { blocked_id: string }[] | null; error: any };
+
+  if (blockedError) throw blockedError;
+
+  // Users who blocked me
+  const { data: blockedBy, error: blockedByError } = await supabase
+    .from('blocked_users')
+    .select('blocker_id')
+    .eq('blocked_id', userId) as { data: { blocker_id: string }[] | null; error: any };
+
+  if (blockedByError) throw blockedByError;
+
+  const blockedIds = (blocked || []).map(b => b.blocked_id);
+  const blockedByIds = (blockedBy || []).map(b => b.blocker_id);
+
+  // Return unique list of all blocked user IDs
+  return [...new Set([...blockedIds, ...blockedByIds])];
+}

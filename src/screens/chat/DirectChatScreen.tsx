@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt, DotsThreeVertical, Prohibit } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt, DotsThreeVertical, Prohibit, Check, Checks } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { ChatStackParamList, DirectMessageWithSender, Profile } from '../../types';
@@ -26,6 +26,7 @@ import {
   sendDirectMessage,
   subscribeToDirectMessages,
   unsubscribe,
+  markMessagesAsRead,
 } from '../../services/messages';
 import { blockUser, isBlockedByUser } from '../../services/users';
 import { supabase } from '../../config/supabase';
@@ -61,7 +62,7 @@ export default function DirectChatScreen() {
         .from('conversations')
         .select('user1_id, user2_id')
         .eq('id', conversationId)
-        .single();
+        .single() as { data: { user1_id: string; user2_id: string } | null };
 
       if (conversation && currentUser) {
         const otherUserId =
@@ -88,10 +89,19 @@ export default function DirectChatScreen() {
       const directMessages = await getDirectMessages(conversationId);
       setMessages(directMessages);
       setIsLoading(false);
+
+      // Mark messages as read
+      await markMessagesAsRead(conversationId);
     };
 
     loadData();
   }, [conversationId, currentUser]);
+
+  const handleViewProfile = useCallback((userId: string) => {
+    if (userId !== currentUser?.id) {
+      navigation.navigate('UserProfile', { userId });
+    }
+  }, [currentUser?.id, navigation]);
 
   const handleBlock = useCallback(() => {
     if (!currentUser || !otherUser) return;
@@ -120,16 +130,32 @@ export default function DirectChatScreen() {
     );
   }, [currentUser, otherUser, navigation]);
 
-  // Subscribe to new messages
+  // Subscribe to new messages and read status updates
   useEffect(() => {
-    const channel = subscribeToDirectMessages(conversationId, (newMessage) => {
-      setMessages((prev) => [...prev, newMessage]);
-    });
+    const { mainChannel, broadcastChannel } = subscribeToDirectMessages(
+      conversationId,
+      async (newMessage) => {
+        setMessages((prev) => [...prev, newMessage]);
+        // Mark incoming messages as read immediately
+        if (newMessage.sender_id !== currentUser?.id) {
+          await markMessagesAsRead(conversationId);
+        }
+      },
+      (messageIds) => {
+        // Update messages when they are marked as read
+        setMessages((prev) =>
+          prev.map((msg) =>
+            messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
+          )
+        );
+      }
+    );
 
     return () => {
-      unsubscribe(channel);
+      unsubscribe(mainChannel);
+      unsubscribe(broadcastChannel);
     };
-  }, [conversationId]);
+  }, [conversationId, currentUser?.id]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -169,7 +195,11 @@ export default function DirectChatScreen() {
         ]}
       >
         {!isOwnMessage && (
-          <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => otherUser && handleViewProfile(otherUser.id)}
+            activeOpacity={0.7}
+          >
             {senderAvatar ? (
               <Image source={{ uri: senderAvatar }} style={styles.avatar} />
             ) : (
@@ -179,7 +209,7 @@ export default function DirectChatScreen() {
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         )}
         <View style={[styles.messageBubbleWrapper, isOwnMessage && styles.ownBubbleWrapper]}>
           <View
@@ -199,12 +229,21 @@ export default function DirectChatScreen() {
               {item.content}
             </Text>
           </View>
-          <Text style={[styles.messageTime, { color: colors.text.tertiary }]}>
-            {new Date(item.created_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+          <View style={[styles.messageFooter, isOwnMessage && styles.ownMessageFooter]}>
+            <Text style={[styles.messageTime, { color: colors.text.tertiary }]}>
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {isOwnMessage && (
+              item.is_read ? (
+                <Checks size={14} color={colors.text.tertiary} weight="bold" />
+              ) : (
+                <Check size={14} color={colors.text.tertiary} weight="bold" />
+              )
+            )}
+          </View>
         </View>
       </View>
     );
@@ -221,7 +260,11 @@ export default function DirectChatScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
+        <TouchableOpacity
+          style={styles.headerInfo}
+          onPress={() => otherUser && handleViewProfile(otherUser.id)}
+          activeOpacity={0.7}
+        >
           {otherUser?.avatar_url ? (
             <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
           ) : (
@@ -234,7 +277,7 @@ export default function DirectChatScreen() {
           <Text style={[styles.headerTitle, { color: colors.text.primary }]} numberOfLines={1}>
             {otherUser?.full_name || 'Loading...'}
           </Text>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuButton}>
           <DotsThreeVertical size={24} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
@@ -471,7 +514,15 @@ const styles = StyleSheet.create({
   messageTime: {
     ...Typography.caption,
     fontSize: 10,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 4,
+  },
+  ownMessageFooter: {
+    justifyContent: 'flex-end',
   },
   inputContainer: {
     flexDirection: 'row',

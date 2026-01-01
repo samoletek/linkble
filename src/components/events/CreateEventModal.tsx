@@ -112,6 +112,16 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const [autoAccept, setAutoAccept] = useState(true);
 
   const isEditMode = !!eventToEdit;
+  const isPrivateCategory = selectedCategory === 'private';
+
+  // Force manual approval for private events, enable auto-accept for others
+  useEffect(() => {
+    if (isPrivateCategory) {
+      setAutoAccept(false);
+    } else if (selectedCategory) {
+      setAutoAccept(true);
+    }
+  }, [isPrivateCategory, selectedCategory]);
 
   // Populate fields when editing
   useEffect(() => {
@@ -250,7 +260,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           start_time: startTime,
           max_participants: parseInt(spots, 10) || 10,
           image_url: imageUrl,
-          auto_accept: autoAccept,
+          auto_accept: isPrivateCategory ? false : autoAccept,
         });
 
         if (result.event) {
@@ -279,7 +289,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           start_time: startTime,
           max_participants: parseInt(spots, 10) || 10,
           image_url: imageUrl,
-          auto_accept: autoAccept,
+          auto_accept: isPrivateCategory ? false : autoAccept,
         });
 
         if (result.success) {
@@ -531,20 +541,23 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               icon={<Users size={20} color={colors.text.secondary} />}
             />
 
-            <View style={styles.switchContainer}>
+            <View style={[styles.switchContainer, isPrivateCategory && styles.switchContainerDisabled]}>
               <View style={styles.switchTextContainer}>
-                <Text style={[styles.switchLabel, { color: colors.text.primary }]}>
+                <Text style={[styles.switchLabel, { color: isPrivateCategory ? colors.text.tertiary : colors.text.primary }]}>
                   Auto-accept participants
                 </Text>
                 <Text style={[styles.switchDescription, { color: colors.text.secondary }]}>
-                  {autoAccept
-                    ? 'People will join automatically'
-                    : 'You will approve each request manually'}
+                  {isPrivateCategory
+                    ? 'Private events require manual approval'
+                    : autoAccept
+                      ? 'People will join automatically'
+                      : 'You will approve each request manually'}
                 </Text>
               </View>
               <Switch
                 value={autoAccept}
                 onValueChange={setAutoAccept}
+                disabled={isPrivateCategory}
                 trackColor={{ false: colors.border.primary, true: colors.accent.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -672,7 +685,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   headerTitle: {
-    ...Typography.h3,
+    ...Typography.h2,
+    fontSize: 16,
+    lineHeight: 24,
   },
   content: {
     flex: 1,
@@ -796,6 +811,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
+  },
+  switchContainerDisabled: {
+    opacity: 0.6,
   },
   switchTextContainer: {
     flex: 1,

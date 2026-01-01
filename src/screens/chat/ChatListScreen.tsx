@@ -7,17 +7,19 @@ import {
   Animated,
   RefreshControl,
   FlatList,
-  Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChatCircle, EnvelopeSimple, Crown } from 'phosphor-react-native';
+import { ChatCircle, EnvelopeSimple, Archive, CaretRight } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { ChatStackParamList, ConversationWithUser } from '../../types';
-import { getEventChats, getConversations, EventChatPreview } from '../../services/messages';
+import { getEventChats, getConversations, EventChatPreview, leaveEventChat, hideConversation, getArchivedChatsCount } from '../../services/messages';
+import SwipeableChatItem from '../../components/chat/SwipeableChatItem';
 
 type ChatFilter = 'events' | 'direct';
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
@@ -36,15 +38,18 @@ export default function ChatListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [eventChats, setEventChats] = useState<EventChatPreview[]>([]);
   const [directChats, setDirectChats] = useState<ConversationWithUser[]>([]);
+  const [archivedCount, setArchivedCount] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const loadChats = useCallback(async () => {
-    const [events, directs] = await Promise.all([
+    const [events, directs, archived] = await Promise.all([
       getEventChats(),
       getConversations(),
+      getArchivedChatsCount(),
     ]);
     setEventChats(events);
     setDirectChats(directs);
+    setArchivedCount(archived);
   }, []);
 
   useFocusEffect(
@@ -101,79 +106,101 @@ export default function ChatListScreen() {
     }
   };
 
+  const handleDeleteEventChat = (eventId: string, eventTitle: string) => {
+    Alert.alert(
+      'Delete Chat',
+      `Are you sure you want to delete "${eventTitle}"? You will leave this event.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await leaveEventChat(eventId);
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              setEventChats(prev => prev.filter(chat => chat.event_id !== eventId));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteDirectChat = (conversationId: string, userName: string) => {
+    Alert.alert(
+      'Delete Chat',
+      `Are you sure you want to delete your conversation with ${userName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await hideConversation(conversationId);
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              setDirectChats(prev => prev.filter(chat => chat.id !== conversationId));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderEventChat = ({ item }: { item: EventChatPreview }) => (
-    <TouchableOpacity
-      style={[styles.chatItem, { borderBottomColor: colors.border.primary }]}
+    <SwipeableChatItem
+      type="event"
+      title={item.event_title}
+      subtitle={item.host_name}
+      imageUrl={item.event_image}
+      lastMessage={item.last_message}
+      time={formatTime(item.last_message_at)}
+      unreadCount={item.unread_count}
       onPress={() => navigation.navigate('EventChat', { eventId: item.event_id })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatarContainer}>
-        {item.event_image ? (
-          <Image source={{ uri: item.event_image }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.accent.primary }]}>
-            <ChatCircle size={24} color="#FFFFFF" weight="fill" />
-          </View>
-        )}
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={[styles.chatTitle, { color: colors.text.primary }]} numberOfLines={1}>
-            {item.event_title}
-          </Text>
-          <Text style={[styles.chatTime, { color: colors.text.tertiary }]}>
-            {formatTime(item.last_message_at)}
-          </Text>
-        </View>
-        <View style={styles.chatSubtitle}>
-          <Crown size={12} color={colors.accent.primary} weight="fill" />
-          <Text style={[styles.hostName, { color: colors.text.tertiary }]} numberOfLines={1}>
-            {item.host_name}
-          </Text>
-        </View>
-        {item.last_message && (
-          <Text style={[styles.lastMessage, { color: colors.text.secondary }]} numberOfLines={1}>
-            {item.last_message}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
+      onDelete={() => handleDeleteEventChat(item.event_id, item.event_title)}
+    />
   );
 
   const renderDirectChat = ({ item }: { item: ConversationWithUser }) => (
-    <TouchableOpacity
-      style={[styles.chatItem, { borderBottomColor: colors.border.primary }]}
+    <SwipeableChatItem
+      type="direct"
+      title={item.other_user?.full_name || 'Unknown'}
+      imageUrl={item.other_user?.avatar_url}
+      lastMessage={item.last_message?.content}
+      time={formatTime(item.last_message?.created_at || item.last_message_at)}
+      unreadCount={item.unread_count}
       onPress={() => navigation.navigate('DirectChat', { conversationId: item.id })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatarContainer}>
-        {item.other_user?.avatar_url ? (
-          <Image source={{ uri: item.other_user.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.accent.primary }]}>
-            <Text style={styles.avatarInitial}>
-              {item.other_user?.full_name?.charAt(0).toUpperCase() || '?'}
-            </Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={[styles.chatTitle, { color: colors.text.primary }]} numberOfLines={1}>
-            {item.other_user?.full_name || 'Unknown'}
+      onDelete={() => handleDeleteDirectChat(item.id, item.other_user?.full_name || 'Unknown')}
+    />
+  );
+
+  const renderArchiveButton = () => {
+    if (filter !== 'events' || archivedCount === 0) return null;
+
+    return (
+      <TouchableOpacity
+        style={[styles.archiveButton, { backgroundColor: colors.background.secondary, borderBottomColor: colors.border.primary }]}
+        onPress={() => navigation.navigate('ArchivedChats')}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.archiveIcon, { backgroundColor: colors.text.tertiary }]}>
+          <Archive size={20} color="#FFFFFF" weight="fill" />
+        </View>
+        <View style={styles.archiveContent}>
+          <Text style={[styles.archiveTitle, { color: colors.text.primary }]}>
+            Archived Chats
           </Text>
-          <Text style={[styles.chatTime, { color: colors.text.tertiary }]}>
-            {formatTime(item.last_message?.created_at || item.last_message_at)}
+          <Text style={[styles.archiveSubtitle, { color: colors.text.tertiary }]}>
+            {archivedCount} {archivedCount === 1 ? 'chat' : 'chats'} from ended events
           </Text>
         </View>
-        {item.last_message && (
-          <Text style={[styles.lastMessage, { color: colors.text.secondary }]} numberOfLines={1}>
-            {item.last_message.content}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+        <CaretRight size={20} color={colors.text.tertiary} weight="bold" />
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => {
     const isEvents = filter === 'events';
@@ -200,7 +227,7 @@ export default function ChatListScreen() {
   const isEmpty = currentData.length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background.primary, paddingTop: insets.top }]}>
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: colors.background.primary, paddingTop: insets.top }]}>
       <Animated.View
         style={[
           styles.header,
@@ -287,6 +314,7 @@ export default function ChatListScreen() {
             />
           }
         >
+          {renderArchiveButton()}
           {renderEmptyState()}
         </Animated.ScrollView>
       ) : (
@@ -294,6 +322,7 @@ export default function ChatListScreen() {
           data={currentData as any}
           keyExtractor={(item: any) => item.event_id || item.id}
           renderItem={filter === 'events' ? renderEventChat as any : renderDirectChat as any}
+          ListHeaderComponent={renderArchiveButton}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -309,7 +338,7 @@ export default function ChatListScreen() {
           }
         />
       )}
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -364,59 +393,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
   },
-  chatItem: {
+  archiveButton: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  avatarContainer: {
+  archiveIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 14,
   },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-  },
-  avatarPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  chatContent: {
+  archiveContent: {
     flex: 1,
-    justifyContent: 'center',
   },
-  chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  chatTitle: {
+  archiveTitle: {
     ...Typography.body,
     fontWeight: '600',
-    flex: 1,
-    marginRight: 8,
+    marginBottom: 2,
   },
-  chatTime: {
-    ...Typography.caption,
-    fontSize: 12,
-  },
-  chatSubtitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  hostName: {
-    ...Typography.caption,
-    marginLeft: 4,
-  },
-  lastMessage: {
+  archiveSubtitle: {
     ...Typography.caption,
   },
 });

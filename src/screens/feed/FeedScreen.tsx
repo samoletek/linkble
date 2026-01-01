@@ -12,10 +12,12 @@ import {
   TextInput,
   Keyboard,
   Alert,
+  ScrollView,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { MagnifyingGlass, NavigationArrow } from 'phosphor-react-native';
+import { MagnifyingGlass, NavigationArrow, Plus, Users, X } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import EventCard from '../../components/events/EventCard';
@@ -24,6 +26,15 @@ import CreateEventModal from '../../components/events/CreateEventModal';
 import { useEventsStore } from '../../stores/eventsStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
+
+type DateFilter = 'all' | 'today' | 'week' | 'month';
+
+const DATE_FILTER_OPTIONS: { value: DateFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+];
 
 const HEADER_MAX_HEIGHT = 52;
 const HEADER_MIN_HEIGHT = 40;
@@ -40,20 +51,26 @@ export default function FeedScreen() {
   // Events store
   const events = useEventsStore((state) => state.events);
   const isLoading = useEventsStore((state) => state.isLoading);
+  const hasInitiallyLoaded = useEventsStore((state) => state.hasInitiallyLoaded);
   const error = useEventsStore((state) => state.error);
   const searchRadius = useEventsStore((state) => state.searchRadius);
   const setSearchRadius = useEventsStore((state) => state.setSearchRadius);
+  const loadAllEvents = useEventsStore((state) => state.loadAllEvents);
   const loadNearbyEvents = useEventsStore((state) => state.loadNearbyEvents);
   const loadCategories = useEventsStore((state) => state.loadCategories);
 
   // Location store
   const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
   const manualAddress = useLocationStore((state) => state.manualAddress);
+  const isLocationHydrated = useLocationStore((state) => state.isHydrated);
   const isLocationLoading = useLocationStore((state) => state.isLoading);
   const locationError = useLocationStore((state) => state.error);
   const requestGpsLocation = useLocationStore((state) => state.requestGpsLocation);
   const setManualAddress = useLocationStore((state) => state.setManualAddress);
   const clearManualAddress = useLocationStore((state) => state.clearManualAddress);
+
+  // Categories from store
+  const categories = useEventsStore((state) => state.categories);
 
   // Local state
   const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
@@ -66,35 +83,95 @@ export default function FeedScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<EventWithHost | null>(null);
 
+  // Filter state (editing in modal)
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
+  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [tempRadius, setTempRadius] = useState(searchRadius);
+
+  // Applied filter state (used for actual filtering)
+  const [appliedFilters, setAppliedFilters] = useState({
+    dateFilter: 'all' as DateFilter,
+    selectedCategories: [] as number[],
+    showAvailableOnly: false,
+    eventSearchQuery: '',
+  });
+
+  // Available categories for filter (excluding Private Events for public tab)
+  const filterCategories = useMemo(() => {
+    return categories.filter(cat => cat.display_name !== 'Private Events');
+  }, [categories]);
+
   // Filtered and sorted events (nearest in time first)
   // Private tab: category.display_name === 'Private Events'
   // Public tab: all other categories
   const filteredEvents = useMemo(() => {
+    const now = new Date();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
     return events
       .filter(event => {
         const isPrivateCategory = event.category?.display_name === 'Private Events';
-        const matchesFilter = filter === 'public' ? !isPrivateCategory : isPrivateCategory;
-        const matchesSearch = !eventSearchQuery.trim() ||
-          event.title.toLowerCase().includes(eventSearchQuery.toLowerCase().trim());
-        return matchesFilter && matchesSearch;
+        const matchesTab = filter === 'public' ? !isPrivateCategory : isPrivateCategory;
+
+        // Search filter (using applied filters)
+        const matchesSearch = !appliedFilters.eventSearchQuery.trim() ||
+          event.title.toLowerCase().includes(appliedFilters.eventSearchQuery.toLowerCase().trim());
+
+        // Date filter (using applied filters)
+        const eventDate = new Date(event.start_time);
+        let matchesDate = true;
+        if (appliedFilters.dateFilter === 'today') {
+          matchesDate = eventDate <= todayEnd;
+        } else if (appliedFilters.dateFilter === 'week') {
+          matchesDate = eventDate <= weekEnd;
+        } else if (appliedFilters.dateFilter === 'month') {
+          matchesDate = eventDate <= monthEnd;
+        }
+
+        // Category filter (using applied filters)
+        const matchesCategory = appliedFilters.selectedCategories.length === 0 ||
+          appliedFilters.selectedCategories.includes(event.category_id);
+
+        // Available spots filter (using applied filters)
+        let matchesAvailable = true;
+        if (appliedFilters.showAvailableOnly) {
+          const participantsCount = (event as any).participants_count || 1;
+          matchesAvailable = participantsCount < event.max_participants;
+        }
+
+        return matchesTab && matchesSearch && matchesDate && matchesCategory && matchesAvailable;
       })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [events, filter, eventSearchQuery]);
+  }, [events, filter, appliedFilters]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Initialize location on mount
+  // Load categories on mount
   useEffect(() => {
     loadCategories();
-    initializeLocation();
   }, []);
 
-  // Reload events when location or radius changes
+  // Initialize location after hydration
   useEffect(() => {
+    if (isLocationHydrated) {
+      initializeLocation();
+    }
+  }, [isLocationHydrated]);
+
+  // Reload events when location or radius changes (wait for hydration)
+  useEffect(() => {
+    if (!isLocationHydrated) return;
+
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    } else {
+      // No location set - load all events worldwide
+      loadAllEvents();
     }
-  }, [effectiveLocation, searchRadius]);
+  }, [effectiveLocation, searchRadius, isLocationHydrated]);
 
   // Sync address input when modal opens
   useEffect(() => {
@@ -104,13 +181,13 @@ export default function FeedScreen() {
   }, [radiusModalVisible, manualAddress]);
 
   const initializeLocation = async () => {
-    // Try GPS first
-    const gpsGranted = await requestGpsLocation();
-
-    // If GPS denied and no manual address set, show hint
-    if (!gpsGranted && !manualAddress) {
-      // User will see empty state prompting them to set location
+    // If user has set manual address, don't override with GPS
+    if (manualAddress) {
+      return;
     }
+
+    // Try GPS only if no manual address
+    await requestGpsLocation();
   };
 
   const handleEventPress = (event: EventWithHost) => {
@@ -134,6 +211,8 @@ export default function FeedScreen() {
     // Refresh events after join/leave
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    } else {
+      loadAllEvents();
     }
   };
 
@@ -146,6 +225,8 @@ export default function FeedScreen() {
     // Refresh events after edit
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    } else {
+      loadAllEvents();
     }
   };
 
@@ -153,39 +234,84 @@ export default function FeedScreen() {
     setRefreshing(true);
     if (effectiveLocation) {
       await loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
+    } else {
+      await loadAllEvents();
     }
     setRefreshing(false);
   };
 
   const handleRadiusSelect = (radius: number) => {
-    setSearchRadius(radius);
+    setTempRadius(radius);
   };
 
-  const handleAddressSubmit = async () => {
-    if (!addressInput.trim()) return;
-
-    Keyboard.dismiss();
-    const result = await setManualAddress(addressInput.trim());
-
-    if (result.success) {
-      setRadiusModalVisible(false);
-    } else {
-      Alert.alert('Error', result.error || 'Could not find address');
-    }
+  const handleCategoryToggle = (categoryId: number) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
+
+  const [pendingGps, setPendingGps] = useState(false);
 
   const handleUseGps = async () => {
     const granted = await requestGpsLocation();
     if (granted) {
-      clearManualAddress();
       setAddressInput('');
-      setRadiusModalVisible(false);
+      setPendingGps(true);
     } else {
       Alert.alert(
         'Location Access',
         'Please enable location access in your device settings to use GPS.'
       );
     }
+  };
+
+  const openFilterModal = () => {
+    // Load applied filters into editing state
+    setDateFilter(appliedFilters.dateFilter);
+    setSelectedCategories([...appliedFilters.selectedCategories]);
+    setShowAvailableOnly(appliedFilters.showAvailableOnly);
+    setEventSearchQuery(appliedFilters.eventSearchQuery);
+    setTempRadius(searchRadius);
+    setAddressInput(manualAddress || '');
+    setPendingGps(false);
+    setRadiusModalVisible(true);
+  };
+
+  const closeFilterModalWithoutApply = () => {
+    // Just close without applying changes
+    Keyboard.dismiss();
+    setRadiusModalVisible(false);
+  };
+
+  const applyFiltersAndClose = async () => {
+    Keyboard.dismiss();
+    // Apply GPS location if requested
+    if (pendingGps) {
+      clearManualAddress();
+      setPendingGps(false);
+    } else if (addressInput.trim() && addressInput.trim() !== manualAddress) {
+      // Apply address if entered
+      const result = await setManualAddress(addressInput.trim());
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Could not find address');
+        return;
+      }
+    } else if (!addressInput.trim() && manualAddress) {
+      // Clear address if input was cleared
+      clearManualAddress();
+    }
+    // Apply radius
+    setSearchRadius(tempRadius);
+    // Apply filters
+    setAppliedFilters({
+      dateFilter,
+      selectedCategories: [...selectedCategories],
+      showAvailableOnly,
+      eventSearchQuery,
+    });
+    setRadiusModalVisible(false);
   };
 
   const headerHeight = scrollY.interpolate({
@@ -222,8 +348,24 @@ export default function FeedScreen() {
         No events nearby
       </Text>
       <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
-        Try increasing the search radius or create an event
+        Set your location or enter
       </Text>
+      <View style={styles.emptySubtitleRow}>
+        <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
+          address in{' '}
+        </Text>
+        <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
+        <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
+          {' '}to see events.
+        </Text>
+      </View>
+      <View style={[styles.emptySubtitleRow, { marginTop: 4 }]}>
+        <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
+          Or create your own in{' '}
+        </Text>
+        <Plus size={16} color={colors.text.secondary} weight="bold" />
+        <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>!</Text>
+      </View>
     </View>
   );
 
@@ -309,14 +451,14 @@ export default function FeedScreen() {
         >
           <TouchableOpacity
             style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
-            onPress={() => setRadiusModalVisible(true)}
+            onPress={openFilterModal}
           >
             <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
 
-      {isLoading && events.length === 0 ? (
+      {!isLocationHydrated || !hasInitiallyLoaded ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent.primary} />
         </View>
@@ -356,6 +498,13 @@ export default function FeedScreen() {
         onOpenChat={handleOpenChat}
         onJoinSuccess={handleJoinSuccess}
         onEdit={handleEditEvent}
+        onViewProfile={(userId) => {
+          navigation.navigate('Chat', {
+            screen: 'UserProfile',
+            params: { userId },
+            initial: false,
+          });
+        }}
       />
 
       <CreateEventModal
@@ -368,136 +517,218 @@ export default function FeedScreen() {
         onEditSuccess={handleEditSuccess}
       />
 
-      {/* Location & Radius Modal */}
+      {/* Location & Filters Modal */}
       <Modal
         visible={radiusModalVisible}
         animationType="fade"
         transparent
-        onRequestClose={() => setRadiusModalVisible(false)}
+        onRequestClose={closeFilterModalWithoutApply}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => {
-            Keyboard.dismiss();
-            setRadiusModalVisible(false);
-          }}
-        >
+        <View style={styles.modalOverlay}>
           <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeFilterModalWithoutApply}
+          />
+          <View
             style={[
               styles.radiusModal,
               { backgroundColor: colors.background.secondary }
             ]}
-            onPress={() => Keyboard.dismiss()}
           >
-            {/* Location Section */}
-            <Text style={[styles.radiusModalTitle, { color: colors.text.primary }]}>
-              Location
-            </Text>
-
-            {!effectiveLocation && (
-              <Text style={[styles.locationHint, { color: colors.text.secondary }]}>
-                Set your location to see nearby events
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={() => Keyboard.dismiss()}
+            >
+              {/* Location Section */}
+              <Text style={[styles.filterSectionTitle, { color: colors.text.primary, marginTop: 0 }]}>
+                Location
               </Text>
-            )}
 
-            {/* Address input */}
-            <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
-              <MagnifyingGlass size={18} color={colors.text.tertiary} />
-              <TextInput
-                style={[styles.addressInput, { color: colors.text.primary }]}
-                placeholder="Enter address or city..."
-                placeholderTextColor={colors.text.tertiary}
-                value={addressInput}
-                onChangeText={setAddressInput}
-                onSubmitEditing={handleAddressSubmit}
-                returnKeyType="search"
-                autoCorrect={false}
-              />
-              {isLocationLoading && (
-                <ActivityIndicator size="small" color={colors.accent.primary} />
+              {!effectiveLocation && (
+                <Text style={[styles.locationHint, { color: colors.text.secondary }]}>
+                  Set your location to see nearby events
+                </Text>
               )}
-            </View>
 
-            <TouchableOpacity
-              style={[styles.addressSubmitButton, { backgroundColor: colors.accent.primary }]}
-              onPress={handleAddressSubmit}
-              disabled={!addressInput.trim() || isLocationLoading}
-            >
-              <Text style={styles.addressSubmitText}>
-                {isLocationLoading ? 'Searching...' : 'Set Location'}
+              {/* Address input */}
+              <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
+                <NavigationArrow size={18} color={colors.text.tertiary} />
+                <TextInput
+                  style={[styles.addressInput, { color: colors.text.primary }]}
+                  placeholder="Enter address or city..."
+                  placeholderTextColor={colors.text.tertiary}
+                  value={addressInput}
+                  onChangeText={setAddressInput}
+                  returnKeyType="done"
+                  autoCorrect={false}
+                />
+                {isLocationLoading && (
+                  <ActivityIndicator size="small" color={colors.accent.primary} />
+                )}
+                {addressInput.length > 0 && !isLocationLoading && (
+                  <TouchableOpacity onPress={() => setAddressInput('')}>
+                    <X size={18} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Use GPS button */}
+              <TouchableOpacity
+                style={[styles.useGpsButton, { borderColor: colors.border.primary }]}
+                onPress={handleUseGps}
+              >
+                <NavigationArrow size={16} color={colors.accent.primary} weight="bold" />
+                <Text style={[styles.useGpsText, { color: colors.accent.primary }]}>
+                  Use my location
+                </Text>
+              </TouchableOpacity>
+
+              {locationError && (
+                <Text style={[styles.locationErrorText, { color: colors.status.error }]}>
+                  {locationError}
+                </Text>
+              )}
+
+              {/* Radius Section */}
+              <Text style={[styles.filterSectionTitle, { color: colors.text.primary }]}>
+                Search Radius
               </Text>
-            </TouchableOpacity>
 
-            {/* Use GPS button */}
-            <TouchableOpacity
-              style={[styles.useGpsButton, { borderColor: colors.border.primary }]}
-              onPress={handleUseGps}
-            >
-              <NavigationArrow size={16} color={colors.accent.primary} weight="bold" />
-              <Text style={[styles.useGpsText, { color: colors.accent.primary }]}>
-                Use my location
-              </Text>
-            </TouchableOpacity>
-
-            {locationError && (
-              <Text style={[styles.locationErrorText, { color: colors.status.error }]}>
-                {locationError}
-              </Text>
-            )}
-
-            {/* Event Search */}
-            <Text style={[styles.radiusModalTitle, { color: colors.text.primary, marginTop: 20 }]}>
-              Search Events
-            </Text>
-            <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
-              <MagnifyingGlass size={18} color={colors.text.tertiary} />
-              <TextInput
-                style={[styles.addressInput, { color: colors.text.primary }]}
-                placeholder="Event name..."
-                placeholderTextColor={colors.text.tertiary}
-                value={eventSearchQuery}
-                onChangeText={setEventSearchQuery}
-                returnKeyType="search"
-                autoCorrect={false}
-              />
-            </View>
-
-            {/* Radius Section */}
-            <Text style={[styles.radiusModalTitle, { color: colors.text.primary, marginTop: 12 }]}>
-              Search Radius
-            </Text>
-
-            <View style={styles.radiusOptionsRow}>
-              {RADIUS_OPTIONS.map((radius) => (
-                <TouchableOpacity
-                  key={radius}
-                  style={[
-                    styles.radiusChip,
-                    { backgroundColor: searchRadius === radius ? colors.accent.primary : colors.background.tertiary }
-                  ]}
-                  onPress={() => handleRadiusSelect(radius)}
-                >
-                  <Text
+              <View style={styles.radiusOptionsRow}>
+                {RADIUS_OPTIONS.map((radius) => (
+                  <TouchableOpacity
+                    key={radius}
                     style={[
-                      styles.radiusChipText,
-                      { color: searchRadius === radius ? '#FFFFFF' : colors.text.secondary }
+                      styles.radiusChip,
+                      { backgroundColor: tempRadius === radius ? colors.accent.primary : colors.background.tertiary }
                     ]}
+                    onPress={() => handleRadiusSelect(radius)}
                   >
-                    {radius >= 50000 ? 'All' : `${radius} km`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.radiusChipText,
+                        { color: tempRadius === radius ? '#FFFFFF' : colors.text.secondary }
+                      ]}
+                    >
+                      {radius >= 50000 ? 'All' : `${radius} km`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            {/* Done button */}
+              {/* Divider */}
+              <View style={[styles.divider, { backgroundColor: colors.border.primary }]} />
+
+              {/* Event Search */}
+              <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
+                <MagnifyingGlass size={18} color={colors.text.tertiary} />
+                <TextInput
+                  style={[styles.addressInput, { color: colors.text.primary }]}
+                  placeholder="Search events..."
+                  placeholderTextColor={colors.text.tertiary}
+                  value={eventSearchQuery}
+                  onChangeText={setEventSearchQuery}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                />
+                {eventSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setEventSearchQuery('')}>
+                    <X size={18} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Date Filter */}
+              <Text style={[styles.filterSectionTitle, { color: colors.text.primary }]}>
+                Date
+              </Text>
+              <View style={styles.radiusOptionsRow}>
+                {DATE_FILTER_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.radiusChip,
+                      { backgroundColor: dateFilter === option.value ? colors.accent.primary : colors.background.tertiary }
+                    ]}
+                    onPress={() => setDateFilter(option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusChipText,
+                        { color: dateFilter === option.value ? '#FFFFFF' : colors.text.secondary }
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Categories Filter */}
+              {filter === 'public' && filterCategories.length > 0 && (
+                <>
+                  <Text style={[styles.filterSectionTitle, { color: colors.text.primary }]}>
+                    Categories
+                  </Text>
+                  <View style={styles.radiusOptionsRow}>
+                    {filterCategories.map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[
+                          styles.radiusChip,
+                          { backgroundColor: selectedCategories.includes(category.id) ? colors.accent.primary : colors.background.tertiary }
+                        ]}
+                        onPress={() => handleCategoryToggle(category.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.radiusChipText,
+                            { color: selectedCategories.includes(category.id) ? '#FFFFFF' : colors.text.secondary }
+                          ]}
+                        >
+                          {category.display_name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Available Spots Toggle */}
+              <View
+                style={[styles.toggleRow, { marginBottom: 0 }]}
+                onStartShouldSetResponder={() => true}
+              >
+                <View style={styles.toggleInfo}>
+                  <Users size={20} color={colors.text.secondary} />
+                  <Text style={[styles.toggleLabel, { color: colors.text.primary }]}>
+                    Available spots only
+                  </Text>
+                </View>
+                <Switch
+                  value={showAvailableOnly}
+                  onValueChange={setShowAvailableOnly}
+                  trackColor={{ false: colors.background.tertiary, true: colors.accent.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </ScrollView>
+
+            {/* Done button - fixed at bottom */}
             <TouchableOpacity
-              style={[styles.doneButton, { backgroundColor: colors.background.tertiary }]}
-              onPress={() => setRadiusModalVisible(false)}
+              style={[styles.doneButtonFixed, { backgroundColor: colors.accent.primary }]}
+              onPress={applyFiltersAndClose}
+              disabled={isLocationLoading}
             >
-              <Text style={[styles.doneButtonText, { color: colors.text.primary }]}>Done</Text>
+              <Text style={[styles.doneButtonText, { color: '#FFFFFF' }]}>
+                {isLocationLoading ? 'Searching...' : 'Done'}
+              </Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -583,6 +814,11 @@ const styles = StyleSheet.create({
     ...Typography.body,
     textAlign: 'center',
   },
+  emptySubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -592,8 +828,15 @@ const styles = StyleSheet.create({
   radiusModal: {
     width: '90%',
     maxWidth: 340,
+    height: '65%',
     borderRadius: Spacing.borderRadius.lg,
     padding: 20,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
   },
   radiusModalTitle: {
     ...Typography.h4,
@@ -671,6 +914,12 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.borderRadius.md,
     alignItems: 'center',
   },
+  doneButtonFixed: {
+    paddingVertical: 12,
+    borderRadius: Spacing.borderRadius.md,
+    alignItems: 'center',
+    marginTop: 12,
+  },
   doneButtonText: {
     fontWeight: '600',
     fontSize: 15,
@@ -684,5 +933,31 @@ const styles = StyleSheet.create({
   },
   radiusOptionText: {
     ...Typography.body,
+  },
+  filterSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 4,
+  },
+  toggleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    marginVertical: 16,
   },
 });

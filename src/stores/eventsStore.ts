@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   EventWithHost,
   EventWithDetails,
@@ -8,6 +10,7 @@ import {
 import {
   getCategories,
   getNearbyEvents,
+  getAllEvents,
   getEventsByCategory,
   getEvent,
   getUserEvents,
@@ -34,10 +37,12 @@ interface EventsState {
   // Loading states
   isLoading: boolean;
   isLoadingEvent: boolean;
+  hasInitiallyLoaded: boolean;
   error: string | null;
 
   // Actions
   loadCategories: () => Promise<void>;
+  loadAllEvents: () => Promise<void>;
   loadNearbyEvents: (latitude: number, longitude: number) => Promise<void>;
   loadEventsByCategory: (categoryId: number) => Promise<void>;
   loadEvent: (eventId: string) => Promise<void>;
@@ -57,7 +62,9 @@ interface EventsState {
   clearError: () => void;
 }
 
-export const useEventsStore = create<EventsState>((set, get) => ({
+export const useEventsStore = create<EventsState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   events: [],
   categories: [],
@@ -68,11 +75,23 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   userLocation: null,
   isLoading: false,
   isLoadingEvent: false,
+  hasInitiallyLoaded: false,
   error: null,
 
   loadCategories: async () => {
     const categories = await getCategories();
     set({ categories });
+  },
+
+  loadAllEvents: async () => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const events = await getAllEvents();
+      set({ events, isLoading: false, hasInitiallyLoaded: true });
+    } catch (error) {
+      set({ isLoading: false, hasInitiallyLoaded: true, error: 'Failed to load events' });
+    }
   },
 
   loadNearbyEvents: async (latitude, longitude) => {
@@ -88,9 +107,9 @@ export const useEventsStore = create<EventsState>((set, get) => ({
         events = await getNearbyEvents(latitude, longitude, searchRadius);
       }
 
-      set({ events, isLoading: false });
+      set({ events, isLoading: false, hasInitiallyLoaded: true });
     } catch (error) {
-      set({ isLoading: false, error: 'Failed to load events' });
+      set({ isLoading: false, hasInitiallyLoaded: true, error: 'Failed to load events' });
     }
   },
 
@@ -286,4 +305,13 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
-}));
+    }),
+    {
+      name: 'linkble-events',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        searchRadius: state.searchRadius,
+      }),
+    }
+  )
+);

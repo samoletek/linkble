@@ -4,13 +4,25 @@
     "slug": "linkble",
     "version": "1.0.0",
     "icon": "./assets/logo/logo-original.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/logo/logo-original.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF",
+      "dark": {
+        "image": "./assets/logo/logo-original.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000814"
+      }
+    },
     "plugins": [
       [
         "@rnmapbox/maps",
         {
           "RNMapboxMapsVersion": "11.8.0"
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "android": {
       "package": "com.samoletek.linkble"

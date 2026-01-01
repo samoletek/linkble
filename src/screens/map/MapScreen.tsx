@@ -74,17 +74,14 @@ export default function MapScreen() {
     ? [effectiveLocation.longitude, effectiveLocation.latitude]
     : DEFAULT_CENTER;
 
-  // Filter events to only show upcoming ones (not started yet)
-  const filterUpcomingEvents = useCallback((eventsList: EventWithHost[]) => {
-    const now = new Date();
-    return eventsList.filter((event) => new Date(event.start_time) > now);
-  }, []);
-
   // Load all events worldwide
+  // Note: getAllEvents already filters based on participation status
+  // - Future events shown to everyone
+  // - Ongoing events shown only to participants
   const loadEvents = useCallback(async () => {
     const allEvents = await getAllEvents();
-    setEvents(filterUpcomingEvents(allEvents));
-  }, [filterUpcomingEvents]);
+    setEvents(allEvents);
+  }, []);
 
   // Initialize and load events
   useEffect(() => {
@@ -121,14 +118,14 @@ export default function MapScreen() {
     };
   }, [loadEvents]);
 
-  // Auto-remove started events every minute
+  // Auto-refresh events every minute to update visibility based on start/end times
   useEffect(() => {
     const interval = setInterval(() => {
-      setEvents((current) => filterUpcomingEvents(current));
+      loadEvents();
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [filterUpcomingEvents]);
+  }, [loadEvents]);
 
   const handleCloseModal = () => {
     setModalVisible(false);
@@ -370,6 +367,12 @@ export default function MapScreen() {
         onOpenChat={handleOpenChat}
         onJoinSuccess={loadEvents}
         onEdit={handleEditEvent}
+        onViewProfile={(userId) => {
+          navigation.navigate('Chat', {
+            screen: 'UserProfile',
+            params: { userId },
+          });
+        }}
       />
 
       <CreateEventModal

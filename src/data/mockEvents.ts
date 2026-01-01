@@ -1,6 +1,21 @@
-import { Event } from '../components/events/EventCard';
+interface MockEvent {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  date: string;
+  time: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  hostName: string;
+  hostAvatar: string;
+  image: string;
+  spotsTotal: number;
+  spotsTaken: number;
+}
 
-export const MOCK_EVENTS: Event[] = [
+export const MOCK_EVENTS: MockEvent[] = [
   {
     id: '1',
     title: 'Morning Run in Central Park',

@@ -16,6 +16,9 @@ interface LocationState {
   // Effective location (GPS takes priority over manual)
   effectiveLocation: { latitude: number; longitude: number } | null;
 
+  // Hydration state
+  isHydrated: boolean;
+
   // Loading state
   isLoading: boolean;
   error: string | null;
@@ -37,6 +40,7 @@ export const useLocationStore = create<LocationState>()(
       manualAddress: null,
       manualLocation: null,
       effectiveLocation: null,
+      isHydrated: false,
       isLoading: false,
       error: null,
 
@@ -147,8 +151,14 @@ export const useLocationStore = create<LocationState>()(
       partialize: (state) => ({
         manualAddress: state.manualAddress,
         manualLocation: state.manualLocation,
+        effectiveLocation: state.effectiveLocation,
         gpsPermissionGranted: state.gpsPermissionGranted,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isHydrated = true;
+        }
+      },
     }
   )
 );

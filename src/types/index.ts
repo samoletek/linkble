@@ -28,8 +28,10 @@ export type FeedStackParamList = {
 
 export type ChatStackParamList = {
   ChatList: undefined;
+  ArchivedChats: undefined;
   EventChat: { eventId: string };
   DirectChat: { conversationId: string };
+  UserProfile: { userId: string };
 };
 
 export type ProfileStackParamList = {

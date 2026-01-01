@@ -62,3 +62,11 @@ export {
   isBlockedByUser,
   type BlockedUserWithProfile,
 } from './users';
+
+// Notifications service
+export {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  getUnreadCount,
+} from './notifications';
