@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { CaretLeft, User } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { getBlockedUsers, unblockUser, BlockedUserWithProfile } from '../../services';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -82,7 +83,7 @@ export default function BlockedUsersScreen() {
           <Image source={{ uri: item.blocked_profile.avatar_url }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatarPlaceholder, { backgroundColor: colors.background.tertiary }]}>
-            <User size={24} color={colors.text.tertiary} weight="regular" />
+            <User size={iconScale(24)} color={colors.text.tertiary} weight="regular" />
           </View>
         )}
         <View style={styles.userDetails}>
@@ -127,7 +128,7 @@ export default function BlockedUsersScreen() {
           onPress={handleBack}
           activeOpacity={0.7}
         >
-          <CaretLeft size={24} color={colors.text.primary} weight="regular" />
+          <CaretLeft size={iconScale(24)} color={colors.text.primary} weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text.primary }]}>Blocked Users</Text>
         <View style={styles.placeholder} />
@@ -162,13 +163,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     ...Typography.h2,
   },
   placeholder: {
-    width: 40,
+    width: scale(40),
   },
   loadingContainer: {
     flex: 1,
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
   },
   emptyList: {
     flex: 1,
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   userInfo: {
@@ -202,19 +203,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
   },
   avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
     justifyContent: 'center',
     alignItems: 'center',
   },
   userDetails: {
-    marginLeft: 12,
+    marginLeft: scale(12),
     flex: 1,
   },
   userName: {
@@ -223,13 +224,13 @@ const styles = StyleSheet.create({
   },
   userHandle: {
     ...Typography.caption,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   unblockButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
     borderRadius: 8,
-    minWidth: 80,
+    minWidth: scale(80),
     alignItems: 'center',
   },
   unblockText: {

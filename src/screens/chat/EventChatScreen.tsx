@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt, Crown, Check, Checks, PushPin, Trash, Archive } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt, Crown, PushPin, Trash, Archive } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { ChatStackParamList, MessageWithSender, EventWithHost } from '../../types';
@@ -28,12 +28,12 @@ import {
   subscribeToEventMessages,
   unsubscribe,
   markEventMessagesAsRead,
-  getMessageReadStatus,
   pinMessage,
   deleteMessage,
 } from '../../services/messages';
 import { supabase } from '../../config/supabase';
 import EventDetailModal from '../../components/events/EventDetailModal';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 type EventChatRouteProp = RouteProp<ChatStackParamList, 'EventChat'>;
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
@@ -93,7 +93,6 @@ export default function EventChatScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [readMessageIds, setReadMessageIds] = useState<Set<string>>(new Set());
   const [pinnedMessage, setPinnedMessage] = useState<MessageWithSender | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<MessageWithSender | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
@@ -132,17 +131,6 @@ export default function EventChatScreen() {
       const pinned = eventMessages.find(m => m.is_pinned);
       setPinnedMessage(pinned || null);
 
-      // Load read status for own messages
-      if (currentUser) {
-        const ownMessageIds = eventMessages
-          .filter(m => m.user_id === currentUser.id)
-          .map(m => m.id);
-        if (ownMessageIds.length > 0) {
-          const readIds = await getMessageReadStatus(ownMessageIds, currentUser.id);
-          setReadMessageIds(readIds);
-        }
-      }
-
       setIsLoading(false);
 
       // Mark messages as read
@@ -152,7 +140,7 @@ export default function EventChatScreen() {
     loadData();
   }, [eventId, currentUser]);
 
-  // Subscribe to new messages and read updates
+  // Subscribe to new messages
   useEffect(() => {
     const channel = subscribeToEventMessages(
       eventId,
@@ -162,10 +150,6 @@ export default function EventChatScreen() {
         if (newMessage.user_id !== currentUser?.id) {
           await markEventMessagesAsRead(eventId);
         }
-      },
-      (messageId) => {
-        // Update read status when someone reads a message
-        setReadMessageIds((prev) => new Set([...prev, messageId]));
       }
     );
 
@@ -321,7 +305,7 @@ export default function EventChatScreen() {
                 {senderName}
               </Text>
               {isHostMessage && (
-                <Crown size={12} color={colors.accent.primary} weight="fill" style={styles.hostBadge} />
+                <Crown size={iconScale(12)} color={colors.accent.primary} weight="fill" style={styles.hostBadge} />
               )}
             </TouchableOpacity>
           )}
@@ -349,13 +333,6 @@ export default function EventChatScreen() {
                 minute: '2-digit',
               })}
             </Text>
-            {isOwnMessage && (
-              readMessageIds.has(item.id) ? (
-                <Checks size={14} color={colors.text.tertiary} weight="bold" />
-              ) : (
-                <Check size={14} color={colors.text.tertiary} weight="bold" />
-              )
-            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -394,7 +371,7 @@ export default function EventChatScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top, borderBottomColor: colors.border.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.text.primary} weight="bold" />
+          <ArrowLeft size={iconScale(24)} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerCenter}
@@ -406,7 +383,7 @@ export default function EventChatScreen() {
           </Text>
           {eventInfo?.host && (
             <View style={styles.hostInfo}>
-              <Crown size={12} color={colors.accent.primary} weight="fill" />
+              <Crown size={iconScale(12)} color={colors.accent.primary} weight="fill" />
               <Text style={[styles.hostName, { color: colors.text.secondary }]}>
                 {eventInfo.host.full_name}
               </Text>
@@ -428,7 +405,7 @@ export default function EventChatScreen() {
           }}
           activeOpacity={0.7}
         >
-          <PushPin size={16} color={colors.accent.primary} weight="fill" />
+          <PushPin size={iconScale(16)} color={colors.accent.primary} weight="fill" />
           <View style={styles.pinnedContent}>
             <Text style={[styles.pinnedLabel, { color: colors.accent.primary }]}>
               Pinned Message
@@ -477,11 +454,11 @@ export default function EventChatScreen() {
             {
               backgroundColor: colors.background.secondary,
               borderTopColor: colors.border.primary,
-              paddingBottom: insets.bottom || 16,
+              paddingBottom: insets.bottom || scale(16),
             },
           ]}
         >
-          <Archive size={18} color={colors.text.tertiary} weight="fill" />
+          <Archive size={iconScale(18)} color={colors.text.tertiary} weight="fill" />
           <Text style={[styles.archivedText, { color: colors.text.tertiary }]}>
             This event has ended. Chat is read-only.
           </Text>
@@ -493,7 +470,7 @@ export default function EventChatScreen() {
             {
               backgroundColor: colors.background.primary,
               borderTopColor: colors.border.primary,
-              paddingBottom: insets.bottom || 16,
+              paddingBottom: insets.bottom || scale(16),
             },
           ]}
         >
@@ -522,7 +499,7 @@ export default function EventChatScreen() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <PaperPlaneTilt
-                size={20}
+                size={iconScale(20)}
                 color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
                 weight="fill"
               />
@@ -547,7 +524,7 @@ export default function EventChatScreen() {
                     style={styles.actionMenuItem}
                     onPress={handlePinMessage}
                   >
-                    <PushPin size={20} color={colors.text.primary} weight="bold" />
+                    <PushPin size={iconScale(20)} color={colors.text.primary} weight="bold" />
                     <Text style={[styles.actionMenuText, { color: colors.text.primary }]}>
                       {selectedMessage.is_pinned ? 'Unpin Message' : 'Pin Message'}
                     </Text>
@@ -557,7 +534,7 @@ export default function EventChatScreen() {
                   style={styles.actionMenuItem}
                   onPress={handleDeleteMessage}
                 >
-                  <Trash size={20} color={colors.status.error} weight="bold" />
+                  <Trash size={iconScale(20)} color={colors.status.error} weight="bold" />
                   <Text style={[styles.actionMenuText, { color: colors.status.error }]}>
                     Delete Message
                   </Text>
@@ -597,20 +574,20 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 40,
-    padding: 4,
+    width: scale(40),
+    padding: scale(4),
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
   },
   headerRight: {
-    width: 40,
+    width: scale(40),
   },
   headerTitle: {
     ...Typography.h4,
@@ -620,19 +597,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: scale(2),
   },
   hostName: {
     ...Typography.caption,
-    marginLeft: 4,
+    marginLeft: scale(4),
   },
   pinnedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
     borderBottomWidth: 1,
-    gap: 10,
+    gap: scale(10),
   },
   pinnedContent: {
     flex: 1,
@@ -643,7 +620,7 @@ const styles = StyleSheet.create({
   },
   pinnedText: {
     ...Typography.body,
-    fontSize: 13,
+    fontSize: fontScale(13),
   },
   loadingContainer: {
     flex: 1,
@@ -651,8 +628,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   messagesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
   },
   emptyList: {
     flex: 1,
@@ -667,11 +644,11 @@ const styles = StyleSheet.create({
   },
   emptyHint: {
     ...Typography.caption,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   ownMessageContainer: {
     justifyContent: 'flex-end',
@@ -680,12 +657,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatarContainer: {
-    marginRight: 8,
+    marginRight: scale(8),
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -693,7 +670,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
   },
   messageBubbleWrapper: {
@@ -705,18 +682,18 @@ const styles = StyleSheet.create({
   senderInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   senderName: {
     ...Typography.caption,
     fontWeight: '600',
   },
   hostBadge: {
-    marginLeft: 4,
+    marginLeft: scale(4),
   },
   messageBubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(10),
     borderRadius: Spacing.borderRadius.md,
   },
   messageText: {
@@ -724,13 +701,13 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     ...Typography.caption,
-    fontSize: 10,
+    fontSize: fontScale(10),
   },
   messageFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: scale(4),
+    marginTop: scale(4),
   },
   ownMessageFooter: {
     justifyContent: 'flex-end',
@@ -738,17 +715,17 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(12),
     borderTopWidth: 1,
   },
   inputWrapper: {
     flex: 1,
     borderRadius: Spacing.borderRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(10),
+    marginRight: scale(10),
+    maxHeight: scale(100),
   },
   input: {
     ...Typography.body,
@@ -756,9 +733,9 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -767,20 +744,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: scale(20),
   },
   actionMenu: {
     width: '100%',
-    maxWidth: 300,
+    maxWidth: scale(300),
     borderRadius: Spacing.borderRadius.lg,
     overflow: 'hidden',
   },
   actionMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 12,
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
+    gap: scale(12),
   },
   actionMenuText: {
     ...Typography.bodyMedium,
@@ -794,13 +771,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(14),
     borderTopWidth: 1,
-    gap: 8,
+    gap: scale(8),
   },
   archivedText: {
     ...Typography.body,
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
 });

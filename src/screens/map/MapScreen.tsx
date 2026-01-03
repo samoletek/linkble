@@ -12,6 +12,7 @@ import Mapbox, { ShapeSource } from '@rnmapbox/maps';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants';
 import { CATEGORY_COLORS } from '../../utils/constants';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { getAllEvents } from '../../services/events';
 import { supabase } from '../../config/supabase';
 import { useLocationStore } from '../../stores/locationStore';
@@ -355,7 +356,7 @@ export default function MapScreen() {
           style={[styles.centerButton, { backgroundColor: colors.background.secondary }]}
           onPress={handleCenterOnLocation}
         >
-          <NavigationArrow size={22} color={colors.accent.primary} weight="bold" />
+          <NavigationArrow size={iconScale(22)} color={colors.accent.primary} weight="bold" />
         </TouchableOpacity>
       </View>
 
@@ -396,15 +397,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: scale(20),
+    paddingBottom: scale(12),
   },
   title: {
     ...Typography.h1,
   },
   subtitle: {
     ...Typography.caption,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   mapContainer: {
     flex: 1,
@@ -420,11 +421,11 @@ const styles = StyleSheet.create({
   },
   centerButton: {
     position: 'absolute',
-    bottom: 47,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    bottom: scale(47),
+    right: scale(20),
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

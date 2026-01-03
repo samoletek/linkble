@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,32 @@ import {
   Image,
   ActivityIndicator,
   ScrollView,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, CaretLeft, ChatCircle } from 'phosphor-react-native';
+import { User, CaretLeft, ChatCircle, DotsThreeVertical, Flag, Prohibit } from 'phosphor-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Typography } from '../../constants/typography';
+import { Typography, Spacing } from '../../constants';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { getProfile } from '../../services/auth';
 import { getOrCreateConversation } from '../../services/messages';
 import { getInterestsByIds } from '../../utils/interests';
 import { useUserStore } from '../../stores/userStore';
+import { blockUser, reportUser } from '../../services/users';
 import { supabase } from '../../config/supabase';
-import type { Profile } from '../../types/database';
+import type { Profile, ReportReason } from '../../types/database';
 import type { ChatStackParamList } from '../../types';
+
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: 'spam', label: 'Spam' },
+  { value: 'inappropriate_content', label: 'Inappropriate content' },
+  { value: 'scam', label: 'Scam' },
+  { value: 'violence', label: 'Violence' },
+  { value: 'other', label: 'Other' },
+];
 
 type UserProfileRouteProp = RouteProp<ChatStackParamList, 'UserProfile'>;
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
@@ -36,6 +48,9 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({ hosted: 0, joined: 0 });
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -79,6 +94,52 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleBlock = useCallback(() => {
+    if (!currentUser || !profile) return;
+
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${profile.full_name}? They won't be able to message you or view your profile.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(currentUser.id, profile.id);
+              setShowMenu(false);
+              Alert.alert('User Blocked', `${profile.full_name} has been blocked.`);
+              navigation.goBack();
+            } catch (error) {
+              console.error('Failed to block user:', error);
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, [currentUser, profile, navigation]);
+
+  const handleReport = useCallback(() => {
+    setShowMenu(false);
+    setShowReportModal(true);
+  }, []);
+
+  const submitReport = useCallback(async () => {
+    if (!currentUser || !profile || !selectedReason) return;
+
+    try {
+      await reportUser(currentUser.id, profile.id, selectedReason);
+      setShowReportModal(false);
+      setSelectedReason(null);
+      Alert.alert('Report Submitted', 'Thank you for your report. We will review it shortly.');
+    } catch (error) {
+      console.error('Failed to submit report:', error);
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    }
+  }, [currentUser, profile, selectedReason]);
+
   const userInterests = getInterestsByIds(profile?.interests || []);
   const isOwnProfile = currentUser?.id === userId;
 
@@ -99,7 +160,7 @@ export default function UserProfileScreen() {
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <CaretLeft size={24} color={colors.text.primary} weight="regular" />
+            <CaretLeft size={iconScale(24)} color={colors.text.primary} weight="regular" />
           </TouchableOpacity>
         </View>
         <View style={styles.errorContainer}>
@@ -119,8 +180,18 @@ export default function UserProfileScreen() {
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
-          <CaretLeft size={24} color={colors.text.primary} weight="regular" />
+          <CaretLeft size={iconScale(24)} color={colors.text.primary} weight="regular" />
         </TouchableOpacity>
+        <View style={styles.headerSpacer} />
+        {!isOwnProfile && (
+          <TouchableOpacity
+            style={[styles.menuButton, { backgroundColor: colors.background.secondary }]}
+            onPress={() => setShowMenu(true)}
+            activeOpacity={0.7}
+          >
+            <DotsThreeVertical size={iconScale(24)} color={colors.text.primary} weight="bold" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -129,7 +200,7 @@ export default function UserProfileScreen() {
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
             ) : (
-              <User size={48} color={colors.text.tertiary} weight="thin" />
+              <User size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
             )}
           </View>
           <Text style={[styles.username, { color: colors.text.primary }]}>
@@ -185,11 +256,144 @@ export default function UserProfileScreen() {
             onPress={handleStartChat}
             activeOpacity={0.8}
           >
-            <ChatCircle size={22} color="#FFFFFF" weight="bold" />
+            <ChatCircle size={iconScale(22)} color="#FFFFFF" weight="bold" />
             <Text style={styles.chatButtonText}>Message</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View
+            style={[styles.menuContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <TouchableOpacity
+              style={[styles.menuItem, { borderBottomColor: colors.border.primary }]}
+              onPress={handleReport}
+              activeOpacity={0.7}
+            >
+              <Flag size={iconScale(20)} color={colors.text.primary} weight="regular" />
+              <Text style={[styles.menuItemText, { color: colors.text.primary }]}>
+                Report User
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                handleBlock();
+              }}
+              activeOpacity={0.7}
+            >
+              <Prohibit size={iconScale(20)} color={colors.status.error} weight="regular" />
+              <Text style={[styles.menuItemText, { color: colors.status.error }]}>
+                Block User
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowReportModal(false)}
+        >
+          <View
+            style={[styles.reportContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.reportTitle, { color: colors.text.primary }]}>
+              Report User
+            </Text>
+            <Text style={[styles.reportSubtitle, { color: colors.text.secondary }]}>
+              Why are you reporting this user?
+            </Text>
+            <View style={styles.reasonsList}>
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason.value}
+                  style={[
+                    styles.reasonChip,
+                    {
+                      backgroundColor: selectedReason === reason.value
+                        ? colors.accent.primary
+                        : colors.background.tertiary,
+                    },
+                  ]}
+                  onPress={() => setSelectedReason(reason.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.reasonChipText,
+                      {
+                        color: selectedReason === reason.value
+                          ? '#FFFFFF'
+                          : colors.text.primary,
+                      },
+                    ]}
+                  >
+                    {reason.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.reportButtons}>
+              <TouchableOpacity
+                style={[styles.reportButton, { backgroundColor: colors.background.tertiary }]}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setSelectedReason(null);
+                }}
+              >
+                <Text style={[styles.reportButtonText, { color: colors.text.secondary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.reportButton,
+                  {
+                    backgroundColor: selectedReason
+                      ? colors.status.error
+                      : colors.background.tertiary,
+                  },
+                ]}
+                onPress={submitReport}
+                disabled={!selectedReason}
+              >
+                <Text
+                  style={[
+                    styles.reportButtonText,
+                    { color: selectedReason ? '#FFFFFF' : colors.text.tertiary },
+                  ]}
+                >
+                  Submit
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -205,12 +409,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -227,93 +431,170 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: scale(24),
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
   },
   username: {
     ...Typography.h2,
-    marginTop: 16,
+    marginTop: scale(16),
   },
   handle: {
     ...Typography.body,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   bio: {
     ...Typography.body,
-    marginTop: 8,
+    marginTop: scale(8),
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   statsSection: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
-    marginHorizontal: 20,
+    paddingVertical: scale(20),
+    marginHorizontal: scale(20),
   },
   statItem: {
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: scale(32),
   },
   statValue: {
     ...Typography.h2,
   },
   statLabel: {
     ...Typography.caption,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   statDivider: {
     width: 1,
-    height: 40,
+    height: scale(40),
   },
   interestsSection: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(24),
   },
   sectionTitle: {
     ...Typography.h3,
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   interestsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: scale(10),
   },
   interestTag: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(20),
   },
   interestText: {
     ...Typography.body,
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(16),
   },
   chatButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
+    height: scale(52),
     borderRadius: 12,
-    gap: 8,
+    gap: scale(8),
   },
   chatButtonText: {
     color: '#FFFFFF',
+    ...Typography.bodyMedium,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  menuButton: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(20),
+  },
+  menuContent: {
+    width: '80%',
+    maxWidth: scale(300),
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
+    gap: scale(12),
+    borderBottomWidth: 1,
+  },
+  menuItemText: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  reportContent: {
+    width: '90%',
+    maxWidth: scale(340),
+    borderRadius: 16,
+    padding: scale(24),
+  },
+  reportTitle: {
+    ...Typography.h3,
+    marginBottom: scale(6),
+  },
+  reportSubtitle: {
+    ...Typography.body,
+    marginBottom: scale(20),
+  },
+  reasonsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(10),
+  },
+  reasonChip: {
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(20),
+  },
+  reasonChipText: {
+    ...Typography.body,
+    fontSize: fontScale(14),
+  },
+  reportButtons: {
+    flexDirection: 'row',
+    gap: scale(12),
+    marginTop: scale(24),
+  },
+  reportButton: {
+    flex: 1,
+    paddingVertical: scale(12),
+    borderRadius: Spacing.borderRadius.md,
+    alignItems: 'center',
+  },
+  reportButtonText: {
     ...Typography.bodyMedium,
   },
 });

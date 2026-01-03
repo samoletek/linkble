@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   RefreshControl,
-  FlatList,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -20,14 +19,15 @@ import { Typography } from '../../constants/typography';
 import { ChatStackParamList, ConversationWithUser } from '../../types';
 import { getEventChats, getConversations, EventChatPreview, leaveEventChat, hideConversation, getArchivedChatsCount } from '../../services/messages';
 import SwipeableChatItem from '../../components/chat/SwipeableChatItem';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 type ChatFilter = 'events' | 'direct';
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
 
-const HEADER_MAX_HEIGHT = 52;
-const HEADER_MIN_HEIGHT = 40;
-const TITLE_MAX_SIZE = 32;
-const TITLE_MIN_SIZE = 20;
+const HEADER_MAX_HEIGHT = scale(52);
+const HEADER_MIN_HEIGHT = scale(40);
+const TITLE_MAX_SIZE = fontScale(32);
+const TITLE_MIN_SIZE = fontScale(20);
 
 export default function ChatListScreen() {
   const insets = useSafeAreaInsets();
@@ -84,7 +84,7 @@ export default function ChatListScreen() {
 
   const filterMargin = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [12, 6],
+    outputRange: [scale(12), scale(6)],
     extrapolate: 'clamp',
   });
 
@@ -187,7 +187,7 @@ export default function ChatListScreen() {
         activeOpacity={0.7}
       >
         <View style={[styles.archiveIcon, { backgroundColor: colors.text.tertiary }]}>
-          <Archive size={20} color="#FFFFFF" weight="fill" />
+          <Archive size={iconScale(20)} color="#FFFFFF" weight="fill" />
         </View>
         <View style={styles.archiveContent}>
           <Text style={[styles.archiveTitle, { color: colors.text.primary }]}>
@@ -197,7 +197,7 @@ export default function ChatListScreen() {
             {archivedCount} {archivedCount === 1 ? 'chat' : 'chats'} from ended events
           </Text>
         </View>
-        <CaretRight size={20} color={colors.text.tertiary} weight="bold" />
+        <CaretRight size={iconScale(20)} color={colors.text.tertiary} weight="bold" />
       </TouchableOpacity>
     );
   };
@@ -207,9 +207,9 @@ export default function ChatListScreen() {
     return (
       <View style={styles.emptyContent}>
         {isEvents ? (
-          <ChatCircle size={64} color={colors.text.tertiary} weight="thin" />
+          <ChatCircle size={iconScale(64)} color={colors.text.tertiary} weight="thin" />
         ) : (
-          <EnvelopeSimple size={64} color={colors.text.tertiary} weight="thin" />
+          <EnvelopeSimple size={iconScale(64)} color={colors.text.tertiary} weight="thin" />
         )}
         <Text style={[styles.placeholder, { color: colors.text.secondary }]}>
           {isEvents ? 'No event chats yet' : 'No messages yet'}
@@ -318,7 +318,7 @@ export default function ChatListScreen() {
           {renderEmptyState()}
         </Animated.ScrollView>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={currentData as any}
           keyExtractor={(item: any) => item.event_id || item.id}
           renderItem={filter === 'events' ? renderEventChat as any : renderDirectChat as any}
@@ -347,26 +347,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     justifyContent: 'flex-end',
-    paddingBottom: 8,
+    paddingBottom: scale(8),
   },
   title: {
     fontWeight: '700',
-    lineHeight: 38,
+    lineHeight: fontScale(38),
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
+    paddingHorizontal: scale(20),
+    gap: scale(12),
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(20),
   },
   filterText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
   },
   scrollContent: {
@@ -381,32 +381,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
   placeholder: {
     ...Typography.body,
-    marginTop: 16,
+    marginTop: scale(16),
   },
   hint: {
     ...Typography.caption,
-    marginTop: 8,
+    marginTop: scale(8),
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   archiveButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(14),
     borderBottomWidth: 1,
   },
   archiveIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: scale(14),
   },
   archiveContent: {
     flex: 1,
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   archiveTitle: {
     ...Typography.body,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   archiveSubtitle: {
     ...Typography.caption,

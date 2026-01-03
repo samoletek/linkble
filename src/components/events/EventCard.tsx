@@ -12,6 +12,7 @@ import { Typography, Spacing } from '../../constants';
 import { EventWithHost } from '../../types/database';
 import { CATEGORY_COLORS } from '../../utils/constants';
 import CategoryIcon from '../common/CategoryIcon';
+import { scale, iconScale } from '../../utils/responsive';
 
 interface EventCardProps {
   event: EventWithHost;
@@ -127,7 +128,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
             <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
               <CategoryIcon
                 categoryName={event.category?.name || 'sports_hobbies'}
-                size={12}
+                size={iconScale(12)}
                 color={categoryColor}
               />
               <Text style={[styles.categoryText, { color: categoryColor }]}>
@@ -145,8 +146,8 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     borderRadius: Spacing.borderRadius.lg,
-    padding: 12,
-    marginBottom: 12,
+    padding: scale(12),
+    marginBottom: scale(12),
     alignItems: 'center',
     overflow: 'hidden',
   },
@@ -155,21 +156,21 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
+    width: scale(4),
     borderTopLeftRadius: Spacing.borderRadius.lg,
     borderBottomLeftRadius: Spacing.borderRadius.lg,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginLeft: 8,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
+    marginLeft: scale(8),
   },
   eventImage: {
-    width: 56,
-    height: 56,
+    width: scale(56),
+    height: scale(56),
     borderRadius: 12,
-    marginLeft: 8,
+    marginLeft: scale(8),
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -180,20 +181,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: scale(14),
     justifyContent: 'center',
   },
   title: {
     ...Typography.h4,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   hostName: {
     ...Typography.bodySmall,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   location: {
     ...Typography.bodySmall,
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   footer: {
     flexDirection: 'row',
@@ -206,9 +207,9 @@ const styles = StyleSheet.create({
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    gap: scale(4),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(2),
     borderRadius: 10,
   },
   categoryText: {

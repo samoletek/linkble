@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { useUserStore } from '../../stores/userStore';
 import { useEventsStore } from '../../stores/eventsStore';
 import type { ProfileStackParamList } from '../../types';
@@ -152,14 +153,14 @@ export default function ProfileScreen() {
             onPress={handleNotificationsPress}
             activeOpacity={0.7}
           >
-            <Bell size={24} color={colors.text.secondary} weight="regular" />
+            <Bell size={iconScale(24)} color={colors.text.secondary} weight="regular" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerButton, { backgroundColor: colors.background.secondary }]}
             onPress={handleSettingsPress}
             activeOpacity={0.7}
           >
-            <GearSix size={24} color={colors.text.secondary} weight="regular" />
+            <GearSix size={iconScale(24)} color={colors.text.secondary} weight="regular" />
           </TouchableOpacity>
         </View>
       </View>
@@ -173,7 +174,7 @@ export default function ProfileScreen() {
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
           ) : (
-            <User size={48} color={colors.text.tertiary} weight="thin" />
+            <User size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
           )}
         </TouchableOpacity>
         <View style={styles.usernameRow}>
@@ -194,7 +195,7 @@ export default function ProfileScreen() {
                 {profile?.full_name || 'User'}
               </Text>
               <TouchableOpacity onPress={handleEditName} style={styles.editButton}>
-                <PencilSimple size={18} color={colors.text.tertiary} weight="regular" />
+                <PencilSimple size={iconScale(18)} color={colors.text.tertiary} weight="regular" />
               </TouchableOpacity>
             </>
           )}
@@ -231,7 +232,7 @@ export default function ProfileScreen() {
             style={[styles.addInterestsButton, { backgroundColor: colors.accent.primary }]}
             activeOpacity={0.7}
           >
-            <Plus size={20} color="#FFFFFF" weight="bold" />
+            <Plus size={iconScale(20)} color="#FFFFFF" weight="bold" />
           </TouchableOpacity>
         </View>
         {userInterests.length > 0 ? (
@@ -338,8 +339,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: scale(20),
+    paddingBottom: scale(16),
   },
   title: {
     ...Typography.h1,
@@ -347,37 +348,37 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: scale(24),
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
   },
   usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: scale(16),
   },
   username: {
     ...Typography.h2,
@@ -385,64 +386,64 @@ const styles = StyleSheet.create({
   usernameInput: {
     ...Typography.h2,
     borderBottomWidth: 1,
-    paddingVertical: 4,
-    minWidth: 100,
+    paddingVertical: scale(4),
+    minWidth: scale(100),
     textAlign: 'center',
   },
   editButton: {
     position: 'absolute',
-    right: -30,
-    padding: 4,
+    right: scale(-30),
+    padding: scale(4),
   },
   handle: {
     ...Typography.body,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   bio: {
     ...Typography.body,
-    marginTop: 8,
+    marginTop: scale(8),
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   statsSection: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
-    marginHorizontal: 20,
+    paddingVertical: scale(20),
+    marginHorizontal: scale(20),
   },
   statItem: {
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: scale(32),
   },
   statValue: {
     ...Typography.h2,
   },
   statLabel: {
     ...Typography.caption,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   statDivider: {
     width: 1,
-    height: 40,
+    height: scale(40),
   },
   interestsSection: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(24),
   },
   interestsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   sectionTitle: {
     ...Typography.h3,
   },
   addInterestsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#00A8FF',
@@ -454,20 +455,20 @@ const styles = StyleSheet.create({
   interestsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: scale(10),
   },
   interestTag: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(20),
   },
   interestText: {
     ...Typography.body,
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
   addInterestsHint: {
     ...Typography.body,
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
   modalOverlay: {
     flex: 1,
@@ -480,23 +481,23 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 8,
-    paddingBottom: 34,
+    paddingTop: scale(8),
+    paddingBottom: scale(34),
   },
   modalButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
     borderBottomWidth: 1,
   },
   modalButtonText: {
     ...Typography.body,
     textAlign: 'center',
-    fontSize: 17,
+    fontSize: fontScale(17),
   },
   modalCancelButton: {
-    marginTop: 8,
-    marginHorizontal: 16,
-    paddingVertical: 16,
+    marginTop: scale(8),
+    marginHorizontal: scale(16),
+    paddingVertical: scale(16),
     borderRadius: 12,
   },
 });

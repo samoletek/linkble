@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple, CheckCircle } from 'phosphor-react-native';
+import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple, CheckCircle, DotsThreeVertical, Flag } from 'phosphor-react-native';
 import CategoryIcon from '../common/CategoryIcon';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
@@ -22,6 +22,17 @@ import Button from '../common/Button';
 import { EventWithHost, EventWithDetails, EventParticipant, Profile } from '../../types/database';
 import { useUserStore } from '../../stores/userStore';
 import { getEvent, requestToJoin, leaveEvent, cancelEvent, getEventParticipants, respondToRequest, kickParticipant } from '../../services/events';
+import { reportEvent } from '../../services/users';
+import type { ReportReason } from '../../types/database';
+import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
+
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: 'spam', label: 'Spam' },
+  { value: 'inappropriate_content', label: 'Inappropriate content' },
+  { value: 'scam', label: 'Scam' },
+  { value: 'violence', label: 'Violence' },
+  { value: 'other', label: 'Other' },
+];
 
 interface EventDetailModalProps {
   visible: boolean;
@@ -34,7 +45,7 @@ interface EventDetailModalProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_HEIGHT = 200;
+const IMAGE_HEIGHT = verticalScale(200);
 
 const formatEventDate = (isoDate: string): string => {
   const date = new Date(isoDate);
@@ -72,6 +83,9 @@ export default function EventDetailModal({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [participants, setParticipants] = useState<{ participant: EventParticipant; profile: Profile }[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
 
   const slideY = useRef(new Animated.Value(600)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
@@ -323,6 +337,25 @@ export default function EventDetailModal({
     );
   }, [event, onClose, onJoinSuccess]);
 
+  const handleReport = useCallback(() => {
+    setShowMenu(false);
+    setShowReportModal(true);
+  }, []);
+
+  const submitReport = useCallback(async () => {
+    if (!currentUser || !event || !selectedReason) return;
+
+    try {
+      await reportEvent(currentUser.id, event.id, selectedReason);
+      setShowReportModal(false);
+      setSelectedReason(null);
+      Alert.alert('Report Submitted', 'Thank you for your report. We will review it shortly.');
+    } catch (error) {
+      console.error('Failed to submit report:', error);
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    }
+  }, [currentUser, event, selectedReason]);
+
   if (!event) return null;
 
   const hostName = event.host?.full_name || 'Unknown';
@@ -348,7 +381,7 @@ export default function EventDetailModal({
           title="Cancel Event"
           variant="secondary"
           onPress={handleCancelEvent}
-          style={{ backgroundColor: colors.background.tertiary, borderRadius: 12, height: 48, paddingVertical: 0 }}
+          style={{ backgroundColor: colors.background.tertiary, borderRadius: 12, height: scale(48), paddingVertical: 0 }}
           textStyle={{ color: colors.status.error }}
         />
       );
@@ -367,7 +400,7 @@ export default function EventDetailModal({
     if (participantStatus === 'pending') {
       return (
         <View style={[styles.statusButton, { backgroundColor: colors.background.tertiary }]}>
-          <Hourglass size={20} color={colors.text.secondary} weight="bold" />
+          <Hourglass size={iconScale(20)} color={colors.text.secondary} weight="bold" />
           <Text style={[styles.statusText, { color: colors.text.secondary }]}>
             Request Pending
           </Text>
@@ -430,7 +463,7 @@ export default function EventDetailModal({
             styles.modalContent,
             {
               backgroundColor: colors.background.secondary,
-              paddingBottom: insets.bottom + 16,
+              paddingBottom: insets.bottom + scale(16),
               transform: [
                 {
                   translateY: Animated.add(dragY, slideY),
@@ -446,9 +479,20 @@ export default function EventDetailModal({
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
           </Animated.View>
 
+          {!isHost && (
+            <TouchableOpacity
+              onPress={() => setShowMenu(true)}
+              style={styles.menuButton}
+            >
+              <View style={[styles.closeButtonBg, { backgroundColor: colors.background.primary }]}>
+                <DotsThreeVertical size={iconScale(20)} color={colors.text.primary} weight="bold" />
+              </View>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <View style={[styles.closeButtonBg, { backgroundColor: colors.background.primary }]}>
-              <X size={20} color={colors.text.primary} weight="bold" />
+              <X size={iconScale(20)} color={colors.text.primary} weight="bold" />
             </View>
           </TouchableOpacity>
 
@@ -503,7 +547,7 @@ export default function EventDetailModal({
                   <View style={[styles.iconContainer, { backgroundColor: event.category?.color + '20' }]}>
                     <CategoryIcon
                       categoryName={event.category?.name || 'sports_hobbies'}
-                      size={18}
+                      size={iconScale(18)}
                       color={event.category?.color || colors.accent.primary}
                     />
                   </View>
@@ -519,7 +563,7 @@ export default function EventDetailModal({
 
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
-                    <Calendar size={18} color={colors.accent.primary} weight="bold" />
+                    <Calendar size={iconScale(18)} color={colors.accent.primary} weight="bold" />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
@@ -533,21 +577,44 @@ export default function EventDetailModal({
 
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
-                    <Clock size={18} color={colors.accent.primary} weight="bold" />
+                    <Clock size={iconScale(18)} color={colors.accent.primary} weight="bold" />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
                       Time
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                      {formatEventTime(event.start_time)}
+                      {event.end_time
+                        ? `${formatEventTime(event.start_time)} - ${formatEventTime(event.end_time)}`
+                        : formatEventTime(event.start_time)}
                     </Text>
+                    {!event.end_time && (
+                      <Text style={[styles.infoLabel, { color: colors.text.tertiary, marginTop: scale(2) }]}>
+                        Open-ended
+                      </Text>
+                    )}
                   </View>
                 </View>
 
+                {event.end_time && formatEventDate(event.start_time) !== formatEventDate(event.end_time) && (
+                  <View style={styles.infoRow}>
+                    <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
+                      <Calendar size={iconScale(18)} color={colors.accent.primary} weight="bold" />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
+                        End Date
+                      </Text>
+                      <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                        {formatEventDate(event.end_time)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
-                    <MapPin size={18} color={colors.accent.primary} weight="bold" />
+                    <MapPin size={iconScale(18)} color={colors.accent.primary} weight="bold" />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
@@ -561,7 +628,7 @@ export default function EventDetailModal({
 
                 <View style={styles.infoRow}>
                   <View style={[styles.iconContainer, { backgroundColor: colors.background.tertiary }]}>
-                    <Users size={18} color={colors.accent.primary} weight="bold" />
+                    <Users size={iconScale(18)} color={colors.accent.primary} weight="bold" />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={[styles.infoLabel, { color: colors.text.tertiary }]}>
@@ -695,13 +762,13 @@ export default function EventDetailModal({
                                   style={[styles.actionButton, styles.rejectButton, { backgroundColor: colors.background.tertiary }]}
                                   onPress={() => handleRespondToRequest(participant.id, false)}
                                 >
-                                  <X size={18} color={colors.status.error} weight="bold" />
+                                  <X size={iconScale(18)} color={colors.status.error} weight="bold" />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                   style={[styles.actionButton, styles.acceptButton, { backgroundColor: colors.status.success }]}
                                   onPress={() => handleRespondToRequest(participant.id, true)}
                                 >
-                                  <CheckCircle size={18} color="#FFFFFF" weight="bold" />
+                                  <CheckCircle size={iconScale(18)} color="#FFFFFF" weight="bold" />
                                 </TouchableOpacity>
                               </>
                             )}
@@ -718,7 +785,7 @@ export default function EventDetailModal({
                                 style={[styles.actionButton, { backgroundColor: colors.background.tertiary }]}
                                 onPress={() => handleKickParticipant(participant.user_id, profile.full_name)}
                               >
-                                <X size={18} color={colors.status.error} weight="bold" />
+                                <X size={iconScale(18)} color={colors.status.error} weight="bold" />
                               </TouchableOpacity>
                             )}
                           </View>
@@ -748,7 +815,7 @@ export default function EventDetailModal({
                     onOpenChat(event.id);
                   }}
                 >
-                  <ChatCircle size={22} color={colors.text.primary} weight="bold" />
+                  <ChatCircle size={iconScale(22)} color={colors.text.primary} weight="bold" />
                 </TouchableOpacity>
               )}
               {isHost && onEdit && (
@@ -759,7 +826,7 @@ export default function EventDetailModal({
                     onEdit(event);
                   }}
                 >
-                  <PencilSimple size={22} color={colors.text.primary} weight="bold" />
+                  <PencilSimple size={iconScale(22)} color={colors.text.primary} weight="bold" />
                 </TouchableOpacity>
               )}
               <View style={styles.joinButtonContainer}>
@@ -769,6 +836,126 @@ export default function EventDetailModal({
           </View>
         </Animated.View>
       </View>
+
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View
+            style={[styles.menuContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReport}
+              activeOpacity={0.7}
+            >
+              <Flag size={iconScale(20)} color={colors.text.primary} weight="regular" />
+              <Text style={[styles.menuItemText, { color: colors.text.primary }]}>
+                Report Event
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowReportModal(false)}
+        >
+          <View
+            style={[styles.reportContent, { backgroundColor: colors.background.secondary }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.reportTitle, { color: colors.text.primary }]}>
+              Report Event
+            </Text>
+            <Text style={[styles.reportSubtitle, { color: colors.text.secondary }]}>
+              Why are you reporting this event?
+            </Text>
+            <View style={styles.reasonsList}>
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason.value}
+                  style={[
+                    styles.reasonChip,
+                    {
+                      backgroundColor: selectedReason === reason.value
+                        ? colors.accent.primary
+                        : colors.background.tertiary,
+                    },
+                  ]}
+                  onPress={() => setSelectedReason(reason.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.reasonChipText,
+                      {
+                        color: selectedReason === reason.value
+                          ? '#FFFFFF'
+                          : colors.text.primary,
+                      },
+                    ]}
+                  >
+                    {reason.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.reportButtons}>
+              <TouchableOpacity
+                style={[styles.reportButton, { backgroundColor: colors.background.tertiary }]}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setSelectedReason(null);
+                }}
+              >
+                <Text style={[styles.reportButtonText, { color: colors.text.secondary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.reportButton,
+                  {
+                    backgroundColor: selectedReason
+                      ? colors.status.error
+                      : colors.background.tertiary,
+                  },
+                ]}
+                onPress={submitReport}
+                disabled={!selectedReason}
+              >
+                <Text
+                  style={[
+                    styles.reportButtonText,
+                    { color: selectedReason ? '#FFFFFF' : colors.text.tertiary },
+                  ]}
+                >
+                  Submit
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }
@@ -805,26 +992,26 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 40,
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: scale(36),
+    height: scale(4),
     borderRadius: 2,
   },
   closeButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: scale(12),
+    right: scale(12),
     zIndex: 20,
   },
   closeButtonBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -843,24 +1030,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: Spacing.borderRadius.xl,
   },
   contentPadding: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(20),
   },
   title: {
     ...Typography.h2,
-    marginBottom: 20,
+    marginBottom: scale(20),
   },
   infoSection: {
-    gap: 14,
+    gap: scale(14),
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   iconContainer: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -870,33 +1057,33 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...Typography.caption,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   infoValue: {
     ...Typography.bodyMedium,
   },
   divider: {
     height: 1,
-    marginVertical: 20,
+    marginVertical: scale(20),
   },
   sectionTitle: {
     ...Typography.h4,
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
   description: {
     ...Typography.body,
-    lineHeight: 22,
+    lineHeight: fontScale(22),
   },
   hostContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: scale(12),
+    marginBottom: scale(20),
   },
   hostAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
   },
   hostAvatarPlaceholder: {
     justifyContent: 'center',
@@ -904,7 +1091,7 @@ const styles = StyleSheet.create({
   },
   hostInitial: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '600',
   },
   hostName: {
@@ -912,27 +1099,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   youBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: scale(12),
   },
   youBadgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(16),
   },
   footerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   chatButton: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -941,17 +1128,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loadingButton: {
-    height: 52,
+    height: scale(52),
     justifyContent: 'center',
     alignItems: 'center',
   },
   statusButton: {
-    height: 52,
+    height: scale(52),
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: scale(8),
   },
   statusText: {
     ...Typography.bodyMedium,
@@ -959,22 +1146,22 @@ const styles = StyleSheet.create({
   participantRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   participantInfo: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
   },
   participantInitial: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
   },
   participantNameContainer: {
@@ -985,20 +1172,92 @@ const styles = StyleSheet.create({
   },
   pendingLabel: {
     ...Typography.caption,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   participantActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: scale(8),
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     justifyContent: 'center',
     alignItems: 'center',
   },
   rejectButton: {},
   acceptButton: {},
+  menuButton: {
+    position: 'absolute',
+    top: scale(12),
+    left: scale(12),
+    zIndex: 20,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(20),
+  },
+  menuContent: {
+    width: '80%',
+    maxWidth: scale(300),
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
+    gap: scale(12),
+  },
+  menuItemText: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  reportContent: {
+    width: '90%',
+    maxWidth: scale(340),
+    borderRadius: scale(16),
+    padding: scale(24),
+  },
+  reportTitle: {
+    ...Typography.h3,
+    marginBottom: scale(6),
+  },
+  reportSubtitle: {
+    ...Typography.body,
+    marginBottom: scale(20),
+  },
+  reasonsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(10),
+  },
+  reasonChip: {
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(20),
+  },
+  reasonChipText: {
+    ...Typography.body,
+    fontSize: fontScale(14),
+  },
+  reportButtons: {
+    flexDirection: 'row',
+    gap: scale(12),
+    marginTop: scale(24),
+  },
+  reportButton: {
+    flex: 1,
+    paddingVertical: scale(12),
+    borderRadius: Spacing.borderRadius.md,
+    alignItems: 'center',
+  },
+  reportButtonText: {
+    ...Typography.bodyMedium,
+  },
 });

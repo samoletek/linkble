@@ -26,6 +26,7 @@ import CreateEventModal from '../../components/events/CreateEventModal';
 import { useEventsStore } from '../../stores/eventsStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
+import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month';
 
@@ -36,10 +37,10 @@ const DATE_FILTER_OPTIONS: { value: DateFilter; label: string }[] = [
   { value: 'month', label: 'This Month' },
 ];
 
-const HEADER_MAX_HEIGHT = 52;
-const HEADER_MIN_HEIGHT = 40;
-const TITLE_MAX_SIZE = 32;
-const TITLE_MIN_SIZE = 20;
+const HEADER_MAX_HEIGHT = scale(52);
+const HEADER_MIN_HEIGHT = scale(40);
+const TITLE_MAX_SIZE = fontScale(32);
+const TITLE_MIN_SIZE = fontScale(20);
 
 const RADIUS_OPTIONS = [10, 20, 30, 50000];
 
@@ -334,7 +335,7 @@ export default function FeedScreen() {
 
   const filterMargin = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [12, 6],
+    outputRange: [scale(12), scale(6)],
     extrapolate: 'clamp',
   });
 
@@ -354,16 +355,16 @@ export default function FeedScreen() {
         <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
           address in{' '}
         </Text>
-        <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
+        <MagnifyingGlass size={iconScale(16)} color={colors.text.secondary} weight="bold" />
         <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
           {' '}to see events.
         </Text>
       </View>
-      <View style={[styles.emptySubtitleRow, { marginTop: 4 }]}>
+      <View style={[styles.emptySubtitleRow, { marginTop: scale(4) }]}>
         <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
           Or create your own in{' '}
         </Text>
-        <Plus size={16} color={colors.text.secondary} weight="bold" />
+        <Plus size={iconScale(16)} color={colors.text.secondary} weight="bold" />
         <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>!</Text>
       </View>
     </View>
@@ -453,7 +454,7 @@ export default function FeedScreen() {
             style={[styles.radiusButton, { backgroundColor: colors.background.tertiary }]}
             onPress={openFilterModal}
           >
-            <MagnifyingGlass size={16} color={colors.text.secondary} weight="bold" />
+            <MagnifyingGlass size={iconScale(16)} color={colors.text.secondary} weight="bold" />
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -555,7 +556,7 @@ export default function FeedScreen() {
 
               {/* Address input */}
               <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
-                <NavigationArrow size={18} color={colors.text.tertiary} />
+                <NavigationArrow size={iconScale(18)} color={colors.text.tertiary} />
                 <TextInput
                   style={[styles.addressInput, { color: colors.text.primary }]}
                   placeholder="Enter address or city..."
@@ -570,7 +571,7 @@ export default function FeedScreen() {
                 )}
                 {addressInput.length > 0 && !isLocationLoading && (
                   <TouchableOpacity onPress={() => setAddressInput('')}>
-                    <X size={18} color={colors.text.tertiary} />
+                    <X size={iconScale(18)} color={colors.text.tertiary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -580,7 +581,7 @@ export default function FeedScreen() {
                 style={[styles.useGpsButton, { borderColor: colors.border.primary }]}
                 onPress={handleUseGps}
               >
-                <NavigationArrow size={16} color={colors.accent.primary} weight="bold" />
+                <NavigationArrow size={iconScale(16)} color={colors.accent.primary} weight="bold" />
                 <Text style={[styles.useGpsText, { color: colors.accent.primary }]}>
                   Use my location
                 </Text>
@@ -624,7 +625,7 @@ export default function FeedScreen() {
 
               {/* Event Search */}
               <View style={[styles.addressInputContainer, { backgroundColor: colors.background.tertiary, borderColor: colors.border.primary }]}>
-                <MagnifyingGlass size={18} color={colors.text.tertiary} />
+                <MagnifyingGlass size={iconScale(18)} color={colors.text.tertiary} />
                 <TextInput
                   style={[styles.addressInput, { color: colors.text.primary }]}
                   placeholder="Search events..."
@@ -636,7 +637,7 @@ export default function FeedScreen() {
                 />
                 {eventSearchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setEventSearchQuery('')}>
-                    <X size={18} color={colors.text.tertiary} />
+                    <X size={iconScale(18)} color={colors.text.tertiary} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -703,7 +704,7 @@ export default function FeedScreen() {
                 onStartShouldSetResponder={() => true}
               >
                 <View style={styles.toggleInfo}>
-                  <Users size={20} color={colors.text.secondary} />
+                  <Users size={iconScale(20)} color={colors.text.secondary} />
                   <Text style={[styles.toggleLabel, { color: colors.text.primary }]}>
                     Available spots only
                   </Text>
@@ -739,50 +740,50 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     justifyContent: 'flex-end',
-    paddingBottom: 8,
+    paddingBottom: scale(8),
   },
   title: {
     fontWeight: '700',
-    lineHeight: 38,
+    lineHeight: fontScale(38),
   },
   filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   filterButtonsContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: scale(12),
     alignItems: 'center',
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(20),
   },
   filterText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
   },
   radiusButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 4,
+    height: scale(34),
+    paddingHorizontal: scale(12),
+    borderRadius: scale(20),
+    gap: scale(4),
   },
   radiusText: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '500',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(100),
     flexGrow: 1,
   },
   loadingContainer: {
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   errorText: {
     ...Typography.body,
@@ -804,11 +805,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   emptyTitle: {
     ...Typography.h2,
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   emptySubtitle: {
     ...Typography.body,
@@ -827,10 +828,10 @@ const styles = StyleSheet.create({
   },
   radiusModal: {
     width: '90%',
-    maxWidth: 340,
+    maxWidth: scale(340),
     height: '65%',
     borderRadius: Spacing.borderRadius.lg,
-    padding: 20,
+    padding: scale(20),
   },
   modalScrollView: {
     flex: 1,
@@ -840,124 +841,124 @@ const styles = StyleSheet.create({
   },
   radiusModalTitle: {
     ...Typography.h4,
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   locationHint: {
     ...Typography.caption,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   addressInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: Spacing.borderRadius.md,
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 8,
-    marginBottom: 10,
+    paddingHorizontal: scale(12),
+    height: scale(44),
+    gap: scale(8),
+    marginBottom: scale(10),
   },
   addressInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: fontScale(16),
     padding: 0,
     margin: 0,
-    height: 44,
+    height: scale(44),
     textAlignVertical: 'center',
   },
   addressSubmitButton: {
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderRadius: Spacing.borderRadius.md,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
   addressSubmitText: {
     color: '#FFFFFF',
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: fontScale(15),
   },
   useGpsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: scale(10),
     borderRadius: Spacing.borderRadius.md,
     borderWidth: 1,
-    gap: 6,
-    marginBottom: 8,
+    gap: scale(6),
+    marginBottom: scale(8),
   },
   useGpsText: {
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
   locationErrorText: {
     ...Typography.caption,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   radiusOptionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: scale(8),
+    marginBottom: scale(16),
   },
   radiusChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(20),
   },
   radiusChipText: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '600',
   },
   doneButton: {
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderRadius: Spacing.borderRadius.md,
     alignItems: 'center',
   },
   doneButtonFixed: {
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderRadius: Spacing.borderRadius.md,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: scale(12),
   },
   doneButtonText: {
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: fontScale(15),
   },
   radiusOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: scale(14),
     borderBottomWidth: 1,
   },
   radiusOptionText: {
     ...Typography.body,
   },
   filterSectionTitle: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 10,
+    marginTop: scale(16),
+    marginBottom: scale(10),
   },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 4,
+    marginTop: scale(16),
+    paddingVertical: scale(4),
   },
   toggleInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: scale(10),
   },
   toggleLabel: {
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '500',
   },
   divider: {
     height: 1,
-    marginVertical: 16,
+    marginVertical: scale(16),
   },
 });

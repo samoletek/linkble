@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  TouchableWithoutFeedback,
   PanResponder,
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
@@ -27,6 +27,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { getNotifications, markAsRead, markAllAsRead } from '../../services/notifications';
 import type { Notification, NotificationType } from '../../types/database';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -38,7 +39,7 @@ interface NotificationsModalProps {
 }
 
 function getNotificationIcon(type: NotificationType, color: string) {
-  const size = 24;
+  const size = iconScale(24);
   switch (type) {
     case 'join_request':
       return <UserPlus size={size} color={color} weight="regular" />;
@@ -86,14 +87,30 @@ export default function NotificationsModal({
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
+  const blurOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       loadNotifications();
-      translateY.setValue(0);
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        }),
+        Animated.timing(blurOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      translateY.setValue(MODAL_HEIGHT);
+      blurOpacity.setValue(0);
     }
-  }, [visible]);
+  }, [visible, translateY, blurOpacity]);
 
   const loadNotifications = async () => {
     setIsLoading(true);
@@ -179,13 +196,20 @@ export default function NotificationsModal({
       visible={visible}
       animationType="none"
       transparent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+      <Animated.View style={[styles.blurContainer, { opacity: blurOpacity }]}>
+        <BlurView intensity={25} tint="dark" style={styles.blurView}>
+          <TouchableOpacity
+            style={styles.blurTouchable}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </BlurView>
+      </Animated.View>
 
+      <View style={styles.overlay}>
         <Animated.View
           style={[
             styles.container,
@@ -203,7 +227,7 @@ export default function NotificationsModal({
 
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={24} color={colors.text.primary} weight="bold" />
+              <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
             <Text style={[styles.title, { color: colors.text.primary }]}>Notifications</Text>
             <View style={styles.placeholder} />
@@ -226,7 +250,7 @@ export default function NotificationsModal({
             </View>
           ) : notifications.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Bell size={48} color={colors.text.tertiary} weight="thin" />
+              <Bell size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
               <Text style={[styles.emptyText, { color: colors.text.tertiary }]}>
                 No notifications yet
               </Text>
@@ -298,55 +322,66 @@ export default function NotificationsModal({
 }
 
 const styles = StyleSheet.create({
+  blurContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  blurView: {
+    flex: 1,
+  },
+  blurTouchable: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: scale(20),
+    borderTopRightRadius: scale(20),
   },
   handleContainer: {
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: scale(8),
+    paddingBottom: scale(4),
     alignItems: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: scale(36),
+    height: scale(4),
     borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   placeholder: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
   },
   title: {
-    ...Typography.h3,
+    ...Typography.h2,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(24),
   },
   markAllButton: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: scale(20),
+    paddingBottom: scale(12),
   },
   markAllText: {
     ...Typography.body,
-    fontSize: 14,
+    fontSize: fontScale(14),
   },
   loadingContainer: {
     flex: 1,
@@ -357,57 +392,56 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   emptyText: {
     ...Typography.body,
-    fontSize: 16,
+    fontSize: fontScale(16),
   },
   scrollView: {
     flex: 1,
   },
   notificationsContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(40),
   },
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 12,
+    padding: scale(12),
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: scale(12),
   },
   notificationContent: {
     flex: 1,
   },
   notificationTitle: {
     ...Typography.body,
-    fontSize: 15,
-    marginBottom: 2,
+    fontSize: fontScale(15),
+    marginBottom: scale(2),
   },
   notificationBody: {
     ...Typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
+    fontSize: fontScale(14),
+    lineHeight: fontScale(20),
+    marginBottom: scale(4),
   },
   notificationTime: {
     ...Typography.caption,
-    fontSize: 12,
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 8,
-    marginTop: 4,
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
+    marginLeft: scale(8),
+    marginTop: scale(4),
   },
 });

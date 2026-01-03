@@ -16,7 +16,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
-import { getResponsiveValue } from '../../utils/responsive';
+import { getResponsiveValue, scale, fontScale } from '../../utils/responsive';
 import Button from '../common/Button';
 import TextInput from '../common/TextInput';
 import { useAuthStore } from '../../stores/authStore';
@@ -334,9 +334,9 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     });
   };
 
-  const padding = getResponsiveValue(14, 16, 18);
-  const buttonSpacing = getResponsiveValue(10, 12, 14);
-  const titleSize = getResponsiveValue(18, 20, 22);
+  const padding = getResponsiveValue(scale(14), scale(16), scale(18));
+  const buttonSpacing = getResponsiveValue(scale(10), scale(12), scale(14));
+  const titleSize = getResponsiveValue(fontScale(18), fontScale(20), fontScale(22));
 
   const getTitle = (): string => {
     switch (step) {
@@ -727,27 +727,27 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: Spacing.borderRadius.xl,
     borderTopRightRadius: Spacing.borderRadius.xl,
-    paddingTop: 8,
+    paddingTop: scale(8),
   },
   handleContainer: {
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: scale(10),
+    paddingBottom: scale(6),
     alignItems: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: scale(36),
+    height: scale(4),
     borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: getResponsiveValue(16, 20, 24),
-    minHeight: 40,
+    marginBottom: scale(20),
+    minHeight: scale(40),
   },
   backButtonContainer: {
-    width: 60,
+    width: scale(60),
   },
   title: {
     ...Typography.h3,
@@ -756,10 +756,10 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     width: '100%',
-    paddingBottom: 8,
+    paddingBottom: scale(8),
   },
   authButton: {
-    paddingVertical: getResponsiveValue(14, 16, 18),
+    paddingVertical: scale(16),
     borderRadius: Spacing.borderRadius.md,
     borderWidth: 1,
     alignItems: 'center',
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
   modeToggle: {
     flexDirection: 'row',
     borderRadius: Spacing.borderRadius.md,
-    padding: 4,
+    padding: scale(4),
     marginBottom: Spacing.lg,
   },
   modeButton: {
@@ -804,6 +804,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: 'center',
     marginTop: Spacing.lg,
-    lineHeight: 18,
+    lineHeight: fontScale(18),
   },
 });

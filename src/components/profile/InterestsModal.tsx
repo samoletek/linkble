@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  TouchableWithoutFeedback,
   PanResponder,
   Animated,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { INTERESTS } from '../../utils/interests';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -37,7 +38,29 @@ export default function InterestsModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<number[]>([...selectedInterests]);
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
+  const blurOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        }),
+        Animated.timing(blurOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      translateY.setValue(MODAL_HEIGHT);
+      blurOpacity.setValue(0);
+    }
+  }, [visible, translateY, blurOpacity]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -107,13 +130,20 @@ export default function InterestsModal({
       visible={visible}
       animationType="none"
       transparent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+      <Animated.View style={[styles.blurContainer, { opacity: blurOpacity }]}>
+        <BlurView intensity={25} tint="dark" style={styles.blurView}>
+          <TouchableOpacity
+            style={styles.blurTouchable}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </BlurView>
+      </Animated.View>
 
+      <View style={styles.overlay}>
         <Animated.View
           style={[
             styles.container,
@@ -131,11 +161,11 @@ export default function InterestsModal({
 
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={24} color={colors.text.primary} weight="bold" />
+              <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
             <Text style={[styles.title, { color: colors.text.primary }]}>Interests</Text>
             <TouchableOpacity onPress={handleSave} style={styles.checkButton}>
-              <Check size={24} color={colors.text.primary} weight="bold" />
+              <Check size={iconScale(24)} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
           </View>
 
@@ -195,60 +225,71 @@ export default function InterestsModal({
 }
 
 const styles = StyleSheet.create({
+  blurContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  blurView: {
+    flex: 1,
+  },
+  blurTouchable: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: scale(20),
+    borderTopRightRadius: scale(20),
   },
   handleContainer: {
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: scale(8),
+    paddingBottom: scale(4),
     alignItems: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: scale(36),
+    height: scale(4),
     borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   checkButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
   title: {
-    ...Typography.h3,
+    ...Typography.h2,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(24),
   },
   subtitle: {
     ...Typography.body,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
   },
   counter: {
     ...Typography.caption,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: scale(8),
+    marginBottom: scale(20),
   },
   scrollView: {
     flex: 1,
@@ -256,18 +297,18 @@ const styles = StyleSheet.create({
   interestsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingBottom: 40,
-    gap: 10,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(40),
+    gap: scale(10),
   },
   interestTag: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(12),
+    borderRadius: scale(24),
   },
   interestText: {
     ...Typography.body,
-    fontSize: 15,
+    fontSize: fontScale(15),
     fontWeight: '500',
   },
 });

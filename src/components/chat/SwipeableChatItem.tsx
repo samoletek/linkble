@@ -11,6 +11,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { ChatCircle, Crown, Trash } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 interface SwipeableChatItemProps {
   type: 'event' | 'direct';
@@ -43,8 +44,8 @@ export default function SwipeableChatItem({
     dragX: Animated.AnimatedInterpolation<number>
   ) => {
     const translateX = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [0, 80],
+      inputRange: [-scale(80), 0],
+      outputRange: [0, scale(80)],
       extrapolate: 'clamp',
     });
 
@@ -63,7 +64,7 @@ export default function SwipeableChatItem({
           }}
           activeOpacity={0.8}
         >
-          <Trash size={24} color="#FFFFFF" weight="bold" />
+          <Trash size={iconScale(24)} color="#FFFFFF" weight="bold" />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -73,7 +74,7 @@ export default function SwipeableChatItem({
     <Swipeable
       ref={swipeableRef}
       renderRightActions={renderRightActions}
-      rightThreshold={40}
+      rightThreshold={scale(40)}
       overshootRight={false}
       friction={2}
     >
@@ -88,7 +89,7 @@ export default function SwipeableChatItem({
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.accent.primary }]}>
               {type === 'event' ? (
-                <ChatCircle size={24} color="#FFFFFF" weight="fill" />
+                <ChatCircle size={iconScale(24)} color="#FFFFFF" weight="fill" />
               ) : (
                 <Text style={styles.avatarInitial}>
                   {title.charAt(0).toUpperCase()}
@@ -117,7 +118,7 @@ export default function SwipeableChatItem({
           </View>
           {type === 'event' && subtitle && (
             <View style={styles.chatSubtitle}>
-              <Crown size={12} color={colors.accent.primary} weight="fill" />
+              <Crown size={iconScale(12)} color={colors.accent.primary} weight="fill" />
               <Text style={[styles.hostName, { color: colors.text.tertiary }]} numberOfLines={1}>
                 {subtitle}
               </Text>
@@ -137,17 +138,17 @@ export default function SwipeableChatItem({
 const styles = StyleSheet.create({
   chatItem: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(14),
     borderBottomWidth: 1,
   },
   avatarContainer: {
-    marginRight: 14,
+    marginRight: scale(14),
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: scale(52),
+    height: scale(52),
+    borderRadius: scale(26),
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: fontScale(20),
     fontWeight: '600',
   },
   chatContent: {
@@ -166,50 +167,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   chatTitle: {
     ...Typography.body,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
+    marginRight: scale(8),
   },
   chatTime: {
     ...Typography.caption,
-    fontSize: 12,
   },
   chatHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: scale(8),
   },
   unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: scale(6),
   },
   unreadCount: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '600',
   },
   chatSubtitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   hostName: {
     ...Typography.caption,
-    marginLeft: 4,
+    marginLeft: scale(4),
   },
   lastMessage: {
     ...Typography.caption,
   },
   deleteButton: {
-    width: 80,
+    width: scale(80),
     justifyContent: 'center',
     alignItems: 'center',
   },

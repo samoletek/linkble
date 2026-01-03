@@ -1,8 +1,10 @@
 /**
  * Typography constants for Linkble app
  * Uses system fonts (San Francisco on iOS, Roboto on Android)
+ * All sizes are responsive based on screen dimensions
  */
 import { Platform, TextStyle } from 'react-native';
+import { fontScale, lineHeightScale } from '../utils/responsive';
 
 const fontFamily = Platform.select({
   ios: 'System',
@@ -14,82 +16,82 @@ export const Typography = {
   // Headers
   h1: {
     fontFamily,
-    fontSize: 32,
+    fontSize: fontScale(32),
     fontWeight: '700',
-    lineHeight: 40,
+    lineHeight: lineHeightScale(40),
   } as TextStyle,
 
   h2: {
     fontFamily,
-    fontSize: 24,
+    fontSize: fontScale(24),
     fontWeight: '600',
-    lineHeight: 32,
+    lineHeight: lineHeightScale(32),
   } as TextStyle,
 
   h3: {
     fontFamily,
-    fontSize: 20,
+    fontSize: fontScale(20),
     fontWeight: '600',
-    lineHeight: 28,
+    lineHeight: lineHeightScale(28),
   } as TextStyle,
 
   h4: {
     fontFamily,
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '600',
-    lineHeight: 24,
+    lineHeight: lineHeightScale(24),
   } as TextStyle,
 
   // Body text
   body: {
     fontFamily,
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '400',
-    lineHeight: 24,
+    lineHeight: lineHeightScale(24),
   } as TextStyle,
 
   bodyMedium: {
     fontFamily,
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '500',
-    lineHeight: 24,
+    lineHeight: lineHeightScale(24),
   } as TextStyle,
 
   bodySmall: {
     fontFamily,
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '400',
-    lineHeight: 20,
+    lineHeight: lineHeightScale(20),
   } as TextStyle,
 
   // Button text
   button: {
     fontFamily,
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: lineHeightScale(20),
   } as TextStyle,
 
   buttonSmall: {
     fontFamily,
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: lineHeightScale(18),
   } as TextStyle,
 
   // Caption/Labels
   caption: {
     fontFamily,
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '400',
-    lineHeight: 16,
+    lineHeight: lineHeightScale(16),
   } as TextStyle,
 
   label: {
     fontFamily,
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: lineHeightScale(16),
     letterSpacing: 0.5,
   } as TextStyle,
 } as const;

@@ -10,13 +10,11 @@ import {
   Platform,
   ActivityIndicator,
   Image,
-  Alert,
-  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt, DotsThreeVertical, Prohibit, Check, Checks } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { ChatStackParamList, DirectMessageWithSender, Profile } from '../../types';
@@ -28,8 +26,9 @@ import {
   unsubscribe,
   markMessagesAsRead,
 } from '../../services/messages';
-import { blockUser, isBlockedByUser } from '../../services/users';
+import { isBlockedByUser } from '../../services/users';
 import { supabase } from '../../config/supabase';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 
 type DirectChatRouteProp = RouteProp<ChatStackParamList, 'DirectChat'>;
 type NavigationProp = NativeStackNavigationProp<ChatStackParamList>;
@@ -49,7 +48,6 @@ export default function DirectChatScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [blockedByOther, setBlockedByOther] = useState(false);
 
   // Load conversation info and messages
@@ -102,33 +100,6 @@ export default function DirectChatScreen() {
       navigation.navigate('UserProfile', { userId });
     }
   }, [currentUser?.id, navigation]);
-
-  const handleBlock = useCallback(() => {
-    if (!currentUser || !otherUser) return;
-
-    Alert.alert(
-      'Block User',
-      `Are you sure you want to block ${otherUser.full_name}? They won't be able to message you or view your profile.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await blockUser(currentUser.id, otherUser.id);
-              setShowMenu(false);
-              Alert.alert('User Blocked', `${otherUser.full_name} has been blocked.`);
-              navigation.goBack();
-            } catch (error) {
-              console.error('Failed to block user:', error);
-              Alert.alert('Error', 'Failed to block user. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [currentUser, otherUser, navigation]);
 
   // Subscribe to new messages and read status updates
   useEffect(() => {
@@ -236,13 +207,6 @@ export default function DirectChatScreen() {
                 minute: '2-digit',
               })}
             </Text>
-            {isOwnMessage && (
-              item.is_read ? (
-                <Checks size={14} color={colors.text.tertiary} weight="bold" />
-              ) : (
-                <Check size={14} color={colors.text.tertiary} weight="bold" />
-              )
-            )}
           </View>
         </View>
       </View>
@@ -258,29 +222,18 @@ export default function DirectChatScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top, borderBottomColor: colors.border.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.text.primary} weight="bold" />
+          <ArrowLeft size={iconScale(24)} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.headerInfo}
+          style={styles.headerCenter}
           onPress={() => otherUser && handleViewProfile(otherUser.id)}
           activeOpacity={0.7}
         >
-          {otherUser?.avatar_url ? (
-            <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
-          ) : (
-            <View style={[styles.headerAvatar, styles.avatarPlaceholder, { backgroundColor: colors.accent.primary }]}>
-              <Text style={styles.headerAvatarInitial}>
-                {otherUser?.full_name?.charAt(0).toUpperCase() || '?'}
-              </Text>
-            </View>
-          )}
           <Text style={[styles.headerTitle, { color: colors.text.primary }]} numberOfLines={1}>
             {otherUser?.full_name || 'Loading...'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuButton}>
-          <DotsThreeVertical size={24} color={colors.text.primary} weight="bold" />
-        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
 
       {/* Messages */}
@@ -319,7 +272,7 @@ export default function DirectChatScreen() {
             styles.blockedContainer,
             {
               backgroundColor: colors.background.secondary,
-              paddingBottom: insets.bottom || 16,
+              paddingBottom: insets.bottom || scale(16),
             },
           ]}
         >
@@ -334,7 +287,7 @@ export default function DirectChatScreen() {
             {
               backgroundColor: colors.background.primary,
               borderTopColor: colors.border.primary,
-              paddingBottom: insets.bottom || 16,
+              paddingBottom: insets.bottom || scale(16),
             },
           ]}
         >
@@ -363,7 +316,7 @@ export default function DirectChatScreen() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <PaperPlaneTilt
-                size={20}
+                size={iconScale(20)}
                 color={inputText.trim() ? '#FFFFFF' : colors.text.tertiary}
                 weight="fill"
               />
@@ -372,38 +325,6 @@ export default function DirectChatScreen() {
         </View>
       )}
 
-      {/* Menu Modal */}
-      <Modal
-        visible={showMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowMenu(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowMenu(false)}
-        >
-          <View
-            style={[styles.menuContent, { backgroundColor: colors.background.secondary }]}
-            onStartShouldSetResponder={() => true}
-          >
-            <TouchableOpacity
-              style={[styles.menuItem, { borderBottomColor: colors.border.primary }]}
-              onPress={() => {
-                setShowMenu(false);
-                handleBlock();
-              }}
-              activeOpacity={0.7}
-            >
-              <Prohibit size={20} color={colors.status.error} weight="regular" />
-              <Text style={[styles.menuItemText, { color: colors.status.error }]}>
-                Block User
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -415,36 +336,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
     borderBottomWidth: 1,
   },
   backButton: {
-    marginRight: 12,
-    padding: 4,
+    width: scale(40),
+    padding: scale(4),
   },
-  headerInfo: {
+  headerCenter: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10,
-  },
-  headerAvatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   headerTitle: {
     ...Typography.h4,
-    flex: 1,
+    textAlign: 'center',
   },
-  menuButton: {
-    padding: 4,
+  headerRight: {
+    width: scale(40),
   },
   loadingContainer: {
     flex: 1,
@@ -452,8 +361,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   messagesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
   },
   emptyList: {
     flex: 1,
@@ -468,11 +377,11 @@ const styles = StyleSheet.create({
   },
   emptyHint: {
     ...Typography.caption,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   ownMessageContainer: {
     justifyContent: 'flex-end',
@@ -481,12 +390,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatarContainer: {
-    marginRight: 8,
+    marginRight: scale(8),
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -494,7 +403,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
   },
   messageBubbleWrapper: {
@@ -504,8 +413,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   messageBubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(10),
     borderRadius: Spacing.borderRadius.md,
   },
   messageText: {
@@ -513,13 +422,13 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     ...Typography.caption,
-    fontSize: 10,
+    fontSize: fontScale(10),
   },
   messageFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: scale(4),
+    marginTop: scale(4),
   },
   ownMessageFooter: {
     justifyContent: 'flex-end',
@@ -527,17 +436,17 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(12),
     borderTopWidth: 1,
   },
   inputWrapper: {
     flex: 1,
     borderRadius: Spacing.borderRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(10),
+    marginRight: scale(10),
+    maxHeight: scale(100),
   },
   input: {
     ...Typography.body,
@@ -545,39 +454,15 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  menuContent: {
-    width: '80%',
-    maxWidth: 300,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  menuItemText: {
-    ...Typography.body,
-    fontWeight: '500',
   },
   blockedContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
     alignItems: 'center',
   },
   blockedText: {

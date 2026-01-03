@@ -19,6 +19,7 @@ import {
 } from 'phosphor-react-native';
 import { useTheme, ThemePreference } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { useAuthStore } from '../../stores/authStore';
 import { useUserStore } from '../../stores/userStore';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -51,7 +52,7 @@ function SettingsItem({ icon, label, onPress, showArrow = true, danger, colors }
           {label}
         </Text>
       </View>
-      {showArrow && <CaretRight size={20} color={colors.text.tertiary} weight="regular" />}
+      {showArrow && <CaretRight size={iconScale(20)} color={colors.text.tertiary} weight="regular" />}
     </TouchableOpacity>
   );
 }
@@ -126,17 +127,17 @@ export default function SettingsScreen() {
     {
       value: 'dark',
       label: 'Dark',
-      icon: <Moon size={24} color={colors.text.secondary} weight="regular" />,
+      icon: <Moon size={iconScale(24)} color={colors.text.secondary} weight="regular" />,
     },
     {
       value: 'light',
       label: 'Light',
-      icon: <Sun size={24} color={colors.text.secondary} weight="regular" />,
+      icon: <Sun size={iconScale(24)} color={colors.text.secondary} weight="regular" />,
     },
     {
       value: 'auto',
       label: 'System',
-      icon: <DeviceMobile size={24} color={colors.text.secondary} weight="regular" />,
+      icon: <DeviceMobile size={iconScale(24)} color={colors.text.secondary} weight="regular" />,
     },
   ];
 
@@ -148,7 +149,7 @@ export default function SettingsScreen() {
           onPress={handleBack}
           activeOpacity={0.7}
         >
-          <CaretLeft size={24} color={colors.text.primary} weight="regular" />
+          <CaretLeft size={iconScale(24)} color={colors.text.primary} weight="regular" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text.primary }]}>Settings</Text>
         <View style={styles.placeholder} />
@@ -159,25 +160,25 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text.tertiary }]}>Account</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.background.secondary }]}>
             <SettingsItem
-              icon={<UserCircle size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<UserCircle size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="Edit Profile"
               onPress={handleEditProfile}
               colors={colors}
             />
             <SettingsItem
-              icon={<Bell size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<Bell size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="Notifications"
               onPress={handleNotifications}
               colors={colors}
             />
             <SettingsItem
-              icon={<Shield size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<Shield size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="Privacy"
               onPress={handlePrivacy}
               colors={colors}
             />
             <SettingsItem
-              icon={<ShieldCheck size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<ShieldCheck size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="Security"
               onPress={handleSecurity}
               colors={colors}
@@ -189,13 +190,13 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text.tertiary }]}>Preferences</Text>
           <View style={[styles.sectionContent, { backgroundColor: colors.background.secondary }]}>
             <SettingsItem
-              icon={<Moon size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<Moon size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="Appearance"
               onPress={handleAppearance}
               colors={colors}
             />
             <SettingsItem
-              icon={<Info size={24} color={colors.text.secondary} weight="regular" />}
+              icon={<Info size={iconScale(24)} color={colors.text.secondary} weight="regular" />}
               label="About"
               onPress={handleAbout}
               colors={colors}
@@ -206,7 +207,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={[styles.sectionContent, { backgroundColor: colors.background.secondary }]}>
             <SettingsItem
-              icon={<SignOut size={24} color={colors.status.error} weight="regular" />}
+              icon={<SignOut size={iconScale(24)} color={colors.status.error} weight="regular" />}
               label="Log Out"
               onPress={handleLogout}
               showArrow={false}
@@ -239,7 +240,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Appearance</Text>
               <TouchableOpacity onPress={() => setShowAppearanceModal(false)}>
-                <X size={24} color={colors.text.secondary} weight="regular" />
+                <X size={iconScale(24)} color={colors.text.secondary} weight="regular" />
               </TouchableOpacity>
             </View>
 
@@ -263,7 +264,7 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
                 {themePreference === option.value && (
-                  <Check size={24} color={colors.accent.primary} weight="bold" />
+                  <Check size={iconScale(24)} color={colors.accent.primary} weight="bold" />
                 )}
               </TouchableOpacity>
             ))}
@@ -289,7 +290,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text.primary }]}>About</Text>
               <TouchableOpacity onPress={() => setShowAboutModal(false)}>
-                <X size={24} color={colors.text.secondary} weight="regular" />
+                <X size={iconScale(24)} color={colors.text.secondary} weight="regular" />
               </TouchableOpacity>
             </View>
 
@@ -332,7 +333,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Privacy</Text>
               <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-                <X size={24} color={colors.text.secondary} weight="regular" />
+                <X size={iconScale(24)} color={colors.text.secondary} weight="regular" />
               </TouchableOpacity>
             </View>
 
@@ -344,7 +345,7 @@ export default function SettingsScreen() {
               <Text style={[styles.themeOptionLabel, { color: colors.text.primary }]}>
                 Privacy Policy
               </Text>
-              <CaretRight size={20} color={colors.text.tertiary} weight="regular" />
+              <CaretRight size={iconScale(20)} color={colors.text.tertiary} weight="regular" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -355,7 +356,7 @@ export default function SettingsScreen() {
               <Text style={[styles.themeOptionLabel, { color: colors.text.primary }]}>
                 Terms of Service
               </Text>
-              <CaretRight size={20} color={colors.text.tertiary} weight="regular" />
+              <CaretRight size={iconScale(20)} color={colors.text.tertiary} weight="regular" />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -372,36 +373,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     ...Typography.h2,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(24),
   },
   placeholder: {
-    width: 40,
+    width: scale(40),
   },
   content: {
     flex: 1,
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: scale(20),
+    marginBottom: scale(24),
   },
   sectionTitle: {
     ...Typography.caption,
     textTransform: 'uppercase',
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: scale(8),
+    marginLeft: scale(4),
   },
   sectionContent: {
     borderRadius: 12,
@@ -411,14 +412,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(16),
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   settingsItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   settingsItemLabel: {
     ...Typography.body,
@@ -426,19 +427,19 @@ const styles = StyleSheet.create({
   version: {
     ...Typography.caption,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 40,
+    marginTop: scale(8),
+    marginBottom: scale(40),
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: scale(20),
   },
   modalContent: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: scale(340),
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -446,8 +447,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
   },
   modalTitle: {
     ...Typography.h3,
@@ -456,29 +457,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(20),
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   themeOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scale(12),
   },
   themeOptionLabel: {
     ...Typography.body,
   },
   aboutContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: scale(20),
+    paddingBottom: scale(20),
   },
   aboutText: {
     ...Typography.body,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   learnMoreButton: {
-    marginTop: 12,
+    marginTop: scale(12),
     alignItems: 'center',
   },
   learnMoreText: {

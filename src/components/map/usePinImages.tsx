@@ -92,6 +92,18 @@ export function usePinImages() {
     setIsLoading(false);
   }, []);
 
+  // Fallback timeout - if pins don't load in 3 seconds, show map without custom pins
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Pin images generation timed out, showing map without custom pins');
+        setIsLoading(false);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
   return {
     pinImages,
     isLoading,

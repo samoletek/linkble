@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { CaretLeft, Trash } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import TextInput from '../../components/common/TextInput';
 import { useUserStore } from '../../stores/userStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -215,7 +216,7 @@ export default function EditProfileScreen() {
             onPress={handleBack}
             activeOpacity={0.7}
           >
-            <CaretLeft size={24} color={colors.text.primary} weight="regular" />
+            <CaretLeft size={iconScale(24)} color={colors.text.primary} weight="regular" />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text.primary }]}>Edit Profile</Text>
           <View style={styles.placeholder} />
@@ -326,7 +327,7 @@ export default function EditProfileScreen() {
               disabled={isDeleting}
               activeOpacity={0.7}
             >
-              <Trash size={24} color={colors.status.error} weight="regular" />
+              <Trash size={iconScale(24)} color={colors.status.error} weight="regular" />
               <Text style={[styles.deleteButtonText, { color: colors.status.error }]}>
                 Delete Account
               </Text>
@@ -346,23 +347,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     ...Typography.h2,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(24),
   },
   placeholder: {
-    width: 40,
+    width: scale(40),
   },
   keyboardView: {
     flex: 1,
@@ -371,31 +372,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    gap: 20,
+    paddingHorizontal: scale(20),
+    paddingTop: scale(20),
+    paddingBottom: scale(40),
+    gap: scale(20),
   },
   section: {
-    gap: 12,
+    gap: scale(12),
   },
   sectionTitle: {
     ...Typography.body,
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: scale(8),
   },
   usernameHint: {
     ...Typography.caption,
-    marginTop: 4,
-    marginLeft: 4,
+    marginTop: scale(4),
+    marginLeft: scale(4),
   },
   saveButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(16),
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: scale(4),
   },
   saveButtonText: {
     ...Typography.body,
@@ -403,16 +404,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dangerSection: {
-    marginTop: 20,
+    marginTop: scale(20),
   },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(16),
     borderRadius: 12,
-    gap: 12,
+    gap: scale(12),
   },
   deleteButtonText: {
     ...Typography.body,

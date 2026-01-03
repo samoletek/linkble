@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Animations } from '../../constants';
-import { getResponsiveValue } from '../../utils/responsive';
+import { getResponsiveValue, scale, fontScale } from '../../utils/responsive';
 import Button from '../../components/common/Button';
 import AuthModal from '../../components/auth/AuthModal';
 
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoWrapper: {
-    marginBottom: 24,
+    marginBottom: scale(24),
     borderRadius: 40,
     overflow: 'hidden',
     // Glow effect
@@ -116,13 +116,13 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   logo: {
-    width: 240,
-    height: 240,
+    width: scale(240),
+    height: scale(240),
     borderRadius: 40,
   },
   appName: {
     ...Typography.h1,
-    marginBottom: 12,
+    marginBottom: scale(12),
     fontSize: getResponsiveValue(32, 36, 42),
   },
   tagline: {

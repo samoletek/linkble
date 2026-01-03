@@ -61,6 +61,44 @@ export async function isBlockedByUser(userId: string, otherUserId: string): Prom
   return !!data;
 }
 
+export async function reportUser(
+  reporterId: string,
+  reportedUserId: string,
+  reason: string,
+  description?: string
+): Promise<void> {
+  const { error } = await (supabase
+    .from('reports') as any)
+    .insert({
+      reporter_id: reporterId,
+      reported_user_id: reportedUserId,
+      reason,
+      description,
+      status: 'pending',
+    });
+
+  if (error) throw error;
+}
+
+export async function reportEvent(
+  reporterId: string,
+  eventId: string,
+  reason: string,
+  description?: string
+): Promise<void> {
+  const { error } = await (supabase
+    .from('reports') as any)
+    .insert({
+      reporter_id: reporterId,
+      reported_event_id: eventId,
+      reason,
+      description,
+      status: 'pending',
+    });
+
+  if (error) throw error;
+}
+
 /**
  * Get all user IDs that should be hidden from the current user:
  * - Users the current user has blocked

@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Archive, ChatCircle, Crown, Clock } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
+import { scale, fontScale, iconScale } from '../../utils/responsive';
 import { ChatStackParamList } from '../../types';
 import { getArchivedEventChats, ArchivedEventChatPreview } from '../../services/messages';
 
@@ -82,11 +83,11 @@ export default function ArchivedChatsScreen() {
           <Image source={{ uri: item.event_image }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.text.tertiary }]}>
-            <ChatCircle size={24} color="#FFFFFF" weight="fill" />
+            <ChatCircle size={iconScale(24)} color="#FFFFFF" weight="fill" />
           </View>
         )}
         <View style={[styles.archivedBadge, { backgroundColor: colors.background.secondary }]}>
-          <Archive size={12} color={colors.text.tertiary} weight="fill" />
+          <Archive size={iconScale(12)} color={colors.text.tertiary} weight="fill" />
         </View>
       </View>
       <View style={styles.chatContent}>
@@ -96,13 +97,13 @@ export default function ArchivedChatsScreen() {
           </Text>
         </View>
         <View style={styles.chatSubtitle}>
-          <Crown size={12} color={colors.text.tertiary} weight="fill" />
+          <Crown size={iconScale(12)} color={colors.text.tertiary} weight="fill" />
           <Text style={[styles.hostName, { color: colors.text.tertiary }]} numberOfLines={1}>
             {item.host_name}
           </Text>
         </View>
         <View style={styles.expiryRow}>
-          <Clock size={12} color={colors.status.warning} weight="fill" />
+          <Clock size={iconScale(12)} color={colors.status.warning} weight="fill" />
           <Text style={[styles.expiryText, { color: colors.status.warning }]}>
             {formatTimeRemaining(item.ended_at)}
           </Text>
@@ -116,7 +117,7 @@ export default function ArchivedChatsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContent}>
-      <Archive size={64} color={colors.text.tertiary} weight="thin" />
+      <Archive size={iconScale(64)} color={colors.text.tertiary} weight="thin" />
       <Text style={[styles.placeholder, { color: colors.text.secondary }]}>
         No archived chats
       </Text>
@@ -134,7 +135,7 @@ export default function ArchivedChatsScreen() {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <ArrowLeft size={24} color={colors.text.primary} weight="bold" />
+          <ArrowLeft size={iconScale(24)} color={colors.text.primary} weight="bold" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text.primary }]}>Archived Chats</Text>
         <View style={styles.headerSpacer} />
@@ -173,18 +174,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(12),
   },
   backButton: {
-    width: 40,
+    width: scale(40),
   },
   title: {
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '600',
   },
   headerSpacer: {
-    width: 40,
+    width: scale(40),
   },
   loadingContainer: {
     flex: 1,
@@ -195,32 +196,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
   placeholder: {
     ...Typography.body,
-    marginTop: 16,
+    marginTop: scale(16),
   },
   hint: {
     ...Typography.caption,
-    marginTop: 8,
+    marginTop: scale(8),
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: scale(40),
   },
   chatItem: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(14),
     borderBottomWidth: 1,
   },
   avatarContainer: {
-    marginRight: 14,
+    marginRight: scale(14),
     position: 'relative',
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: scale(52),
+    height: scale(52),
+    borderRadius: scale(26),
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -228,11 +229,11 @@ const styles = StyleSheet.create({
   },
   archivedBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    bottom: scale(-2),
+    right: scale(-2),
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -244,36 +245,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   chatTitle: {
     ...Typography.body,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
+    marginRight: scale(8),
   },
   chatSubtitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   hostName: {
     ...Typography.caption,
-    marginLeft: 4,
+    marginLeft: scale(4),
   },
   expiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   expiryText: {
     ...Typography.caption,
-    fontSize: 11,
+    fontSize: fontScale(11),
     fontWeight: '500',
   },
   eventDateText: {
     ...Typography.caption,
-    fontSize: 11,
-    marginLeft: 8,
+    fontSize: fontScale(11),
+    marginLeft: scale(8),
   },
 });

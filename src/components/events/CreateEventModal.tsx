@@ -17,6 +17,7 @@ import {
   Alert,
   Switch,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare, SoccerBall, Wine, Briefcase, Coffee, GraduationCap, MusicNotes, LockSimple } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +30,7 @@ import { useEventsStore } from '../../stores/eventsStore';
 import { uploadEventImage, updateEvent } from '../../services/events';
 import { geocodeAddress } from '../../utils/geocoding';
 import { EventWithHost } from '../../types/database';
+import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -56,19 +58,28 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const createEvent = useEventsStore((state) => state.createEvent);
 
   const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
+  const blurOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
-      }).start();
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        }),
+        Animated.timing(blurOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
       translateY.setValue(MODAL_HEIGHT);
+      blurOpacity.setValue(0);
     }
-  }, [visible, translateY]);
+  }, [visible, translateY, blurOpacity]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -110,6 +121,11 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const [spots, setSpots] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [autoAccept, setAutoAccept] = useState(true);
+  const [hasEndTime, setHasEndTime] = useState(false);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const isEditMode = !!eventToEdit;
   const isPrivateCategory = selectedCategory === 'private';
@@ -149,6 +165,18 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
       const eventDate = new Date(eventToEdit.start_time);
       setSelectedDate(eventDate);
       setSelectedTime(eventDate);
+
+      // Parse end date and time
+      if (eventToEdit.end_time) {
+        setHasEndTime(true);
+        const eventEndDate = new Date(eventToEdit.end_time);
+        setEndDate(eventEndDate);
+        setEndTime(eventEndDate);
+      } else {
+        setHasEndTime(false);
+        setEndDate(null);
+        setEndTime(null);
+      }
     }
   }, [eventToEdit, visible]);
 
@@ -170,12 +198,32 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     }
   };
 
+  const handleEndDateChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (date) {
+      setEndDate(date);
+    }
+  };
+
+  const handleEndTimeChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndTimePicker(false);
+    }
+    if (date) {
+      setEndTime(date);
+    }
+  };
+
   const formatDate = (date: Date) => format(date, 'MMM d, yyyy');
   const formatTime = (date: Date) => format(date, 'h:mm a');
 
   const closePickers = () => {
     setShowDatePicker(false);
     setShowTimePicker(false);
+    setShowEndDatePicker(false);
+    setShowEndTimePicker(false);
   };
 
   const pickImage = async () => {
@@ -198,6 +246,28 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     setIsCreating(true);
 
     try {
+      // Validate date constraints: min 24 hours, max 1 year from now
+      if (selectedDate && selectedTime) {
+        const eventDateTime = new Date(selectedDate);
+        eventDateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+
+        const now = new Date();
+        const minDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const maxDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+        if (eventDateTime < minDate) {
+          Alert.alert('Invalid Date', 'Event must start at least 24 hours from now.');
+          setIsCreating(false);
+          return;
+        }
+
+        if (eventDateTime > maxDate) {
+          Alert.alert('Invalid Date', 'Event cannot be more than 1 year from now.');
+          setIsCreating(false);
+          return;
+        }
+      }
+
       // Upload image if selected and it's a new local image (not existing URL)
       let imageUrl: string | undefined;
       if (image) {
@@ -230,6 +300,23 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         startTime = dateWithTime.toISOString();
       }
 
+      // Calculate end time if enabled
+      let endTimeISO: string | undefined;
+      if (hasEndTime && endDate && endTime) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+        // Validate end time is after start time
+        const startDateTime = new Date(startTime);
+        if (endDateTime <= startDateTime) {
+          Alert.alert('Invalid End Time', 'End time must be after start time.');
+          setIsCreating(false);
+          return;
+        }
+
+        endTimeISO = endDateTime.toISOString();
+      }
+
       if (isEditMode && eventToEdit) {
         // Check if location changed - only geocode if it did
         let locationData: { address: string; lat: number; lng: number } | null = null;
@@ -258,6 +345,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             location_lng: locationData.lng,
           }),
           start_time: startTime,
+          end_time: hasEndTime ? endTimeISO : undefined,
           max_participants: parseInt(spots, 10) || 10,
           image_url: imageUrl,
           auto_accept: isPrivateCategory ? false : autoAccept,
@@ -287,6 +375,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           location_lat: geocodeResult.location.latitude,
           location_lng: geocodeResult.location.longitude,
           start_time: startTime,
+          end_time: hasEndTime ? endTimeISO : undefined,
           max_participants: parseInt(spots, 10) || 10,
           image_url: imageUrl,
           auto_accept: isPrivateCategory ? false : autoAccept,
@@ -317,23 +406,35 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     setSpots('');
     setImage(null);
     setAutoAccept(true);
+    setHasEndTime(false);
+    setEndDate(null);
+    setShowEndDatePicker(false);
+    setEndTime(null);
+    setShowEndTimePicker(false);
     onClose();
   };
 
-  const isValid = title.trim() && selectedCategory && location.trim() && selectedDate && selectedTime && spots.trim();
+  const isValid = title.trim() && selectedCategory && location.trim() && selectedDate && selectedTime && spots.trim() && (!hasEndTime || (endDate && endTime));
 
   return (
     <Modal
       visible={visible}
       animationType="none"
       transparent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+      <Animated.View style={[styles.blurContainer, { opacity: blurOpacity }]}>
+        <BlurView intensity={25} tint="dark" style={styles.blurView}>
+          <TouchableOpacity
+            style={styles.blurTouchable}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </BlurView>
+      </Animated.View>
 
+      <View style={styles.overlay}>
         <Animated.View
           style={[
             styles.container,
@@ -356,7 +457,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
 
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={24} color={colors.text.primary} weight="bold" />
+              <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.text.primary }]}>{isEditMode ? 'Edit Event' : 'New Event'}</Text>
             <TouchableOpacity
@@ -364,7 +465,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               disabled={!isValid}
               style={styles.checkButton}
             >
-              <Check size={24} color={colors.text.primary} weight="bold" />
+              <Check size={iconScale(24)} color={colors.text.primary} weight="bold" />
             </TouchableOpacity>
           </View>
 
@@ -397,7 +498,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                   <Image source={{ uri: image }} style={styles.pickedImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <ImageSquare size={32} color={colors.text.placeholder} />
+                    <ImageSquare size={iconScale(32)} color={colors.text.placeholder} />
                     <Text style={[styles.imagePlaceholderText, { color: colors.text.placeholder }]}>
                       Add a photo
                     </Text>
@@ -452,7 +553,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                       onPress={() => { closePickers(); setSelectedCategory(category.id); }}
                     >
                       <IconComponent
-                        size={16}
+                        size={iconScale(16)}
                         color={isSelected ? '#FFFFFF' : colors.text.secondary}
                         weight="bold"
                       />
@@ -478,7 +579,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               value={location}
               onChangeText={setLocation}
               onFocus={closePickers}
-              icon={<MapPin size={20} color={colors.text.secondary} />}
+              icon={<MapPin size={iconScale(20)} color={colors.text.secondary} />}
             />
 
             <View style={styles.row}>
@@ -493,7 +594,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                     onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
                     activeOpacity={0.7}
                   >
-                    <Calendar size={20} color={colors.text.secondary} />
+                    <Calendar size={iconScale(20)} color={colors.text.secondary} />
                     <Text
                       style={[
                         styles.datePickerText,
@@ -516,7 +617,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                     onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
                     activeOpacity={0.7}
                   >
-                    <Clock size={20} color={colors.text.secondary} />
+                    <Clock size={iconScale(20)} color={colors.text.secondary} />
                     <Text
                       style={[
                         styles.datePickerText,
@@ -530,6 +631,75 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               </View>
             </View>
 
+            <View style={styles.switchContainer}>
+              <View style={styles.switchTextContainer}>
+                <Text style={[styles.switchLabel, { color: colors.text.primary }]}>
+                  Event has end time
+                </Text>
+                <Text style={[styles.switchDescription, { color: colors.text.secondary }]}>
+                  {hasEndTime
+                    ? 'Specify when the event ends'
+                    : 'No specific end time'}
+                </Text>
+              </View>
+              <Switch
+                value={hasEndTime}
+                onValueChange={setHasEndTime}
+                trackColor={{ false: colors.border.primary, true: colors.accent.primary }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {hasEndTime && (
+              <View style={styles.row}>
+                <View style={styles.halfField}>
+                  <View style={styles.fieldContainer}>
+                    <Text style={[styles.label, { color: colors.text.secondary }]}>End Date</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.datePickerButton,
+                        { backgroundColor: colors.background.secondary, borderColor: colors.border.primary },
+                      ]}
+                      onPress={() => { closePickers(); setShowEndDatePicker(true); }}
+                      activeOpacity={0.7}
+                    >
+                      <Calendar size={iconScale(20)} color={colors.text.secondary} />
+                      <Text
+                        style={[
+                          styles.datePickerText,
+                          { color: endDate ? colors.text.primary : colors.text.placeholder },
+                        ]}
+                      >
+                        {endDate ? formatDate(endDate) : 'Select date'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.halfField}>
+                  <View style={styles.fieldContainer}>
+                    <Text style={[styles.label, { color: colors.text.secondary }]}>End Time</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.datePickerButton,
+                        { backgroundColor: colors.background.secondary, borderColor: colors.border.primary },
+                      ]}
+                      onPress={() => { closePickers(); setShowEndTimePicker(true); }}
+                      activeOpacity={0.7}
+                    >
+                      <Clock size={iconScale(20)} color={colors.text.secondary} />
+                      <Text
+                        style={[
+                          styles.datePickerText,
+                          { color: endTime ? colors.text.primary : colors.text.placeholder },
+                        ]}
+                      >
+                        {endTime ? formatTime(endTime) : 'Select time'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
 
             <TextInput
               label="Spots available"
@@ -538,7 +708,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               onChangeText={setSpots}
               onFocus={closePickers}
               keyboardType="number-pad"
-              icon={<Users size={20} color={colors.text.secondary} />}
+              icon={<Users size={iconScale(20)} color={colors.text.secondary} />}
             />
 
             <View style={[styles.switchContainer, isPrivateCategory && styles.switchContainerDisabled]}>
@@ -563,7 +733,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               />
             </View>
 
-            <View style={{ height: 40 }} />
+            <View style={{ height: scale(40) }} />
           </ScrollView>
           </KeyboardAvoidingView>
         </Animated.View>
@@ -587,11 +757,12 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                   </TouchableOpacity>
                 </View>
                 <DateTimePicker
-                  value={selectedDate || new Date()}
+                  value={selectedDate || new Date(Date.now() + 24 * 60 * 60 * 1000)}
                   mode="date"
                   display="inline"
                   onChange={handleDateChange}
-                  minimumDate={new Date()}
+                  minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                  maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
                   themeVariant={activeTheme}
                   style={styles.picker}
                 />
@@ -633,68 +804,143 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* End Date Picker Modal */}
+      <Modal
+        visible={showEndDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEndDatePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowEndDatePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background.secondary }]}>
+                <View style={styles.pickerHeader}>
+                  <Text style={[styles.pickerTitle, { color: colors.text.primary }]}>Select End Date</Text>
+                  <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                    <Text style={[styles.pickerDone, { color: colors.accent.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={endDate || selectedDate || new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                  mode="date"
+                  display="inline"
+                  onChange={handleEndDateChange}
+                  minimumDate={selectedDate || new Date(Date.now() + 24 * 60 * 60 * 1000)}
+                  maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
+                  themeVariant={activeTheme}
+                  style={styles.picker}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEndTimePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowEndTimePicker(false)}>
+          <View style={styles.pickerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background.secondary }]}>
+                <View style={styles.pickerHeader}>
+                  <Text style={[styles.pickerTitle, { color: colors.text.primary }]}>Select End Time</Text>
+                  <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                    <Text style={[styles.pickerDone, { color: colors.accent.primary }]}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={endTime || selectedTime || new Date()}
+                  mode="time"
+                  display="spinner"
+                  onChange={handleEndTimeChange}
+                  themeVariant={activeTheme}
+                  is24Hour={false}
+                  locale="en-US"
+                  style={styles.timePicker}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  blurContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  blurView: {
+    flex: 1,
+  },
+  blurTouchable: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: scale(20),
+    borderTopRightRadius: scale(20),
   },
   keyboardView: {
     flex: 1,
   },
   handleContainer: {
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: scale(8),
+    paddingBottom: scale(4),
     alignItems: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: scale(36),
+    height: scale(4),
     borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: scale(16),
+    paddingBottom: scale(12),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   checkButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
   headerTitle: {
     ...Typography.h2,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: fontScale(16),
+    lineHeight: fontScale(24),
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 20,
-    gap: 20,
+    padding: scale(20),
+    gap: scale(20),
   },
   fieldContainer: {
     width: '100%',
@@ -714,20 +960,20 @@ const styles = StyleSheet.create({
     fontSize: Typography.body.fontSize,
     fontWeight: Typography.body.fontWeight as '400',
     padding: Spacing.inputPadding,
-    minHeight: 100,
+    minHeight: verticalScale(100),
   },
   categoriesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: scale(8),
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: scale(6),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(8),
+    borderRadius: scale(20),
     borderWidth: 1,
   },
   categoryChipText: {
@@ -736,7 +982,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: scale(12),
   },
   halfField: {
     flex: 1,
@@ -745,7 +991,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Spacing.borderRadius.md,
     overflow: 'hidden',
-    height: 160,
+    height: verticalScale(160),
   },
   pickedImage: {
     width: '100%',
@@ -755,7 +1001,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: scale(8),
   },
   imagePlaceholderText: {
     ...Typography.bodySmall,
@@ -766,14 +1012,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Spacing.borderRadius.md,
     padding: Spacing.inputPadding,
-    gap: 10,
+    gap: scale(10),
   },
   datePickerText: {
     ...Typography.body,
     flex: 1,
   },
   datePickerContainer: {
-    marginTop: -10,
+    marginTop: scale(-10),
   },
   pickerOverlay: {
     flex: 1,
@@ -782,16 +1028,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerModal: {
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 20,
-    maxWidth: 360,
+    borderRadius: scale(16),
+    padding: scale(16),
+    marginHorizontal: scale(20),
+    maxWidth: scale(360),
   },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   pickerTitle: {
     ...Typography.h3,
@@ -801,23 +1047,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   picker: {
-    height: 320,
+    height: verticalScale(320),
   },
   timePicker: {
-    height: 200,
+    height: verticalScale(200),
   },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: scale(12),
   },
   switchContainerDisabled: {
     opacity: 0.6,
   },
   switchTextContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: scale(12),
   },
   switchLabel: {
     ...Typography.body,
@@ -825,6 +1071,6 @@ const styles = StyleSheet.create({
   },
   switchDescription: {
     ...Typography.caption,
-    marginTop: 2,
+    marginTop: scale(2),
   },
 });
