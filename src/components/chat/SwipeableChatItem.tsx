@@ -103,18 +103,9 @@ export default function SwipeableChatItem({
             <Text style={[styles.chatTitle, { color: colors.text.primary }]} numberOfLines={1}>
               {title}
             </Text>
-            <View style={styles.chatHeaderRight}>
-              <Text style={[styles.chatTime, { color: colors.text.tertiary }]}>
-                {time}
-              </Text>
-              {unreadCount > 0 && (
-                <View style={[styles.unreadBadge, { backgroundColor: colors.text.tertiary }]}>
-                  <Text style={styles.unreadCount}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <Text style={[styles.chatTime, { color: colors.text.tertiary }]}>
+              {time}
+            </Text>
           </View>
           {type === 'event' && subtitle && (
             <View style={styles.chatSubtitle}>
@@ -130,6 +121,9 @@ export default function SwipeableChatItem({
             </Text>
           )}
         </View>
+        {unreadCount > 0 && (
+          <View style={styles.unreadDot} />
+        )}
       </TouchableOpacity>
     </Swipeable>
   );
@@ -178,23 +172,14 @@ const styles = StyleSheet.create({
   chatTime: {
     ...Typography.caption,
   },
-  chatHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-  },
-  unreadBadge: {
-    minWidth: scale(20),
-    height: scale(20),
-    borderRadius: scale(10),
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: scale(6),
-  },
-  unreadCount: {
-    color: '#FFFFFF',
-    fontSize: fontScale(11),
-    fontWeight: '600',
+  unreadDot: {
+    position: 'absolute',
+    right: scale(20),
+    bottom: scale(26),
+    width: scale(10),
+    height: scale(10),
+    borderRadius: scale(5),
+    backgroundColor: '#007AFF',
   },
   chatSubtitle: {
     flexDirection: 'row',

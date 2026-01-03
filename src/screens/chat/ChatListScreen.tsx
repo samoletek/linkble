@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { ChatCircle, EnvelopeSimple, Archive, CaretRight } from 'phosphor-react-
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { ChatStackParamList, ConversationWithUser } from '../../types';
-import { getEventChats, getConversations, EventChatPreview, leaveEventChat, hideConversation, getArchivedChatsCount } from '../../services/messages';
+import { getEventChats, getConversations, EventChatPreview, leaveEventChat, hideConversation, getArchivedChatsCount, subscribeToChatListUpdates, unsubscribe } from '../../services/messages';
 import SwipeableChatItem from '../../components/chat/SwipeableChatItem';
 import { scale, fontScale, iconScale } from '../../utils/responsive';
 
@@ -57,6 +57,18 @@ export default function ChatListScreen() {
       loadChats().finally(() => setIsLoading(false));
     }, [loadChats])
   );
+
+  // Real-time subscription for new messages
+  useEffect(() => {
+    const { messagesChannel, directMessagesChannel } = subscribeToChatListUpdates(() => {
+      loadChats();
+    });
+
+    return () => {
+      unsubscribe(messagesChannel);
+      unsubscribe(directMessagesChannel);
+    };
+  }, [loadChats]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

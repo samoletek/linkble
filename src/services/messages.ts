@@ -105,6 +105,27 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
         .limit(1)
         .single() as { data: { content: string; created_at: string } | null };
 
+      // Get all messages in this event (not from current user, not deleted)
+      const { data: allMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('is_deleted', false)
+        .neq('user_id', userId) as { data: Array<{ id: string }> | null };
+
+      let unreadCount = 0;
+      if (allMessages && allMessages.length > 0) {
+        // Get messages already read by current user
+        const { data: readMessages } = await supabase
+          .from('message_reads')
+          .select('message_id')
+          .eq('user_id', userId)
+          .in('message_id', allMessages.map(m => m.id)) as { data: Array<{ message_id: string }> | null };
+
+        const readIds = new Set((readMessages || []).map(r => r.message_id));
+        unreadCount = allMessages.filter(m => !readIds.has(m.id)).length;
+      }
+
       return {
         event_id: event.id,
         event_title: event.title,
@@ -112,7 +133,7 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
         host_name: event.host?.full_name || 'Unknown',
         last_message: lastMsg?.content || null,
         last_message_at: lastMsg?.created_at || null,
-        unread_count: 0,
+        unread_count: unreadCount,
       };
     })
   );
@@ -208,6 +229,27 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         .limit(1)
         .single() as { data: { content: string; created_at: string } | null };
 
+      // Get all messages in this event (not from current user, not deleted)
+      const { data: allMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('is_deleted', false)
+        .neq('user_id', userId) as { data: Array<{ id: string }> | null };
+
+      let unreadCount = 0;
+      if (allMessages && allMessages.length > 0) {
+        // Get messages already read by current user
+        const { data: readMessages } = await supabase
+          .from('message_reads')
+          .select('message_id')
+          .eq('user_id', userId)
+          .in('message_id', allMessages.map(m => m.id)) as { data: Array<{ message_id: string }> | null };
+
+        const readIds = new Set((readMessages || []).map(r => r.message_id));
+        unreadCount = allMessages.filter(m => !readIds.has(m.id)).length;
+      }
+
       return {
         event_id: event.id,
         event_title: event.title,
@@ -215,7 +257,7 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         host_name: event.host?.full_name || 'Unknown',
         last_message: lastMsg?.content || null,
         last_message_at: lastMsg?.created_at || null,
-        unread_count: 0,
+        unread_count: unreadCount,
         start_time: event.start_time,
         ended_at: new Date(event.start_time),
       };
@@ -767,6 +809,42 @@ export const subscribeToConversations = (
       }
     )
     .subscribe();
+};
+
+export const subscribeToChatListUpdates = (
+  onUpdate: () => void
+): { messagesChannel: RealtimeChannel; directMessagesChannel: RealtimeChannel } => {
+  const messagesChannel = supabase
+    .channel('chat_list_messages')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  const directMessagesChannel = supabase
+    .channel('chat_list_direct_messages')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return { messagesChannel, directMessagesChannel };
 };
 
 export const unsubscribe = (channel: RealtimeChannel): void => {
