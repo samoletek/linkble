@@ -101,7 +101,9 @@ export const getNearbyEvents = async (
 
   // Filter events:
   // 1. Show future events (not started) for everyone
-  // 2. Show ongoing events (started but not ended) only for participants
+  // 2. Show ongoing/past events only for participants with time limits:
+  //    - With end_time: visible until 24h after end_time
+  //    - Without end_time: visible for 3 days after start_time
   const filteredByTime = eventsWithDetails.filter((event: any) => {
     const startTime = new Date(event.start_time);
     const endTime = event.end_time ? new Date(event.end_time) : null;
@@ -118,12 +120,16 @@ export const getNearbyEvents = async (
       return false;
     }
 
-    // User is a participant - check if event has ended
-    if (endTime && endTime < nowDate) {
-      return false;
+    // User is a participant - check visibility window
+    if (endTime) {
+      // With end_time: visible until 24h after end
+      const visibilityEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      return nowDate < visibilityEnd;
+    } else {
+      // Without end_time: visible for 3 days after start
+      const visibilityEnd = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
+      return nowDate < visibilityEnd;
     }
-
-    return true;
   });
 
   // Filter out events from blocked users
@@ -189,7 +195,9 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
 
   // Filter events:
   // 1. Show future events (not started) for everyone
-  // 2. Show ongoing events (started but not ended) only for participants
+  // 2. Show ongoing/past events only for participants with time limits:
+  //    - With end_time: visible until 24h after end_time
+  //    - Without end_time: visible for 3 days after start_time
   const filteredByTime = eventsData.filter((event: any) => {
     const startTime = new Date(event.start_time);
     const endTime = event.end_time ? new Date(event.end_time) : null;
@@ -206,12 +214,16 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
       return false;
     }
 
-    // User is a participant - check if event has ended
-    if (endTime && endTime < nowDate) {
-      return false; // Event has ended
+    // User is a participant - check visibility window
+    if (endTime) {
+      // With end_time: visible until 24h after end
+      const visibilityEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      return nowDate < visibilityEnd;
+    } else {
+      // Without end_time: visible for 3 days after start
+      const visibilityEnd = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
+      return nowDate < visibilityEnd;
     }
-
-    return true; // Event is ongoing and user is participant
   });
 
   // Filter out events from blocked users

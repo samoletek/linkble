@@ -34,15 +34,14 @@ interface EventWithHost {
 
 interface EventWithHostAndDate extends EventWithHost {
   start_time: string;
+  end_time: string | null;
 }
 
 export const getEventChats = async (): Promise<EventChatPreview[]> => {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  const now = new Date().toISOString();
-
-  // Get events where user is accepted participant or host (only future/ongoing events)
+  // Get events where user is accepted participant or host
   const { data: participations, error: participationsError } = await supabase
     .from('event_participants')
     .select(`
@@ -53,13 +52,14 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
         image_url,
         host_id,
         start_time,
+        end_time,
         host:profiles!events_host_id_fkey(full_name)
       )
     `)
     .eq('user_id', userId)
     .eq('status', 'accepted') as { data: Array<{ event_id: string; event: EventWithHostAndDate | null }> | null; error: any };
 
-  // Get events where user is host (active events - no date filter since host controls status)
+  // Get events where user is host (active events)
   const { data: hostedEvents, error: hostedError } = await supabase
     .from('events')
     .select(`
@@ -68,6 +68,7 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
       image_url,
       host_id,
       start_time,
+      end_time,
       host:profiles!events_host_id_fkey(full_name)
     `)
     .eq('host_id', userId)
@@ -78,17 +79,36 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     return [];
   }
 
-  // Combine events (filter to only future/ongoing events)
+  // Helper to check if event chat is still active
+  // - With end_time: active until end_time + 24h
+  // - Without end_time: active until start_time + 3 days
+  const isEventChatActive = (event: EventWithHostAndDate): boolean => {
+    const nowDate = new Date();
+    const startTime = new Date(event.start_time);
+
+    if (event.end_time) {
+      const endTime = new Date(event.end_time);
+      const activeUntil = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      return nowDate < activeUntil;
+    } else {
+      const activeUntil = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
+      return nowDate < activeUntil;
+    }
+  };
+
+  // Combine events (filter to active chats only)
   const eventMap = new Map<string, EventWithHost>();
 
-  // Add hosted events (already filtered by gte event_date)
+  // Add hosted events (filter by active chat window)
   (hostedEvents || []).forEach((event) => {
-    eventMap.set(event.id, event);
+    if (isEventChatActive(event)) {
+      eventMap.set(event.id, event);
+    }
   });
 
-  // Add participated events (filter future events only)
+  // Add participated events (filter by active chat window)
   (participations || []).forEach((p) => {
-    if (p.event && !eventMap.has(p.event.id) && new Date(p.event.start_time) >= new Date(now)) {
+    if (p.event && !eventMap.has(p.event.id) && isEventChatActive(p.event)) {
       eventMap.set(p.event.id, p.event);
     }
   });
@@ -147,22 +167,46 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
 };
 
 // ============================================
-// Archived Event Chats (ended within 24 hours)
+// Archived Event Chats
+// Archived window: 24 hours after active period ends
+// - With end_time: archive from (end_time + 24h) to (end_time + 48h)
+// - Without end_time: archive from (start_time + 3 days) to (start_time + 4 days)
 // ============================================
 
 export interface ArchivedEventChatPreview extends EventChatPreview {
   start_time: string;
-  ended_at: Date;
+  end_time: string | null;
+  archived_at: Date;
 }
 
 export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[]> => {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // Helper to check if event is in archive window (24h after active period)
+  const isInArchiveWindow = (event: EventWithHostAndDate): { inArchive: boolean; archivedAt: Date } => {
+    const nowDate = new Date();
+    const startTime = new Date(event.start_time);
 
-  // Get events where user participated and event has ended (within last 24 hours)
+    if (event.end_time) {
+      const endTime = new Date(event.end_time);
+      const archiveStart = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      const archiveEnd = new Date(endTime.getTime() + 48 * 60 * 60 * 1000);
+      return {
+        inArchive: nowDate >= archiveStart && nowDate < archiveEnd,
+        archivedAt: archiveStart,
+      };
+    } else {
+      const archiveStart = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const archiveEnd = new Date(startTime.getTime() + 4 * 24 * 60 * 60 * 1000);
+      return {
+        inArchive: nowDate >= archiveStart && nowDate < archiveEnd,
+        archivedAt: archiveStart,
+      };
+    }
+  };
+
+  // Get events where user participated
   const { data: participations, error: participationsError } = await supabase
     .from('event_participants')
     .select(`
@@ -173,13 +217,14 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         image_url,
         host_id,
         start_time,
+        end_time,
         host:profiles!events_host_id_fkey(full_name)
       )
     `)
     .eq('user_id', userId)
     .eq('status', 'accepted') as { data: Array<{ event_id: string; event: EventWithHostAndDate | null }> | null; error: any };
 
-  // Get events where user is host (ended within 24 hours)
+  // Get events where user is host
   const { data: hostedEvents, error: hostedError } = await supabase
     .from('events')
     .select(`
@@ -188,38 +233,40 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
       image_url,
       host_id,
       start_time,
+      end_time,
       host:profiles!events_host_id_fkey(full_name)
     `)
-    .eq('host_id', userId)
-    .lt('start_time', now.toISOString())
-    .gte('start_time', twentyFourHoursAgo.toISOString()) as { data: EventWithHostAndDate[] | null; error: any };
+    .eq('host_id', userId) as { data: EventWithHostAndDate[] | null; error: any };
 
   if (participationsError || hostedError) {
     console.error('Error fetching archived event chats:', participationsError || hostedError);
     return [];
   }
 
-  // Combine events (filter to only ended events within 24 hours)
-  const eventMap = new Map<string, EventWithHostAndDate>();
+  // Combine events and filter to archive window
+  const eventMap = new Map<string, { event: EventWithHostAndDate; archivedAt: Date }>();
 
-  // Add hosted events (already filtered)
+  // Add hosted events in archive window
   (hostedEvents || []).forEach((event) => {
-    eventMap.set(event.id, event);
+    const { inArchive, archivedAt } = isInArchiveWindow(event);
+    if (inArchive) {
+      eventMap.set(event.id, { event, archivedAt });
+    }
   });
 
-  // Add participated events (filter ended within 24 hours)
+  // Add participated events in archive window
   (participations || []).forEach((p) => {
     if (p.event && !eventMap.has(p.event.id)) {
-      const eventDate = new Date(p.event.start_time);
-      if (eventDate < now && eventDate >= twentyFourHoursAgo) {
-        eventMap.set(p.event.id, p.event);
+      const { inArchive, archivedAt } = isInArchiveWindow(p.event);
+      if (inArchive) {
+        eventMap.set(p.event.id, { event: p.event, archivedAt });
       }
     }
   });
 
   // Get last message for each event
   const chats = await Promise.all(
-    Array.from(eventMap.values()).map(async (event) => {
+    Array.from(eventMap.values()).map(async ({ event, archivedAt }) => {
       const { data: lastMsg } = await supabase
         .from('messages')
         .select('content, created_at')
@@ -259,13 +306,14 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         last_message_at: lastMsg?.created_at || null,
         unread_count: unreadCount,
         start_time: event.start_time,
-        ended_at: new Date(event.start_time),
+        end_time: event.end_time,
+        archived_at: archivedAt,
       };
     })
   );
 
-  // Sort by event end date (most recent first)
-  return chats.sort((a, b) => b.ended_at.getTime() - a.ended_at.getTime());
+  // Sort by archived date (most recent first)
+  return chats.sort((a, b) => b.archived_at.getTime() - a.archived_at.getTime());
 };
 
 export const getArchivedChatsCount = async (): Promise<number> => {
