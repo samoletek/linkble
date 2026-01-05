@@ -189,16 +189,16 @@ export default function EventDetailModal({
 
     const { status, error: joinError } = await requestToJoin(event.id);
 
-    setIsActionLoading(false);
-
     if (joinError) {
+      setIsActionLoading(false);
       Alert.alert('Cannot Join', joinError.message);
       return;
     }
 
-    // Refresh event details
+    // Refresh event details before stopping loading
     const details = await getEvent(event.id);
     setEventDetails(details);
+    setIsActionLoading(false);
 
     if (status === 'accepted') {
       Alert.alert('Joined', 'You have joined the event.');
