@@ -25,6 +25,39 @@ export interface AuthResult {
 }
 
 // ============================================
+// Helper Functions
+// ============================================
+
+const generateRandomUsername = (): string => {
+  // Generate 6-digit random number (100000-999999)
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const generateUniqueUsername = async (): Promise<string> => {
+  let username = generateRandomUsername();
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (attempts < maxAttempts) {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (!existing) {
+      return username;
+    }
+
+    username = generateRandomUsername();
+    attempts++;
+  }
+
+  // Fallback: add timestamp suffix if all attempts fail
+  return `${generateRandomUsername()}${Date.now().toString().slice(-3)}`;
+};
+
+// ============================================
 // Authentication
 // ============================================
 
@@ -62,6 +95,12 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
   }
 
   // Profile will be created automatically by database trigger
+  // Generate and set unique 6-digit username
+  const username = await generateUniqueUsername();
+  await (supabase.from('profiles') as any)
+    .update({ username })
+    .eq('id', authData.user.id);
+
   return {
     user: authData.user,
     session: authData.session,
@@ -87,8 +126,10 @@ export const signIn = async (data: SignInData): Promise<AuthResult> => {
 
     if (!existingProfile) {
       // Create profile for users who were created outside the app
+      const username = await generateUniqueUsername();
       await (supabase.from('profiles') as any).insert({
         id: authData.user.id,
+        username,
         full_name: email.split('@')[0],
         date_of_birth: '1990-01-01',
         interests: [],

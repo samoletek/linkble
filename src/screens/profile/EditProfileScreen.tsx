@@ -4,14 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { CaretLeft, Trash } from 'phosphor-react-native';
@@ -40,6 +38,10 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Saving states
+  const [isNameSaving, setIsNameSaving] = useState(false);
+  const [isUsernameSaving, setIsUsernameSaving] = useState(false);
+
   // Email state
   const [email, setEmail] = useState('');
   const [isEmailSaving, setIsEmailSaving] = useState(false);
@@ -53,8 +55,6 @@ export default function EditProfileScreen() {
   const initialFullName = useRef('');
   const initialUsername = useRef('');
   const initialEmail = useRef('');
-  const debounceTimerName = useRef<NodeJS.Timeout | null>(null);
-  const debounceTimerUsername = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate days until username can be changed
   const getDaysUntilUsernameChange = (): number | null => {
@@ -76,55 +76,6 @@ export default function EditProfileScreen() {
     }
   }, [profile]);
 
-  // Auto-save full_name with debounce
-  useEffect(() => {
-    const trimmedValue = fullName.trim();
-    if (!trimmedValue || trimmedValue === initialFullName.current) return;
-
-    if (debounceTimerName.current) {
-      clearTimeout(debounceTimerName.current);
-    }
-
-    debounceTimerName.current = setTimeout(async () => {
-      const result = await updateProfile({ full_name: trimmedValue });
-      if (result.success) {
-        initialFullName.current = trimmedValue;
-      }
-    }, 500);
-
-    return () => {
-      if (debounceTimerName.current) {
-        clearTimeout(debounceTimerName.current);
-      }
-    };
-  }, [fullName, updateProfile]);
-
-  // Auto-save username with debounce
-  useEffect(() => {
-    const trimmedValue = username.trim();
-    if (trimmedValue === initialUsername.current) return;
-
-    if (debounceTimerUsername.current) {
-      clearTimeout(debounceTimerUsername.current);
-    }
-
-    debounceTimerUsername.current = setTimeout(async () => {
-      const result = await updateProfile({ username: trimmedValue || undefined });
-      if (result.success) {
-        initialUsername.current = trimmedValue;
-      } else if (result.error) {
-        Alert.alert('Cannot Change Username', result.error);
-        setUsername(initialUsername.current);
-      }
-    }, 500);
-
-    return () => {
-      if (debounceTimerUsername.current) {
-        clearTimeout(debounceTimerUsername.current);
-      }
-    };
-  }, [username, updateProfile]);
-
   useEffect(() => {
     if (user?.email) {
       setEmail(user.email);
@@ -134,6 +85,37 @@ export default function EditProfileScreen() {
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const handleSaveName = async () => {
+    const trimmedValue = fullName.trim();
+    if (!trimmedValue || trimmedValue === initialFullName.current) return;
+
+    setIsNameSaving(true);
+    const result = await updateProfile({ full_name: trimmedValue });
+    setIsNameSaving(false);
+
+    if (result.success) {
+      initialFullName.current = trimmedValue;
+    } else if (result.error) {
+      Alert.alert('Error', result.error);
+    }
+  };
+
+  const handleSaveUsername = async () => {
+    const trimmedValue = username.trim();
+    if (trimmedValue === initialUsername.current) return;
+
+    setIsUsernameSaving(true);
+    const result = await updateProfile({ username: trimmedValue || undefined });
+    setIsUsernameSaving(false);
+
+    if (result.success) {
+      initialUsername.current = trimmedValue;
+    } else if (result.error) {
+      Alert.alert('Cannot Change Username', result.error);
+      setUsername(initialUsername.current);
+    }
   };
 
   const handleSaveEmail = async () => {
@@ -152,6 +134,7 @@ export default function EditProfileScreen() {
     }
   };
 
+  const hasPasswordInput = currentPassword.length > 0 || newPassword.length > 0 || confirmPassword.length > 0;
   const canSavePassword = currentPassword.length > 0 &&
     newPassword.length >= 6 &&
     confirmPassword.length > 0 &&
@@ -207,6 +190,10 @@ export default function EditProfileScreen() {
     );
   };
 
+  const nameChanged = fullName.trim() !== initialFullName.current && fullName.trim().length > 0;
+  const usernameChanged = username.trim() !== initialUsername.current;
+  const emailChanged = email.trim() !== initialEmail.current && email.trim().length > 0;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary, paddingTop: insets.top }]}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -223,26 +210,40 @@ export default function EditProfileScreen() {
         </View>
       </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        extraScrollHeight={60}
+        enableOnAndroid
+        enableResetScrollToCoords={false}
       >
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <TextInput
-            label="Name"
-            placeholder="Your name"
-            value={fullName}
-            onChangeText={setFullName}
-            maxLength={50}
-          />
+          <View style={styles.section}>
+            <TextInput
+              label="Name"
+              placeholder="Your name"
+              value={fullName}
+              onChangeText={setFullName}
+              maxLength={50}
+            />
+            {nameChanged && (
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+                onPress={handleSaveName}
+                disabled={isNameSaving}
+                activeOpacity={0.7}
+              >
+                {isNameSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
 
-          <View>
+          <View style={styles.section}>
             <TextInput
               label="Username"
               placeholder="@username"
@@ -257,6 +258,20 @@ export default function EditProfileScreen() {
                 You can change your username in {daysUntilUsernameChange} day{daysUntilUsernameChange === 1 ? '' : 's'}
               </Text>
             )}
+            {usernameChanged && daysUntilUsernameChange === null && (
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+                onPress={handleSaveUsername}
+                disabled={isUsernameSaving}
+                activeOpacity={0.7}
+              >
+                {isUsernameSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -268,7 +283,7 @@ export default function EditProfileScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            {email.trim() !== initialEmail.current && email.trim().length > 0 && (
+            {emailChanged && (
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
                 onPress={handleSaveEmail}
@@ -278,7 +293,7 @@ export default function EditProfileScreen() {
                 {isEmailSaving ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save Email</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -304,17 +319,23 @@ export default function EditProfileScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry
             />
-            {canSavePassword && (
+            {hasPasswordInput && (
               <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: canSavePassword ? colors.accent.primary : colors.border.primary },
+                ]}
                 onPress={handleSavePassword}
-                disabled={isPasswordSaving}
+                disabled={!canSavePassword || isPasswordSaving}
                 activeOpacity={0.7}
               >
                 {isPasswordSaving ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save Password</Text>
+                  <Text style={[
+                    styles.saveButtonText,
+                    { color: canSavePassword ? '#FFFFFF' : colors.text.tertiary },
+                  ]}>Save</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -333,8 +354,7 @@ export default function EditProfileScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
@@ -365,9 +385,6 @@ const styles = StyleSheet.create({
   placeholder: {
     width: scale(40),
   },
-  keyboardView: {
-    flex: 1,
-  },
   content: {
     flex: 1,
   },
@@ -387,7 +404,7 @@ const styles = StyleSheet.create({
   },
   usernameHint: {
     ...Typography.caption,
-    marginTop: scale(4),
+    marginTop: scale(-8),
     marginLeft: scale(4),
   },
   saveButton: {
@@ -396,7 +413,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: scale(4),
   },
   saveButtonText: {
     ...Typography.body,

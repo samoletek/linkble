@@ -61,12 +61,11 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const [passwordError, setPasswordError] = useState('');
   const [dobError, setDobError] = useState('');
 
-  // Pan responder for drag-to-dismiss
-  const panResponder = useRef(
+  // Pan responder for handle bar drag-to-dismiss
+  const handlePanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 2,
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {},
       onPanResponderMove: (_, gestureState) => {
         const y = Math.max(0, gestureState.dy);
@@ -90,7 +89,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             bounciness: 6,
           }).start();
         }
-        },
+      },
     })
   ).current;
 
@@ -179,19 +178,18 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   };
 
   const animateStepChange = (newStep: AuthStep) => {
-    Animated.sequence([
-      Animated.timing(contentOpacity, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
+    Animated.timing(contentOpacity, {
+      toValue: 0,
+      duration: 80,
+      useNativeDriver: true,
+    }).start(() => {
+      setStep(newStep);
       Animated.timing(contentOpacity, {
         toValue: 1,
-        duration: 100,
+        duration: 80,
         useNativeDriver: true,
-      }),
-    ]).start();
-    setStep(newStep);
+      }).start();
+    });
   };
 
   const validateEmail = (value: string): boolean => {
@@ -646,7 +644,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       {/* Modal content */}
       <View style={styles.modalWrapper}>
         <Animated.View
-          {...panResponder.panHandlers}
           style={[
             styles.modalContent,
             {
@@ -664,8 +661,12 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             },
           ]}
         >
-          {/* Handle bar */}
-          <View style={styles.handleContainer}>
+          {/* Handle bar - draggable area */}
+          <View
+            {...handlePanResponder.panHandlers}
+            style={styles.handleContainer}
+            hitSlop={{ top: 10, bottom: 10, left: 50, right: 50 }}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
           </View>
 
@@ -730,9 +731,10 @@ const styles = StyleSheet.create({
     paddingTop: scale(8),
   },
   handleContainer: {
-    paddingTop: scale(10),
-    paddingBottom: scale(6),
+    paddingTop: scale(12),
+    paddingBottom: scale(12),
     alignItems: 'center',
+    width: '100%',
   },
   handle: {
     width: scale(36),

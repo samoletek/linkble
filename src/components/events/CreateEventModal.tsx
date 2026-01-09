@@ -5,9 +5,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   TextInput as RNTextInput,
   Image,
   Dimensions,
@@ -17,6 +14,7 @@ import {
   Alert,
   Switch,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare, SoccerBall, Wine, Briefcase, Coffee, GraduationCap, MusicNotes, LockSimple } from 'phosphor-react-native';
@@ -59,6 +57,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
 
   const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
   useEffect(() => {
     if (visible) {
@@ -450,11 +449,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
           </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
-          >
-
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
@@ -469,11 +463,15 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollView
+            ref={scrollViewRef}
             style={styles.content}
             contentContainerStyle={styles.contentContainer}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            extraScrollHeight={60}
+            enableOnAndroid
+            enableResetScrollToCoords={false}
           >
             <TextInput
               label="Title"
@@ -521,7 +519,12 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
                   placeholderTextColor={colors.text.placeholder}
                   value={description}
                   onChangeText={setDescription}
-                  onFocus={closePickers}
+                  onFocus={() => {
+                    closePickers();
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToPosition(0, 220, true);
+                    }, 300);
+                  }}
                   multiline
                   numberOfLines={4}
                   maxLength={500}
@@ -734,8 +737,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             </View>
 
             <View style={{ height: scale(40) }} />
-          </ScrollView>
-          </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
         </Animated.View>
       </View>
 
@@ -895,9 +897,6 @@ const styles = StyleSheet.create({
   container: {
     borderTopLeftRadius: scale(20),
     borderTopRightRadius: scale(20),
-  },
-  keyboardView: {
-    flex: 1,
   },
   handleContainer: {
     paddingTop: scale(8),
