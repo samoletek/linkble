@@ -19,7 +19,15 @@
       [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsVersion": "11.8.0"
+          "RNMapboxMapsVersion": "11.12.0"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": false
+          }
         }
       ],
       "expo-splash-screen"
@@ -29,6 +37,11 @@
     },
     "ios": {
       "bundleIdentifier": "io.architeq.linkble"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "61f38d60-7cc5-45ac-8a82-f587b95f9a0e"
+      }
     }
   }
 }

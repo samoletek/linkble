@@ -20,8 +20,8 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 
 prepare_react_native_project!
 
-# @generated begin @rnmapbox/maps-rnmapboxmapsimpl - expo prebuild (DO NOT MODIFY) sync-d7f232e1536a1894eecde0172cb0d1d2c5c83b2b
-$RNMapboxMapsVersion = '11.8.0'
+# @generated begin @rnmapbox/maps-rnmapboxmapsimpl - expo prebuild (DO NOT MODIFY) sync-9061ec0500b63eb52636aa2cce58049eee2f7019
+$RNMapboxMapsVersion = '11.12.0'
 # @generated end @rnmapbox/maps-rnmapboxmapsimpl
 target 'Linkble' do
   use_expo_modules!

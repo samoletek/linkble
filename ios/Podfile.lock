@@ -78,13 +78,14 @@ PODS:
   - hermes-engine (0.81.5):
     - hermes-engine/Pre-built (= 0.81.5)
   - hermes-engine/Pre-built (0.81.5)
-  - MapboxCommon (24.8.0)
-  - MapboxCoreMaps (11.8.0):
-    - MapboxCommon (~> 24.8)
-  - MapboxMaps (11.8.0):
-    - MapboxCommon (= 24.8.0)
-    - MapboxCoreMaps (= 11.8.0)
-    - Turf (= 3.0.0)
+  - MapboxCommon (24.12.0):
+    - Turf (= 4.0.0)
+  - MapboxCoreMaps (11.12.0):
+    - MapboxCommon (= 24.12.0)
+  - MapboxMaps (11.12.0):
+    - MapboxCommon (= 24.12.0)
+    - MapboxCoreMaps (= 11.12.0)
+    - Turf (= 4.0.0)
   - OneSignalXCFramework (5.2.15):
     - OneSignalXCFramework/OneSignalComplete (= 5.2.15)
   - OneSignalXCFramework/OneSignal (5.2.15):
@@ -1967,15 +1968,15 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - rnmapbox-maps (10.1.30):
-    - MapboxMaps (= 11.8.0)
+  - rnmapbox-maps (10.2.10):
+    - MapboxMaps (= 11.12.0)
     - React
     - React-Core
-    - rnmapbox-maps/DynamicLibrary (= 10.1.30)
+    - rnmapbox-maps/DynamicLibrary (= 10.2.10)
     - Turf
-  - rnmapbox-maps/DynamicLibrary (10.1.30):
+  - rnmapbox-maps/DynamicLibrary (10.2.10):
     - hermes-engine
-    - MapboxMaps (= 11.8.0)
+    - MapboxMaps (= 11.12.0)
     - RCTRequired
     - RCTTypeSafety
     - React
@@ -2086,7 +2087,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - Turf (3.0.0)
+  - Turf (4.0.0)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2397,9 +2398,9 @@ SPEC CHECKSUMS:
   ExpoSplashScreen: bc3cffefca2716e5f22350ca109badd7e50ec14d
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
-  MapboxCommon: 95fe03b74d0d0ca39dc646ca14862deb06875151
-  MapboxCoreMaps: f2a82182c5f6c6262220b81547c6df708012932b
-  MapboxMaps: dbe1869006c5918d62efc6b475fb884947ea2ecd
+  MapboxCommon: 5be9807f4d03e616ecf470ab8202f0d88ecbd459
+  MapboxCoreMaps: 036e9ce8711450a368304e30adc0156383357096
+  MapboxMaps: 9539e2193f6723b3179d1e8243aac5abf9b0e365
   OneSignalXCFramework: ea9e14a95b92ad48d9b35037cbae88a9542bdea3
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
@@ -2472,12 +2473,12 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNDateTimePicker: 19ffa303c4524ec0a2dfdee2658198451c16b7f1
   RNGestureHandler: e0d0bce5599f6120b7adf90c38d2805e2935795f
-  rnmapbox-maps: 3609f66bf48f915e9579643713998ef88fcada91
+  rnmapbox-maps: ca7497877825f871bb7c132159ac5cc0555d2efb
   RNScreens: 6f7a6128b0d33ce66e60309b6c998a2235abe1f3
   RNSVG: cf9ae78f2edf2988242c71a6392d15ff7dd62522
-  Turf: a1604e74adce15c58462c9ae2acdbf049d5be35e
+  Turf: c9eb11a65d96af58cac523460fd40fec5061b081
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: 9797286f7c3145a47b4cf85f48497b994539ff23
+PODFILE CHECKSUM: cdd861d5546f73adf8cbca705ae6ef5de34bbc1e
 
 COCOAPODS: 1.16.2
