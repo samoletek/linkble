@@ -10,6 +10,7 @@ import {
   Keyboard,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
@@ -44,7 +45,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const slideY = useRef(new Animated.Value(500)).current;
   const blurOpacity = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
-  const keyboardOffset = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
 
   // Form state
@@ -93,35 +93,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     })
   ).current;
 
-  // Keyboard handling
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const onKeyboardShow = (e: any) => {
-      Animated.timing(keyboardOffset, {
-        toValue: -e.endCoordinates.height * 0.5,
-        duration: Platform.OS === 'ios' ? e.duration || 250 : 250,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const onKeyboardHide = (e: any) => {
-      Animated.timing(keyboardOffset, {
-        toValue: 0,
-        duration: Platform.OS === 'ios' ? e.duration || 250 : 250,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const showListener = Keyboard.addListener(showEvent, onKeyboardShow);
-    const hideListener = Keyboard.addListener(hideEvent, onKeyboardHide);
-
-    return () => {
-      showListener.remove();
-      hideListener.remove();
-    };
-  }, [keyboardOffset]);
 
   // Animate modal on visibility change
   useEffect(() => {
@@ -153,9 +124,8 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
           useNativeDriver: true,
         }),
       ]).start();
-      keyboardOffset.setValue(0);
     }
-  }, [visible, slideY, blurOpacity, keyboardOffset]);
+  }, [visible, slideY, blurOpacity]);
 
   const resetForm = () => {
     setStep('initial');
@@ -172,7 +142,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
 
   const handleClose = () => {
     Keyboard.dismiss();
-    resetForm();
     clearAuthError();
     onClose();
   };
@@ -642,7 +611,11 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       </Animated.View>
 
       {/* Modal content */}
-      <View style={styles.modalWrapper}>
+      <KeyboardAvoidingView
+        style={styles.modalWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        pointerEvents="box-none"
+      >
         <Animated.View
           style={[
             styles.modalContent,
@@ -652,10 +625,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
               paddingBottom: insets.bottom + padding,
               transform: [
                 {
-                  translateY: Animated.add(
-                    Animated.add(dragY, keyboardOffset),
-                    slideY
-                  ),
+                  translateY: Animated.add(dragY, slideY),
                 },
               ],
             },
@@ -699,7 +669,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             {renderContent()}
           </Animated.View>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -719,11 +689,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    pointerEvents: 'box-none',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     borderTopLeftRadius: Spacing.borderRadius.xl,

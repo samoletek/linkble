@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance, ColorSchemeName } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getColors, ColorPalette } from '../constants/colors';
 
@@ -23,10 +23,21 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const systemColorScheme = useColorScheme();
+  const [systemColorScheme, setSystemColorScheme] = useState<ColorSchemeName>(
+    () => Appearance.getColorScheme()
+  );
   // Default to system theme
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>('auto');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemColorScheme(colorScheme);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // Determine active theme based on preference and system setting
   const activeTheme: ActiveTheme =

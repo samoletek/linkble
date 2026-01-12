@@ -80,21 +80,26 @@ export default function MapScreen() {
   // - Future events shown to everyone
   // - Ongoing events shown only to participants
   const loadEvents = useCallback(async () => {
+    if (!effectiveLocation) return;
     const allEvents = await getAllEvents();
     setEvents(allEvents);
-  }, []);
+  }, [effectiveLocation]);
 
-  // Initialize and load events
+  // Initialize and load events only when location is set
   useEffect(() => {
-    loadEvents();
-    setLoading(false);
-  }, [loadEvents]);
+    if (effectiveLocation) {
+      loadEvents();
+      setLoading(false);
+    }
+  }, [loadEvents, effectiveLocation]);
 
   // Reload events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadEvents();
-    }, [loadEvents])
+      if (effectiveLocation) {
+        loadEvents();
+      }
+    }, [loadEvents, effectiveLocation])
   );
 
   // Real-time subscription for events
@@ -218,8 +223,7 @@ export default function MapScreen() {
     // If it's a cluster, zoom in
     if (props.point_count) {
       try {
-        const clusterId = props.cluster_id;
-        const expansionZoom = await shapeSourceRef.current?.getClusterExpansionZoom(clusterId);
+        const expansionZoom = await shapeSourceRef.current?.getClusterExpansionZoom(feature);
         const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
 
         cameraRef.current?.setCamera({
@@ -274,6 +278,7 @@ export default function MapScreen() {
               ref={cameraRef}
               zoomLevel={12}
               centerCoordinate={mapCenter}
+              animationDuration={0}
             />
 
             {/* Load custom pin images */}

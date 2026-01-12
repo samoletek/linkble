@@ -25,10 +25,10 @@
       "expo-splash-screen"
     ],
     "android": {
-      "package": "com.samoletek.linkble"
+      "package": "io.architeq.linkble"
     },
     "ios": {
-      "bundleIdentifier": "com.samoletek.linkble"
+      "bundleIdentifier": "io.architeq.linkble"
     }
   }
 }

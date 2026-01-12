@@ -505,37 +505,35 @@ export default function EventDetailModal({
               { useNativeDriver: true }
             )}
           >
-            <Animated.View
-              style={[
-                styles.headerImageContainer,
-                {
-                  transform: [
-                    {
-                      translateY: scrollY.interpolate({
-                        inputRange: [-IMAGE_HEIGHT, 0, 1],
-                        outputRange: [-IMAGE_HEIGHT / 2, 0, 0],
-                      }),
-                    },
-                    {
-                      scale: scrollY.interpolate({
-                        inputRange: [-IMAGE_HEIGHT, 0, 1],
-                        outputRange: [2, 1, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {event.image_url ? (
+            {event.image_url && (
+              <Animated.View
+                style={[
+                  styles.headerImageContainer,
+                  {
+                    transform: [
+                      {
+                        translateY: scrollY.interpolate({
+                          inputRange: [-IMAGE_HEIGHT, 0, 1],
+                          outputRange: [-IMAGE_HEIGHT / 2, 0, 0],
+                        }),
+                      },
+                      {
+                        scale: scrollY.interpolate({
+                          inputRange: [-IMAGE_HEIGHT, 0, 1],
+                          outputRange: [2, 1, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <Image
                   source={{ uri: event.image_url }}
                   style={styles.headerImage}
                   resizeMode="cover"
                 />
-              ) : (
-                <View style={[styles.headerImage, { backgroundColor: colors.background.tertiary }]} />
-              )}
-            </Animated.View>
+              </Animated.View>
+            )}
 
             <View style={styles.contentPadding}>
               <Text style={[styles.title, { color: colors.text.primary }]}>

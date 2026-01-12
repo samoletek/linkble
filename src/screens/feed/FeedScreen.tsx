@@ -77,6 +77,7 @@ export default function FeedScreen() {
   const [selectedEvent, setSelectedEvent] = useState<EventWithHost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [radiusModalVisible, setRadiusModalVisible] = useState(false);
+  const [applyingFilters, setApplyingFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'public' | 'private'>('public');
   const [addressInput, setAddressInput] = useState(manualAddress || '');
@@ -180,6 +181,13 @@ export default function FeedScreen() {
       setAddressInput(manualAddress || '');
     }
   }, [radiusModalVisible, manualAddress]);
+
+  // Reset applying filters state when loading completes
+  useEffect(() => {
+    if (applyingFilters && !isLoading) {
+      setApplyingFilters(false);
+    }
+  }, [isLoading, applyingFilters]);
 
   const initializeLocation = async () => {
     // If user has set manual address, don't override with GPS
@@ -288,6 +296,13 @@ export default function FeedScreen() {
 
   const applyFiltersAndClose = async () => {
     Keyboard.dismiss();
+
+    // Check if location or radius changed (will trigger reload)
+    const locationChanged = pendingGps ||
+      (addressInput.trim() && addressInput.trim() !== manualAddress) ||
+      (!addressInput.trim() && manualAddress);
+    const radiusChanged = tempRadius !== searchRadius;
+
     // Apply GPS location if requested
     if (pendingGps) {
       clearManualAddress();
@@ -313,6 +328,11 @@ export default function FeedScreen() {
       eventSearchQuery,
     });
     setRadiusModalVisible(false);
+
+    // Show loading if location or radius changed
+    if (locationChanged || radiusChanged) {
+      setApplyingFilters(true);
+    }
   };
 
   const headerHeight = scrollY.interpolate({
@@ -517,6 +537,16 @@ export default function FeedScreen() {
         eventToEdit={eventToEdit}
         onEditSuccess={handleEditSuccess}
       />
+
+      {/* Loading overlay when applying filters */}
+      {applyingFilters && (
+        <View style={styles.loadingOverlay}>
+          <View style={[styles.loadingBox, { backgroundColor: colors.background.secondary }]}>
+            <ActivityIndicator size="small" color={colors.accent.primary} />
+            <Text style={[styles.loadingText, { color: colors.text.primary }]}>Loading...</Text>
+          </View>
+        </View>
+      )}
 
       {/* Location & Filters Modal */}
       <Modal
@@ -960,5 +990,23 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: scale(16),
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(12),
+    gap: scale(10),
+  },
+  loadingText: {
+    fontSize: fontScale(14),
+    fontWeight: '500',
   },
 });
