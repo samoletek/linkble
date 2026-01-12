@@ -1,4 +1,4 @@
-package com.samoletek.linkble
+package io.architeq.linkble
 
 import android.app.Application
 import android.content.res.Configuration
