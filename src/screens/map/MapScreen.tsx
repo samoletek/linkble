@@ -90,6 +90,12 @@ export default function MapScreen() {
     if (effectiveLocation) {
       loadEvents();
       setLoading(false);
+    } else {
+      // Fallback: show map after 2 seconds even without location
+      const timeout = setTimeout(() => {
+        setLoading(false);
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
   }, [loadEvents, effectiveLocation]);
 

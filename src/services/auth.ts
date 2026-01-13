@@ -1,6 +1,19 @@
 import { supabase } from '../config/supabase';
 import { Profile, ProfileUpdate } from '../types/database';
 import { AuthError, Session, User } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+
+// Configure Google Sign In - call this once on app startup
+export const configureGoogleSignIn = () => {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
+    offlineAccess: true,
+  });
+};
 
 // ============================================
 // Types
@@ -147,6 +160,197 @@ export const signIn = async (data: SignInData): Promise<AuthResult> => {
 export const signOut = async (): Promise<{ error: AuthError | null }> => {
   const { error } = await supabase.auth.signOut();
   return { error };
+};
+
+// ============================================
+// Social Authentication (Apple & Google)
+// ============================================
+
+export const signInWithApple = async (): Promise<AuthResult> => {
+  try {
+    // Check if Apple Sign In is available (iOS only)
+    if (Platform.OS !== 'ios') {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Apple Sign In is only available on iOS', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    if (!isAvailable) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Apple Sign In is not available on this device', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+
+    // Generate a random nonce for security
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce
+    );
+
+    // Request Apple credentials
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      ],
+      nonce: hashedNonce,
+    });
+
+    if (!credential.identityToken) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'No identity token received from Apple', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+
+    // Sign in with Supabase using the Apple ID token
+    const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+      nonce: rawNonce,
+    });
+
+    if (authError || !authData.user) {
+      return { user: null, session: null, error: authError };
+    }
+
+    // Check if profile exists, create if missing
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (!existingProfile) {
+      // Create profile for new user
+      const username = await generateUniqueUsername();
+      const fullName = credential.fullName
+        ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim()
+        : authData.user.email?.split('@')[0] || 'User';
+
+      await (supabase.from('profiles') as any).insert({
+        id: authData.user.id,
+        username,
+        full_name: fullName,
+        date_of_birth: '1990-01-01', // Default, user can update later
+        interests: [],
+      });
+    }
+
+    return {
+      user: authData.user,
+      session: authData.session,
+      error: null,
+    };
+  } catch (error: any) {
+    // Handle user cancellation
+    if (error.code === 'ERR_REQUEST_CANCELED') {
+      return {
+        user: null,
+        session: null,
+        error: null, // Not an error, user just cancelled
+      };
+    }
+
+    return {
+      user: null,
+      session: null,
+      error: { message: error.message || 'Apple Sign In failed', name: 'AuthError', status: 500 } as AuthError,
+    };
+  }
+};
+
+export const signInWithGoogle = async (): Promise<AuthResult> => {
+  try {
+    // Check if Google Play Services are available (Android)
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices();
+    }
+
+    // Sign in with Google
+    const userInfo = await GoogleSignin.signIn();
+
+    if (!userInfo?.data?.idToken) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'No Google ID token received', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+
+    // Authenticate with Supabase using the ID token
+    const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: userInfo.data.idToken,
+    });
+
+    if (authError || !authData.user) {
+      return { user: null, session: null, error: authError };
+    }
+
+    // Check if profile exists, create if missing
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (!existingProfile) {
+      // Create profile for new user
+      const username = await generateUniqueUsername();
+      const fullName = userInfo.data.user?.name || authData.user.email?.split('@')[0] || 'User';
+
+      await (supabase.from('profiles') as any).insert({
+        id: authData.user.id,
+        username,
+        full_name: fullName,
+        date_of_birth: '1990-01-01', // Default, user can update later
+        interests: [],
+      });
+    }
+
+    return {
+      user: authData.user,
+      session: authData.session,
+      error: null,
+    };
+  } catch (error: any) {
+    // Handle specific Google Sign In errors
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      return {
+        user: null,
+        session: null,
+        error: null, // Not an error, user just cancelled
+      };
+    }
+    if (error.code === statusCodes.IN_PROGRESS) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Sign in already in progress', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      return {
+        user: null,
+        session: null,
+        error: { message: 'Google Play Services not available', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+
+    return {
+      user: null,
+      session: null,
+      error: { message: error.message || 'Google Sign In failed', name: 'AuthError', status: 500 } as AuthError,
+    };
+  }
 };
 
 export const resetPassword = async (email: string): Promise<{ error: AuthError | null }> => {

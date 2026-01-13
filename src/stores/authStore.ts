@@ -8,6 +8,8 @@ import {
   getSession,
   getCurrentUser,
   onAuthStateChange,
+  signInWithApple,
+  signInWithGoogle,
   SignUpData,
   SignInData,
 } from '../services/auth';
@@ -23,6 +25,8 @@ interface AuthState {
   initialize: () => Promise<void>;
   signUp: (data: SignUpData) => Promise<{ success: boolean; error?: string }>;
   signIn: (data: SignInData) => Promise<{ success: boolean; error?: string }>;
+  signInWithApple: () => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
@@ -93,6 +97,55 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (result.error) {
       set({ isLoading: false, error: result.error.message });
       return { success: false, error: result.error.message };
+    }
+
+    set({
+      user: result.user,
+      session: result.session,
+      isLoading: false,
+    });
+
+    return { success: true };
+  },
+
+  signInWithApple: async () => {
+    set({ isLoading: true, error: null });
+
+    const result = await signInWithApple();
+
+    if (result.error) {
+      set({ isLoading: false, error: result.error.message });
+      return { success: false, error: result.error.message };
+    }
+
+    // User cancelled - not an error
+    if (!result.user) {
+      set({ isLoading: false });
+      return { success: false };
+    }
+
+    set({
+      user: result.user,
+      session: result.session,
+      isLoading: false,
+    });
+
+    return { success: true };
+  },
+
+  signInWithGoogle: async () => {
+    set({ isLoading: true, error: null });
+
+    const result = await signInWithGoogle();
+
+    if (result.error) {
+      set({ isLoading: false, error: result.error.message });
+      return { success: false, error: result.error.message };
+    }
+
+    if (!result.user) {
+      set({ isLoading: false });
+      return { success: false };
     }
 
     set({

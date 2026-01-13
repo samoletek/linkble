@@ -14,6 +14,7 @@ import { SplashScreen } from './src/components/SplashScreen';
 import { MAPBOX_ACCESS_TOKEN } from './src/config/mapbox';
 import { ONESIGNAL_APP_ID } from './src/config/onesignal';
 import { pushNotificationService } from './src/services/pushNotifications';
+import { configureGoogleSignIn } from './src/services/auth';
 
 Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
 
@@ -21,6 +22,9 @@ Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
 if (ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID') {
   pushNotificationService.initialize(ONESIGNAL_APP_ID);
 }
+
+// Configure Google Sign In
+configureGoogleSignIn();
 
 ExpoSplashScreen.preventAutoHideAsync();
 

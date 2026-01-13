@@ -33,10 +33,14 @@
       "expo-splash-screen"
     ],
     "android": {
-      "package": "io.architeq.linkble"
+      "package": "io.architeq.linkble",
+      "versionCode": 2
     },
     "ios": {
-      "bundleIdentifier": "io.architeq.linkble"
+      "bundleIdentifier": "architeq.linkble",
+      "buildNumber": "2",
+      "usesAppleSignIn": true,
+      "appleTeamId": "99LU49ANLX"
     },
     "extra": {
       "eas": {

@@ -37,6 +37,8 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   // Auth store
   const authSignIn = useAuthStore((state) => state.signIn);
   const authSignUp = useAuthStore((state) => state.signUp);
+  const authSignInWithApple = useAuthStore((state) => state.signInWithApple);
+  const authSignInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const authError = useAuthStore((state) => state.error);
   const clearAuthError = useAuthStore((state) => state.clearError);
@@ -49,7 +51,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
 
   // Form state
   const [step, setStep] = useState<AuthStep>('initial');
-  const [authMode, setAuthMode] = useState<AuthMode>('register');
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
@@ -66,7 +68,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {},
+      onPanResponderGrant: () => { },
       onPanResponderMove: (_, gestureState) => {
         const y = Math.max(0, gestureState.dy);
         dragY.setValue(y);
@@ -129,7 +131,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
 
   const resetForm = () => {
     setStep('initial');
-    setAuthMode('register');
+    setAuthMode('login');
     setEmail('');
     setPassword('');
     setDateOfBirth(null);
@@ -216,14 +218,23 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     animateStepChange('email');
   };
 
-  const handleApplePress = () => {
-    // TODO: Implement Apple Sign In
-    console.log('Apple Sign In pressed');
+  const handleApplePress = async () => {
+    const result = await authSignInWithApple();
+    if (result.success) {
+      handleClose();
+    } else if (result.error) {
+      Alert.alert('Sign In Failed', result.error);
+    }
+    // If no success and no error, user cancelled - do nothing
   };
 
-  const handleGooglePress = () => {
-    // TODO: Implement Google Sign In
-    console.log('Google Sign In pressed');
+  const handleGooglePress = async () => {
+    const result = await authSignInWithGoogle();
+    if (result.success) {
+      handleClose();
+    } else if (result.error) {
+      Alert.alert('Sign In Failed', result.error);
+    }
   };
 
   const handleBack = () => {
@@ -378,26 +389,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         <TouchableOpacity
           style={[
             styles.modeButton,
-            authMode === 'register' && {
-              backgroundColor: colors.accent.primary,
-            },
-          ]}
-          onPress={() => setAuthMode('register')}
-        >
-          <Text
-            style={[
-              Typography.buttonSmall,
-              {
-                color: authMode === 'register' ? '#FFFFFF' : colors.text.secondary,
-              },
-            ]}
-          >
-            Create Account
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.modeButton,
             authMode === 'login' && {
               backgroundColor: colors.accent.primary,
             },
@@ -413,6 +404,26 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             ]}
           >
             Sign In
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.modeButton,
+            authMode === 'register' && {
+              backgroundColor: colors.accent.primary,
+            },
+          ]}
+          onPress={() => setAuthMode('register')}
+        >
+          <Text
+            style={[
+              Typography.buttonSmall,
+              {
+                color: authMode === 'register' ? '#FFFFFF' : colors.text.secondary,
+              },
+            ]}
+          >
+            Create Account
           </Text>
         </TouchableOpacity>
       </View>
@@ -613,7 +624,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       {/* Modal content */}
       <KeyboardAvoidingView
         style={styles.modalWrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         pointerEvents="box-none"
       >
         <Animated.View
