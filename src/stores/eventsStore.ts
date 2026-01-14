@@ -53,6 +53,7 @@ interface EventsState {
   requestToJoin: (eventId: string) => Promise<{ success: boolean; status?: string; error?: string }>;
   respondToRequest: (participantId: string, accept: boolean) => Promise<{ success: boolean; error?: string }>;
   leaveEvent: (eventId: string) => Promise<{ success: boolean; error?: string }>;
+  markAsLoadedEmpty: () => void;
 
   // Setters
   setSelectedCategory: (categoryId: number | null) => void;
@@ -268,6 +269,10 @@ export const useEventsStore = create<EventsState>()(
 
     set({ isLoading: false });
     return { success: true };
+  },
+
+  markAsLoadedEmpty: () => {
+    set({ events: [], hasInitiallyLoaded: true, isLoading: false });
   },
 
   setSelectedCategory: (categoryId) => {

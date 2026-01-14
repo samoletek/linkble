@@ -56,9 +56,9 @@ export default function FeedScreen() {
   const error = useEventsStore((state) => state.error);
   const searchRadius = useEventsStore((state) => state.searchRadius);
   const setSearchRadius = useEventsStore((state) => state.setSearchRadius);
-  const loadAllEvents = useEventsStore((state) => state.loadAllEvents);
   const loadNearbyEvents = useEventsStore((state) => state.loadNearbyEvents);
   const loadCategories = useEventsStore((state) => state.loadCategories);
+  const markAsLoadedEmpty = useEventsStore((state) => state.markAsLoadedEmpty);
 
   // Location store
   const effectiveLocation = useLocationStore((state) => state.effectiveLocation);
@@ -170,8 +170,8 @@ export default function FeedScreen() {
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
     } else {
-      // No location set - load all events worldwide
-      loadAllEvents();
+      // No location set - show empty state immediately
+      markAsLoadedEmpty();
     }
   }, [effectiveLocation, searchRadius, isLocationHydrated]);
 
@@ -220,8 +220,6 @@ export default function FeedScreen() {
     // Refresh events after join/leave
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
-    } else {
-      loadAllEvents();
     }
   };
 
@@ -234,8 +232,6 @@ export default function FeedScreen() {
     // Refresh events after edit
     if (effectiveLocation) {
       loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
-    } else {
-      loadAllEvents();
     }
   };
 
@@ -243,8 +239,6 @@ export default function FeedScreen() {
     setRefreshing(true);
     if (effectiveLocation) {
       await loadNearbyEvents(effectiveLocation.latitude, effectiveLocation.longitude);
-    } else {
-      await loadAllEvents();
     }
     setRefreshing(false);
   };
