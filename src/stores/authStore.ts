@@ -19,6 +19,7 @@ interface AuthState {
   session: Session | null;
   isLoading: boolean;
   isInitialized: boolean;
+  isAuthInProgress: boolean; // Block onAuthStateChange during auth operations
   error: string | null;
 
   // Actions
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isLoading: false,
   isInitialized: false,
+  isAuthInProgress: false,
   error: null,
 
   initialize: async () => {
@@ -54,8 +56,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
 
-      // Listen for auth changes
+      // Listen for auth changes (skip if auth operation is in progress)
       onAuthStateChange((newSession) => {
+        if (get().isAuthInProgress) return;
         set({
           session: newSession,
           user: newSession?.user || null,
@@ -71,12 +74,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (data) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, isAuthInProgress: true, error: null });
 
     const result = await signUp(data);
 
     if (result.error) {
-      set({ isLoading: false, error: result.error.message });
+      set({ isLoading: false, isAuthInProgress: false, error: result.error.message });
       return { success: false, error: result.error.message };
     }
 
@@ -84,6 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: result.user,
       session: result.session,
       isLoading: false,
+      isAuthInProgress: false,
     });
 
     return { success: true };
@@ -109,18 +113,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithApple: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, isAuthInProgress: true, error: null });
 
     const result = await signInWithApple();
 
     if (result.error) {
-      set({ isLoading: false, error: result.error.message });
+      set({ isLoading: false, isAuthInProgress: false, error: result.error.message });
       return { success: false, error: result.error.message };
     }
 
     // User cancelled - not an error
     if (!result.user) {
-      set({ isLoading: false });
+      set({ isLoading: false, isAuthInProgress: false });
       return { success: false };
     }
 
@@ -128,23 +132,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: result.user,
       session: result.session,
       isLoading: false,
+      isAuthInProgress: false,
     });
 
     return { success: true };
   },
 
   signInWithGoogle: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, isAuthInProgress: true, error: null });
 
     const result = await signInWithGoogle();
 
     if (result.error) {
-      set({ isLoading: false, error: result.error.message });
+      set({ isLoading: false, isAuthInProgress: false, error: result.error.message });
       return { success: false, error: result.error.message };
     }
 
     if (!result.user) {
-      set({ isLoading: false });
+      set({ isLoading: false, isAuthInProgress: false });
       return { success: false };
     }
 
@@ -152,6 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: result.user,
       session: result.session,
       isLoading: false,
+      isAuthInProgress: false,
     });
 
     return { success: true };

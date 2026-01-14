@@ -107,12 +107,34 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
     return { user: null, session: null, error: authError };
   }
 
-  // Profile will be created automatically by database trigger
-  // Generate and set unique 6-digit username
+  // Generate unique 6-digit username
   const username = await generateUniqueUsername();
-  await (supabase.from('profiles') as any)
-    .update({ username })
-    .eq('id', authData.user.id);
+
+  // Wait briefly for trigger to create profile, then update or create
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // Check if profile exists (created by trigger)
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (existingProfile) {
+    // Profile exists, update username
+    await (supabase.from('profiles') as any)
+      .update({ username })
+      .eq('id', authData.user.id);
+  } else {
+    // No profile from trigger, create it with username
+    await (supabase.from('profiles') as any).insert({
+      id: authData.user.id,
+      username,
+      full_name: fullName,
+      date_of_birth: dateOfBirth,
+      interests: [],
+    });
+  }
 
   return {
     user: authData.user,

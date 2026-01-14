@@ -535,7 +535,7 @@ export default function EventDetailModal({
               </Animated.View>
             )}
 
-            <View style={styles.contentPadding}>
+            <View style={[styles.contentPadding, !event.image_url && { paddingTop: scale(50) }]}>
               <Text style={[styles.title, { color: colors.text.primary }]}>
                 {event.title}
               </Text>
