@@ -11,7 +11,7 @@ interface MapPinMarkerProps {
 
 export default function MapPinMarker({ color, categoryName, size = 40 }: MapPinMarkerProps) {
   const iconSize = size * 0.4;
-  const iconOffset = size * 0.22;
+  const iconOffset = size * 0.2;
 
   return (
     <View style={[styles.container, { width: size, height: size * 1.3 }]}>
