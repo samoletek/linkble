@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import MapPinMarker from './MapPinMarker';
 import { CATEGORIES } from '../../utils/constants';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const PIN_SIZE = 48;
 
@@ -84,6 +85,7 @@ export function PinImageGenerator({
 
 // Hook to manage pin images
 export function usePinImages() {
+  const { activeTheme } = useTheme();
   const [pinImages, setPinImages] = useState<PinImages | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -91,6 +93,12 @@ export function usePinImages() {
     setPinImages(images);
     setIsLoading(false);
   }, []);
+
+  // Regenerate pins when theme changes
+  useEffect(() => {
+    setPinImages(null);
+    setIsLoading(true);
+  }, [activeTheme]);
 
   // Fallback timeout - if pins don't load in 3 seconds, show map without custom pins
   useEffect(() => {
