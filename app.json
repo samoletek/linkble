@@ -38,7 +38,16 @@
       "bundleIdentifier": "architeq.linkble",
       "buildNumber": "2",
       "usesAppleSignIn": true,
-      "appleTeamId": "99LU49ANLX"
+      "appleTeamId": "99LU49ANLX",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.394574785122-vr753lk111iv5uh6pm9ltsoen01tgv38"
+            ]
+          }
+        ]
+      }
     },
     "extra": {
       "eas": {
