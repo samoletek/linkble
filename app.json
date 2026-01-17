@@ -6,12 +6,10 @@
     "icon": "./assets/logo/logo-original.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/logo/logo-original.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#FFFFFF",
       "dark": {
-        "image": "./assets/logo/logo-original.png",
-        "resizeMode": "contain",
+        "resizeMode": "cover",
         "backgroundColor": "#000814"
       }
     },

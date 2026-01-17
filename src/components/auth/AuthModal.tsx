@@ -11,9 +11,9 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
@@ -21,6 +21,8 @@ import { getResponsiveValue, scale, fontScale } from '../../utils/responsive';
 import Button from '../common/Button';
 import TextInput from '../common/TextInput';
 import { useAuthStore } from '../../stores/authStore';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface AuthModalProps {
   visible: boolean;
@@ -43,11 +45,16 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const authError = useAuthStore((state) => state.error);
   const clearAuthError = useAuthStore((state) => state.clearError);
 
-  // Animation values
-  const slideY = useRef(new Animated.Value(500)).current;
-  const blurOpacity = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
+  // Animation values - single translateY, backdrop interpolated (Pikup pattern)
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
+
+  // Backdrop opacity interpolated from translateY (Pikup pattern)
+  const backdropOpacity = translateY.interpolate({
+    inputRange: [0, SCREEN_HEIGHT * 0.5],
+    outputRange: [0.5, 0],
+    extrapolate: 'clamp',
+  });
 
   // Form state
   const [step, setStep] = useState<AuthStep>('initial');
@@ -63,32 +70,49 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const [passwordError, setPasswordError] = useState('');
   const [dobError, setDobError] = useState('');
 
-  // Pan responder for handle bar drag-to-dismiss
+  // Pan responder with Pikup patterns
   const handlePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => { },
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        // Store current position as offset (Pikup pattern)
+        translateY.setOffset((translateY as any)._value);
+        translateY.setValue(0);
+      },
       onPanResponderMove: (_, gestureState) => {
-        const y = Math.max(0, gestureState.dy);
-        dragY.setValue(y);
+        if (gestureState.dy >= 0) {
+          translateY.setValue(gestureState.dy);
+        }
       },
       onPanResponderRelease: (_, gestureState) => {
-        const shouldClose = gestureState.dy > 140 || gestureState.vy > 1.2;
+        // Flatten offset back into value (Pikup pattern)
+        translateY.flattenOffset();
+
+        const currentY = (translateY as any)._value;
+        const velocity = gestureState.vy;
+
+        const shouldClose = velocity > 1.5 || currentY > 200;
+
         if (shouldClose) {
-          Animated.timing(dragY, {
-            toValue: 400,
-            duration: 180,
-            useNativeDriver: true,
+          // Use timing for close - spring waits for oscillation to settle
+          Animated.timing(translateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 250,
+            useNativeDriver: false,
           }).start(() => {
-            handleClose();
-            dragY.setValue(0);
+            Keyboard.dismiss();
+            clearAuthError();
+            onClose();
           });
         } else {
-          Animated.spring(dragY, {
+          Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: true,
-            bounciness: 6,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 12,
           }).start();
         }
       },
@@ -100,34 +124,16 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   useEffect(() => {
     if (visible) {
       resetForm();
-      Animated.parallel([
-        Animated.spring(slideY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: Animations.spring.damping,
-          stiffness: Animations.spring.stiffness,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: false,
+        tension: 100,
+        friction: 12,
+      }).start();
     } else {
-      Animated.parallel([
-        Animated.timing(slideY, {
-          toValue: 500,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      translateY.setValue(SCREEN_HEIGHT);
     }
-  }, [visible, slideY, blurOpacity]);
+  }, [visible, translateY]);
 
   const resetForm = () => {
     setStep('initial');
@@ -145,7 +151,14 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const handleClose = () => {
     Keyboard.dismiss();
     clearAuthError();
-    onClose();
+    // Use timing for close - spring waits for oscillation to settle
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      onClose();
+    });
   };
 
   const animateStepChange = (newStep: AuthStep) => {
@@ -610,15 +623,13 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       transparent
       onRequestClose={handleClose}
     >
-      {/* Backdrop with blur */}
-      <Animated.View style={[styles.backdrop, { opacity: blurOpacity }]}>
-        <BlurView intensity={25} tint="dark" style={styles.blurView}>
-          <TouchableOpacity
-            style={styles.backdropTouchable}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-        </BlurView>
+      {/* Backdrop with dark overlay */}
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <TouchableOpacity
+          style={styles.backdropTouchable}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
       </Animated.View>
 
       {/* Modal content */}
@@ -633,20 +644,16 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
             {
               backgroundColor: colors.background.secondary,
               paddingHorizontal: padding,
-              paddingBottom: insets.bottom + padding,
-              transform: [
-                {
-                  translateY: Animated.add(dragY, slideY),
-                },
-              ],
+              paddingBottom: insets.bottom + padding + 50,
+              marginBottom: -50,
+              transform: [{ translateY }],
             },
           ]}
         >
-          {/* Handle bar - draggable area */}
+          {/* Handle bar */}
           <View
             {...handlePanResponder.panHandlers}
             style={styles.handleContainer}
-            hitSlop={{ top: 10, bottom: 10, left: 50, right: 50 }}
           >
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
           </View>
@@ -692,9 +699,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  blurView: {
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   backdropTouchable: {
     flex: 1,

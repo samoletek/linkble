@@ -16,7 +16,6 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare, SoccerBall, Wine, Briefcase, Coffee, GraduationCap, MusicNotes, LockSimple } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -56,54 +55,71 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const insets = useSafeAreaInsets();
   const createEvent = useEventsStore((state) => state.createEvent);
 
+  // Single animation value - backdrop interpolates from this (Pikup pattern)
   const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
-  const blurOpacity = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
+
+  // Backdrop opacity interpolated from translateY (Pikup pattern)
+  const backdropOpacity = translateY.interpolate({
+    inputRange: [0, MODAL_HEIGHT],
+    outputRange: [0.5, 0],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 200,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: false,
+        tension: 100,
+        friction: 8,
+      }).start();
     } else {
       translateY.setValue(MODAL_HEIGHT);
-      blurOpacity.setValue(0);
     }
-  }, [visible, translateY, blurOpacity]);
+  }, [visible, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        // Store current position as offset (Pikup pattern)
+        translateY.setOffset((translateY as any)._value);
+        translateY.setValue(0);
+      },
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
+        if (gestureState.dy >= 0) {
           translateY.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+        // Flatten offset back into value (Pikup pattern)
+        translateY.flattenOffset();
+
+        const currentY = (translateY as any)._value;
+        const velocity = gestureState.vy;
+
+        const shouldClose = velocity > 1.5 || currentY > MODAL_HEIGHT * 0.3;
+
+        if (shouldClose) {
+          // Use timing for close - spring waits for oscillation to settle
           Animated.timing(translateY, {
             toValue: MODAL_HEIGHT,
-            duration: 200,
-            useNativeDriver: true,
+            duration: 250,
+            useNativeDriver: false,
           }).start(() => {
-            handleClose();
+            resetForm();
+            onClose();
           });
         } else {
           Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: true,
-            bounciness: 8,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 12,
           }).start();
         }
       },
@@ -394,7 +410,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     }
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
     setTitle('');
     setDescription('');
     setSelectedCategory(null);
@@ -411,7 +427,22 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     setShowEndDatePicker(false);
     setEndTime(null);
     setShowEndTimePicker(false);
-    onClose();
+  };
+
+  const animateClose = () => {
+    // Use timing for close - spring waits for oscillation to settle
+    Animated.timing(translateY, {
+      toValue: MODAL_HEIGHT,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      resetForm();
+      onClose();
+    });
+  };
+
+  const handleClose = () => {
+    animateClose();
   };
 
   const isValid = title.trim() && selectedCategory && location.trim() && selectedDate && selectedTime && spots.trim() && (!hasEndTime || (endDate && endTime));
@@ -424,14 +455,12 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
       presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
-      <Animated.View style={[styles.blurContainer, { opacity: blurOpacity }]}>
-        <BlurView intensity={25} tint="dark" style={styles.blurView}>
-          <TouchableOpacity
-            style={styles.blurTouchable}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-        </BlurView>
+      <Animated.View style={[styles.blurContainer, { opacity: backdropOpacity }]}>
+        <TouchableOpacity
+          style={styles.blurTouchable}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
       </Animated.View>
 
       <View style={styles.overlay}>
@@ -440,13 +469,17 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             styles.container,
             {
               backgroundColor: colors.background.primary,
-              height: MODAL_HEIGHT,
-              paddingBottom: insets.bottom,
+              height: MODAL_HEIGHT + 50,
+              marginBottom: -50,
+              paddingBottom: insets.bottom + 50,
               transform: [{ translateY }],
             },
           ]}
         >
-          <View {...panResponder.panHandlers} style={styles.handleContainer}>
+          <View
+            {...panResponder.panHandlers}
+            style={styles.handleContainer}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
           </View>
 
@@ -884,9 +917,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  blurView: {
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   blurTouchable: {
     flex: 1,

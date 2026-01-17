@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, MapPin, Calendar, Users, Clock, ChatCircle, Hourglass, PencilSimple, CheckCircle, DotsThreeVertical, Flag } from 'phosphor-react-native';
 import CategoryIcon from '../common/CategoryIcon';
@@ -44,8 +43,9 @@ interface EventDetailModalProps {
   onViewProfile?: (userId: string) => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = verticalScale(200);
+const MODAL_HEIGHT = SCREEN_HEIGHT * 0.9;
 
 const formatEventDate = (isoDate: string): string => {
   const date = new Date(isoDate);
@@ -87,49 +87,61 @@ export default function EventDetailModal({
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
 
-  const slideY = useRef(new Animated.Value(600)).current;
-  const blurOpacity = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
+  // Single animation value - backdrop interpolates from this (Pikup pattern)
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  // Backdrop opacity interpolated from translateY (Pikup pattern)
+  const backdropOpacity = translateY.interpolate({
+    inputRange: [0, SCREEN_HEIGHT * 0.5],
+    outputRange: [0.5, 0],
+    extrapolate: 'clamp',
+  });
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        // Store current position as offset (Pikup pattern)
+        translateY.setOffset((translateY as any)._value);
+        translateY.setValue(0);
+      },
       onPanResponderMove: (_, gestureState) => {
-        const y = Math.max(0, gestureState.dy);
-        dragY.setValue(y);
+        // Only allow dragging down
+        if (gestureState.dy >= 0) {
+          translateY.setValue(gestureState.dy);
+        }
       },
       onPanResponderRelease: (_, gestureState) => {
-        const shouldClose = gestureState.dy > 100 || gestureState.vy > 0.5;
-        if (shouldClose) {
-          const velocity = Math.max(gestureState.vy, 0.5);
-          const remainingDistance = 600 - gestureState.dy;
-          const duration = Math.min(300, remainingDistance / velocity);
+        // Flatten offset back into value (Pikup pattern)
+        translateY.flattenOffset();
 
-          Animated.parallel([
-            Animated.timing(dragY, {
-              toValue: 600,
-              duration,
-              useNativeDriver: true,
-            }),
-            Animated.timing(blurOpacity, {
-              toValue: 0,
-              duration,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
+        const currentY = (translateY as any)._value;
+        const velocity = gestureState.vy;
+
+        const shouldClose = velocity > 1.5 || currentY > 200;
+
+        if (shouldClose) {
+          // Use timing for close - spring waits for oscillation to settle
+          Animated.timing(translateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 250,
+            useNativeDriver: false,
+          }).start(() => {
             onCloseRef.current();
           });
         } else {
-          Animated.spring(dragY, {
+          Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: true,
-            damping: 15,
-            stiffness: 150,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 12,
           }).start();
         }
       },
@@ -161,26 +173,16 @@ export default function EventDetailModal({
 
   useEffect(() => {
     if (visible) {
-      dragY.setValue(0);
-      Animated.parallel([
-        Animated.spring(slideY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: Animations.spring.damping,
-          stiffness: Animations.spring.stiffness,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: false,
+        tension: 100,
+        friction: 12,
+      }).start();
     } else {
-      slideY.setValue(600);
-      blurOpacity.setValue(0);
-      dragY.setValue(0);
+      translateY.setValue(SCREEN_HEIGHT);
     }
-  }, [visible, slideY, blurOpacity, dragY]);
+  }, [visible, translateY]);
 
   const handleJoinRequest = useCallback(async () => {
     if (!event) return;
@@ -356,6 +358,17 @@ export default function EventDetailModal({
     }
   }, [currentUser, event, selectedReason]);
 
+  const animateClose = useCallback(() => {
+    // Use timing for close - spring waits for oscillation to settle
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      onClose();
+    });
+  }, [translateY, onClose]);
+
   if (!event) return null;
 
   const hostName = event.host?.full_name || 'Unknown';
@@ -447,14 +460,12 @@ export default function EventDetailModal({
       transparent
       onRequestClose={onClose}
     >
-      <Animated.View style={[styles.backdrop, { opacity: blurOpacity }]}>
-        <BlurView intensity={25} tint="dark" style={styles.blurView}>
-          <TouchableOpacity
-            style={styles.backdropTouchable}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-        </BlurView>
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <TouchableOpacity
+          style={styles.backdropTouchable}
+          activeOpacity={1}
+          onPress={animateClose}
+        />
       </Animated.View>
 
       <View style={styles.modalWrapper}>
@@ -463,21 +474,17 @@ export default function EventDetailModal({
             styles.modalContent,
             {
               backgroundColor: colors.background.secondary,
-              paddingBottom: insets.bottom + scale(16),
-              transform: [
-                {
-                  translateY: Animated.add(dragY, slideY),
-                },
-              ],
+              paddingBottom: insets.bottom + scale(16) + 50, // Extra padding for height buffer
+              transform: [{ translateY }],
             },
           ]}
         >
-          <Animated.View
+          <View
             {...panResponder.panHandlers}
             style={styles.handleContainer}
           >
             <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
-          </Animated.View>
+          </View>
 
           {!isHost && (
             <TouchableOpacity
@@ -965,24 +972,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  blurView: {
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   backdropTouchable: {
     flex: 1,
   },
   modalWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    maxHeight: '90%',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     borderTopLeftRadius: Spacing.borderRadius.xl,
     borderTopRightRadius: Spacing.borderRadius.xl,
-    maxHeight: '100%',
+    height: MODAL_HEIGHT + 50, // Add buffer for bounce
+    marginBottom: -50, // Tuck buffer below screen
     overflow: 'hidden',
   },
   handleContainer: {

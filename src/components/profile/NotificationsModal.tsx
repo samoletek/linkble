@@ -1,18 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
-  PanResponder,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Bell,
@@ -27,16 +21,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Typography } from '../../constants/typography';
 import { getNotifications, markAsRead, markAllAsRead } from '../../services/notifications';
 import type { Notification, NotificationType } from '../../types/database';
-import { scale, fontScale, iconScale } from '../../utils/responsive';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
-
-interface NotificationsModalProps {
-  visible: boolean;
-  userId: string;
-  onClose: () => void;
-}
+import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
+import BaseModal from '../common/BaseModal';
 
 function getNotificationIcon(type: NotificationType, color: string) {
   const size = iconScale(24);
@@ -78,39 +64,26 @@ function formatTimeAgo(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+interface NotificationsModalProps {
+  visible: boolean;
+  userId: string;
+  onClose: () => void;
+}
+
 export default function NotificationsModal({
   visible,
   userId,
   onClose,
 }: NotificationsModalProps) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
-  const blurOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       loadNotifications();
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 200,
-        }),
-        Animated.timing(blurOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      translateY.setValue(MODAL_HEIGHT);
-      blurOpacity.setValue(0);
     }
-  }, [visible, translateY, blurOpacity]);
+  }, [visible]);
 
   const loadNotifications = async () => {
     setIsLoading(true);
@@ -122,45 +95,6 @@ export default function NotificationsModal({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-          Animated.timing(translateY, {
-            toValue: MODAL_HEIGHT,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            onClose();
-          });
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 8,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  const handleClose = () => {
-    Animated.timing(translateY, {
-      toValue: MODAL_HEIGHT,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      onClose();
-    });
   };
 
   const handleNotificationPress = async (notification: Notification) => {
@@ -192,167 +126,106 @@ export default function NotificationsModal({
   const hasUnread = notifications.some((n) => !n.is_read);
 
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="none"
-      transparent
-      presentationStyle="overFullScreen"
-      onRequestClose={handleClose}
+      onClose={onClose}
+      height={verticalScale(700)}
     >
-      <Animated.View style={[styles.blurContainer, { opacity: blurOpacity }]}>
-        <BlurView intensity={25} tint="dark" style={styles.blurView}>
-          <TouchableOpacity
-            style={styles.blurTouchable}
-            activeOpacity={1}
-            onPress={handleClose}
-          />
-        </BlurView>
-      </Animated.View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text.primary }]}>Notifications</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              backgroundColor: colors.background.primary,
-              height: MODAL_HEIGHT,
-              paddingBottom: insets.bottom,
-              transform: [{ translateY }],
-            },
-          ]}
+      {hasUnread && (
+        <TouchableOpacity
+          onPress={handleMarkAllAsRead}
+          style={styles.markAllButton}
         >
-          <View {...panResponder.panHandlers} style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
-          </View>
+          <Text style={[styles.markAllText, { color: colors.accent.primary }]}>
+            Mark all as read
+          </Text>
+        </TouchableOpacity>
+      )}
 
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: colors.text.primary }]}>Notifications</Text>
-            <View style={styles.placeholder} />
-          </View>
-
-          {hasUnread && (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.primary} />
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Bell size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
+          <Text style={[styles.emptyText, { color: colors.text.tertiary }]}>
+            No notifications yet
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.notificationsContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {notifications.map((notification) => (
             <TouchableOpacity
-              onPress={handleMarkAllAsRead}
-              style={styles.markAllButton}
+              key={notification.id}
+              onPress={() => handleNotificationPress(notification)}
+              activeOpacity={0.7}
+              style={[
+                styles.notificationItem,
+                {
+                  backgroundColor: notification.is_read
+                    ? colors.background.primary
+                    : colors.background.secondary,
+                },
+              ]}
             >
-              <Text style={[styles.markAllText, { color: colors.accent.primary }]}>
-                Mark all as read
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.accent.primary} />
-            </View>
-          ) : notifications.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Bell size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
-              <Text style={[styles.emptyText, { color: colors.text.tertiary }]}>
-                No notifications yet
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.scrollView}
-              contentContainerStyle={styles.notificationsContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              {notifications.map((notification) => (
-                <TouchableOpacity
-                  key={notification.id}
-                  onPress={() => handleNotificationPress(notification)}
-                  activeOpacity={0.7}
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: colors.background.tertiary },
+                ]}
+              >
+                {getNotificationIcon(notification.type, colors.text.secondary)}
+              </View>
+              <View style={styles.notificationContent}>
+                <Text
                   style={[
-                    styles.notificationItem,
+                    styles.notificationTitle,
                     {
-                      backgroundColor: notification.is_read
-                        ? colors.background.primary
-                        : colors.background.secondary,
+                      color: colors.text.primary,
+                      fontWeight: notification.is_read ? '500' : '600',
                     },
                   ]}
+                  numberOfLines={1}
                 >
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: colors.background.tertiary },
-                    ]}
-                  >
-                    {getNotificationIcon(notification.type, colors.text.secondary)}
-                  </View>
-                  <View style={styles.notificationContent}>
-                    <Text
-                      style={[
-                        styles.notificationTitle,
-                        {
-                          color: colors.text.primary,
-                          fontWeight: notification.is_read ? '500' : '600',
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {notification.title}
-                    </Text>
-                    <Text
-                      style={[styles.notificationBody, { color: colors.text.secondary }]}
-                      numberOfLines={2}
-                    >
-                      {notification.body}
-                    </Text>
-                    <Text style={[styles.notificationTime, { color: colors.text.tertiary }]}>
-                      {formatTimeAgo(notification.created_at)}
-                    </Text>
-                  </View>
-                  {!notification.is_read && (
-                    <View
-                      style={[styles.unreadDot, { backgroundColor: colors.accent.primary }]}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
+                  {notification.title}
+                </Text>
+                <Text
+                  style={[styles.notificationBody, { color: colors.text.secondary }]}
+                  numberOfLines={2}
+                >
+                  {notification.body}
+                </Text>
+                <Text style={[styles.notificationTime, { color: colors.text.tertiary }]}>
+                  {formatTimeAgo(notification.created_at)}
+                </Text>
+              </View>
+              {!notification.is_read && (
+                <View
+                  style={[styles.unreadDot, { backgroundColor: colors.accent.primary }]}
+                />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  blurContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  blurView: {
-    flex: 1,
-  },
-  blurTouchable: {
-    flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  container: {
-    borderTopLeftRadius: scale(20),
-    borderTopRightRadius: scale(20),
-  },
-  handleContainer: {
-    paddingTop: scale(8),
-    paddingBottom: scale(4),
-    alignItems: 'center',
-  },
-  handle: {
-    width: scale(36),
-    height: scale(4),
-    borderRadius: 2,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

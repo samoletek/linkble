@@ -581,6 +581,93 @@
       footer { flex-direction: column; text-align: center; gap: 12px; padding: 24px 0; }
       .footer-links { flex-direction: column; gap: 12px; }
     }
+
+    /* Screenshots Gallery */
+    .screenshots-section {
+      padding: 60px 0;
+      text-align: center;
+    }
+
+    .screenshots-section h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .screenshots-section p {
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-bottom: 40px;
+    }
+
+    .screenshots-carousel {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px 0;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .screenshots-carousel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .screenshot-item {
+      flex: 0 0 auto;
+      scroll-snap-align: center;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease;
+    }
+
+    .screenshot-item:hover {
+      transform: scale(1.02);
+    }
+
+    .screenshot-item img {
+      height: 500px;
+      width: auto;
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      .screenshots-section {
+        padding: 40px 0;
+      }
+      .screenshots-section h2 {
+        font-size: 28px;
+      }
+      .screenshot-item img {
+        height: 400px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .screenshots-section {
+        padding: 32px 0;
+      }
+      .screenshots-section h2 {
+        font-size: 24px;
+      }
+      .screenshots-section p {
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+      .screenshot-item img {
+        height: 320px;
+      }
+      .screenshots-carousel {
+        gap: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -637,6 +724,29 @@
               <span class="phone-event-time">Jan 25 at 6:00 PM</span>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screenshots Gallery -->
+    <section class="screenshots-section">
+      <h2>See Linkble in action</h2>
+      <p>Beautiful design, intuitive experience</p>
+      <div class="screenshots-carousel">
+        <div class="screenshot-item">
+          <img src="/screenshots/1.png" alt="Linkble App Screenshot 1">
+        </div>
+        <div class="screenshot-item">
+          <img src="/screenshots/2.png" alt="Linkble App Screenshot 2">
+        </div>
+        <div class="screenshot-item">
+          <img src="/screenshots/3.png" alt="Linkble App Screenshot 3">
+        </div>
+        <div class="screenshot-item">
+          <img src="/screenshots/4.png" alt="Linkble App Screenshot 4">
+        </div>
+        <div class="screenshot-item">
+          <img src="/screenshots/5.png" alt="Linkble App Screenshot 5">
         </div>
       </div>
     </section>
