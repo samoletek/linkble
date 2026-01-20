@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { X, Check } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -21,6 +22,8 @@ interface InterestsModalProps {
   onClose: () => void;
   onSave: (interests: number[]) => void;
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function InterestsModal({
   visible,
@@ -59,7 +62,7 @@ export default function InterestsModal({
     <BaseModal
       visible={visible}
       onClose={onClose}
-      height={verticalScale(700)}
+      height={SCREEN_HEIGHT * 0.85}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>

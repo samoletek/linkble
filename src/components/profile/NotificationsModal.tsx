@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import {
   X,
@@ -70,6 +71,8 @@ interface NotificationsModalProps {
   onClose: () => void;
 }
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export default function NotificationsModal({
   visible,
   userId,
@@ -129,7 +132,7 @@ export default function NotificationsModal({
     <BaseModal
       visible={visible}
       onClose={onClose}
-      height={verticalScale(700)}
+      height={SCREEN_HEIGHT * 0.85}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>

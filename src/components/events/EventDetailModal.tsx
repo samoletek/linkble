@@ -45,7 +45,7 @@ interface EventDetailModalProps {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = verticalScale(200);
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.9;
+const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 const formatEventDate = (isoDate: string): string => {
   const date = new Date(isoDate);

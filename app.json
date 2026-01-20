@@ -28,11 +28,21 @@
           }
         }
       ],
+      [
+        "react-native-onesignal",
+        {
+          "mode": "development",
+          "smallIcons": [
+            "./assets/images/adaptive-icon.png"
+          ]
+        }
+      ],
       "expo-splash-screen"
     ],
     "android": {
       "package": "io.architeq.linkble",
-      "versionCode": 2
+      "versionCode": 2,
+      "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "architeq.linkble",

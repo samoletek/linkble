@@ -1,91 +1,70 @@
-import OneSignal from 'react-native-onesignal';
+import { LogLevel, OneSignal } from 'react-native-onesignal';
 import { supabase } from '../config/supabase';
 
 class PushNotificationService {
   private initialized = false;
 
-  async initialize(oneSignalAppId: string) {
+  initialize(oneSignalAppId: string) {
     if (this.initialized) return;
 
+    // Remove this method to stop OneSignal Debugging
+    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+
+    // OneSignal Visualization
+    // OneSignal.Debug.setAlertLevel(LogLevel.None);
+
     // Initialize OneSignal
-    OneSignal.setAppId(oneSignalAppId);
+    OneSignal.initialize(oneSignalAppId);
 
-    // Prompt for push notification permissions
-    OneSignal.promptForPushNotificationsWithUserResponse((response) => {
-      console.log('Push notification permission:', response);
+    // Request permission immediately? Or let manual trigger?
+    // Usually good to request on init for this app flow
+    this.requestPermissions();
+
+    // Event Listeners for Foreground Notifications
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+      console.log('OneSignal: notification will show in foreground:', event.getNotification());
+      // Always display notification in foreground
+      // event.preventDefault() to stop it
     });
 
-    // Handle notification opened
-    OneSignal.setNotificationOpenedHandler((notification) => {
-      console.log('Notification opened:', notification);
-      // Handle notification tap - navigate to relevant screen
-    });
-
-    // Handle notification received while app is in foreground
-    OneSignal.setNotificationWillShowInForegroundHandler((notificationReceivedEvent) => {
-      const notification = notificationReceivedEvent.getNotification();
-      console.log('Notification received:', notification);
-      // Display notification even when app is in foreground
-      notificationReceivedEvent.complete(notification);
+    // Event Listeners for Notification Click
+    OneSignal.Notifications.addEventListener('click', (event) => {
+      console.log('OneSignal: notification clicked:', event);
     });
 
     this.initialized = true;
   }
 
-  async setUserId(userId: string) {
-    // Set external user ID for targeting
-    OneSignal.setExternalUserId(userId);
+  requestPermissions() {
+    OneSignal.Notifications.requestPermission(true);
   }
 
-  async getPlayerId(): Promise<string | null> {
-    const deviceState = await OneSignal.getDeviceState();
-    return deviceState?.userId || null;
+  setUserId(userId: string) {
+    // In v5, use Login to identify the user
+    console.log('OneSignal: Logging in user', userId);
+    OneSignal.login(userId);
+  }
+
+  logout() {
+    console.log('OneSignal: Logging out user');
+    OneSignal.logout();
   }
 
   async updatePlayerIdInDatabase(userId: string) {
-    try {
-      const playerId = await this.getPlayerId();
-      if (!playerId) return;
+    // In v5, we rely on External User ID (set via Login).
+    // The previous logic stored 'player_id' (push_token) in Supabase.
+    // We can still try to get the subscription ID if needed, 
+    // but typically targeting by External ID is preferred.
+    // For now, let's keep the user identifying flow simple:
+    // Just ensure OneSignal knows the External ID.
 
-      await supabase
-        .from('profiles')
-        .update({ push_token: playerId })
-        .eq('id', userId);
+    // If we really need the push token in Supabase:
+    // OneSignal.User.pushSubscription.getPushSubscriptionId();
+    // But async fetching is different in v5.
 
-      console.log('Player ID updated in database:', playerId);
-    } catch (error) {
-      console.error('Failed to update player ID:', error);
-    }
-  }
-
-  async sendNotificationToUser(userId: string, message: string, heading: string, data?: any) {
-    try {
-      // Get user's player ID from database
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('push_token')
-        .eq('id', userId)
-        .single();
-
-      if (!profile?.push_token) {
-        console.log('User has no push token');
-        return;
-      }
-
-      // Send notification via OneSignal REST API
-      // This should be done from a backend function for security
-      console.log('Send notification to player:', profile.push_token);
-    } catch (error) {
-      console.error('Failed to send notification:', error);
-    }
-  }
-
-  async disableNotifications() {
-    OneSignal.disablePush(true);
-  }
-
-  async enableNotifications() {
-    OneSignal.disablePush(false);
+    // We will skip manual token sync to Supabase for now as we rely on OneSignal's user mapping.
+    // If you need to send notifications from Supabase Edge Functions, 
+    // you should use "include_external_user_ids" and pass the UUID.
   }
 }
 

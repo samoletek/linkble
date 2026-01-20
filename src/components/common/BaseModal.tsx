@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import {
     View,
     TouchableWithoutFeedback,
@@ -7,6 +7,7 @@ import {
     PanResponder,
     Dimensions,
     ViewStyle,
+    Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -124,8 +125,6 @@ export default function BaseModal({
         }
     }, [visible, translateY, height]);
 
-    if (!visible) return null;
-
     // Backdrop opacity interpolated from translateY (Pikup pattern)
     const backdropOpacity = translateY.interpolate({
         inputRange: [0, height],
@@ -134,7 +133,12 @@ export default function BaseModal({
     });
 
     return (
-        <>
+        <Modal
+            visible={visible}
+            transparent
+            animationType="none"
+            onRequestClose={animateClose}
+        >
             {/* Backdrop - opacity derived from translateY via interpolate */}
             <TouchableWithoutFeedback onPress={animateClose}>
                 <Animated.View
@@ -173,7 +177,7 @@ export default function BaseModal({
 
                 {children}
             </Animated.View>
-        </>
+        </Modal>
     );
 }
 
@@ -202,8 +206,8 @@ const styles = StyleSheet.create({
         elevation: 20,
     },
     handleContainer: {
-        paddingTop: scale(16),
-        paddingBottom: scale(16),
+        paddingTop: scale(8),
+        paddingBottom: scale(4),
         alignItems: 'center',
     },
     handle: {

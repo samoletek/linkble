@@ -8,6 +8,7 @@ import {
   deleteAvatar,
   deleteAccount,
 } from '../services/auth';
+import { pushNotificationService } from '../services/pushNotifications';
 
 interface UserState {
   profile: Profile | null;
@@ -36,6 +37,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       const profile = userId
         ? await getProfile(userId)
         : await getCurrentProfile();
+
+      if (profile) {
+        // Identify user in OneSignal
+        pushNotificationService.setUserId(profile.id);
+      }
 
       set({ profile, isLoading: false });
     } catch (error) {
@@ -119,11 +125,16 @@ export const useUserStore = create<UserState>((set, get) => ({
       return { success: false, error: result.error.message };
     }
 
+    // Logout from OneSignal
+    pushNotificationService.logout();
+
     set({ profile: null, isLoading: false });
     return { success: true };
   },
 
   clearProfile: () => {
+    // Logout from OneSignal
+    pushNotificationService.logout();
     set({ profile: null });
   },
 
