@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  Modal,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -219,142 +220,158 @@ export default function EditProfileScreen() {
         enableOnAndroid
         enableResetScrollToCoords={false}
       >
-          <View style={styles.section}>
-            <TextInput
-              label="Name"
-              placeholder="Your name"
-              value={fullName}
-              onChangeText={setFullName}
-              maxLength={50}
-            />
-            {nameChanged && (
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
-                onPress={handleSaveName}
-                disabled={isNameSaving}
-                activeOpacity={0.7}
-              >
-                {isNameSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <TextInput
-              label="Username"
-              placeholder="@username"
-              value={username}
-              onChangeText={(text) => setUsername(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              maxLength={30}
-              autoCapitalize="none"
-              editable={daysUntilUsernameChange === null}
-            />
-            {daysUntilUsernameChange !== null && (
-              <Text style={[styles.usernameHint, { color: colors.text.tertiary }]}>
-                You can change your username in {daysUntilUsernameChange} day{daysUntilUsernameChange === 1 ? '' : 's'}
-              </Text>
-            )}
-            {usernameChanged && daysUntilUsernameChange === null && (
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
-                onPress={handleSaveUsername}
-                disabled={isUsernameSaving}
-                activeOpacity={0.7}
-              >
-                {isUsernameSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Email</Text>
-            <TextInput
-              placeholder="your@email.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {emailChanged && (
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
-                onPress={handleSaveEmail}
-                disabled={isEmailSaving}
-                activeOpacity={0.7}
-              >
-                {isEmailSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Change Password</Text>
-            <TextInput
-              placeholder="Enter current password"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-            />
-            <TextInput
-              placeholder="Enter new password"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-            />
-            <TextInput
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-            {hasPasswordInput && (
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  { backgroundColor: canSavePassword ? colors.accent.primary : colors.border.primary },
-                ]}
-                onPress={handleSavePassword}
-                disabled={!canSavePassword || isPasswordSaving}
-                activeOpacity={0.7}
-              >
-                {isPasswordSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={[
-                    styles.saveButtonText,
-                    { color: canSavePassword ? '#FFFFFF' : colors.text.tertiary },
-                  ]}>Save</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.dangerSection}>
+        <View style={styles.section}>
+          <TextInput
+            label="Name"
+            placeholder="Your name"
+            value={fullName}
+            onChangeText={setFullName}
+            maxLength={50}
+          />
+          {nameChanged && (
             <TouchableOpacity
-              style={[styles.deleteButton, { backgroundColor: colors.background.secondary }]}
-              onPress={handleDeleteAccount}
-              disabled={isDeleting}
+              style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+              onPress={handleSaveName}
+              disabled={isNameSaving}
               activeOpacity={0.7}
             >
-              <Trash size={iconScale(24)} color={colors.status.error} weight="regular" />
-              <Text style={[styles.deleteButtonText, { color: colors.status.error }]}>
-                Delete Account
-              </Text>
+              {isNameSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
             </TouchableOpacity>
-          </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <TextInput
+            label="Username"
+            placeholder="@username"
+            value={username}
+            onChangeText={(text) => setUsername(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            maxLength={30}
+            autoCapitalize="none"
+            editable={daysUntilUsernameChange === null}
+          />
+          {daysUntilUsernameChange !== null && (
+            <Text style={[styles.usernameHint, { color: colors.text.tertiary }]}>
+              You can change your username in {daysUntilUsernameChange} day{daysUntilUsernameChange === 1 ? '' : 's'}
+            </Text>
+          )}
+          {usernameChanged && daysUntilUsernameChange === null && (
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+              onPress={handleSaveUsername}
+              disabled={isUsernameSaving}
+              activeOpacity={0.7}
+            >
+              {isUsernameSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Email</Text>
+          <TextInput
+            placeholder="your@email.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {emailChanged && (
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: colors.accent.primary }]}
+              onPress={handleSaveEmail}
+              disabled={isEmailSaving}
+              activeOpacity={0.7}
+            >
+              {isEmailSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Change Password</Text>
+          <TextInput
+            placeholder="Enter current password"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+          />
+          <TextInput
+            placeholder="Enter new password"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry
+          />
+          <TextInput
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+          {hasPasswordInput && (
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                { backgroundColor: canSavePassword ? colors.accent.primary : colors.border.primary },
+              ]}
+              onPress={handleSavePassword}
+              disabled={!canSavePassword || isPasswordSaving}
+              activeOpacity={0.7}
+            >
+              {isPasswordSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={[
+                  styles.saveButtonText,
+                  { color: canSavePassword ? '#FFFFFF' : colors.text.tertiary },
+                ]}>Save</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.dangerSection}>
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: colors.background.secondary }]}
+            onPress={handleDeleteAccount}
+            disabled={isDeleting}
+            activeOpacity={0.7}
+          >
+            <Trash size={iconScale(24)} color={colors.status.error} weight="regular" />
+            <Text style={[styles.deleteButtonText, { color: colors.status.error }]}>
+              Delete Account
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
+
+      {/* Full-screen loading overlay during account deletion */}
+      <Modal
+        visible={isDeleting}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.deletingOverlay}>
+          <View style={[styles.deletingContent, { backgroundColor: colors.background.secondary }]}>
+            <ActivityIndicator size="large" color={colors.accent.primary} />
+            <Text style={[styles.deletingText, { color: colors.text.primary }]}>
+              Deleting account...
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -432,6 +449,23 @@ const styles = StyleSheet.create({
     gap: scale(12),
   },
   deleteButtonText: {
+    ...Typography.body,
+    fontWeight: '500',
+  },
+  deletingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deletingContent: {
+    paddingVertical: scale(32),
+    paddingHorizontal: scale(48),
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: scale(16),
+  },
+  deletingText: {
     ...Typography.body,
     fontWeight: '500',
   },

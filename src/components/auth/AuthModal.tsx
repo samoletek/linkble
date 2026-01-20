@@ -12,6 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,6 +70,10 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [dobError, setDobError] = useState('');
+
+  // OAuth loading states
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Pan responder with Pikup patterns
   const handlePanResponder = useRef(
@@ -195,8 +200,8 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       setPasswordError('Password is required');
       return false;
     }
-    if (value.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
+    if (value.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
       return false;
     }
     setPasswordError('');
@@ -232,21 +237,31 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   };
 
   const handleApplePress = async () => {
-    const result = await authSignInWithApple();
-    if (result.success) {
-      handleClose();
-    } else if (result.error) {
-      Alert.alert('Failed', result.error);
+    setIsAppleLoading(true);
+    try {
+      const result = await authSignInWithApple();
+      if (result.success) {
+        handleClose();
+      } else if (result.error) {
+        Alert.alert('Failed', result.error);
+      }
+      // If no success and no error, user cancelled - do nothing
+    } finally {
+      setIsAppleLoading(false);
     }
-    // If no success and no error, user cancelled - do nothing
   };
 
   const handleGooglePress = async () => {
-    const result = await authSignInWithGoogle();
-    if (result.success) {
-      handleClose();
-    } else if (result.error) {
-      Alert.alert('Failed', result.error);
+    setIsGoogleLoading(true);
+    try {
+      const result = await authSignInWithGoogle();
+      if (result.success) {
+        handleClose();
+      } else if (result.error) {
+        Alert.alert('Failed', result.error);
+      }
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -355,6 +370,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
           },
         ]}
         onPress={handleEmailPress}
+        disabled={isAppleLoading || isGoogleLoading}
       >
         <Text style={[Typography.button, { color: colors.text.primary }]}>
           Continue with Email
@@ -365,13 +381,18 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         <TouchableOpacity
           style={[
             styles.authButton,
+            styles.oauthButton,
             {
               backgroundColor: colors.background.secondary,
               borderColor: colors.border.primary,
             },
           ]}
           onPress={handleApplePress}
+          disabled={isAppleLoading || isGoogleLoading}
         >
+          {isAppleLoading && (
+            <ActivityIndicator size="small" color={colors.text.primary} style={styles.buttonSpinner} />
+          )}
           <Text style={[Typography.button, { color: colors.text.primary }]}>
             Sign in with Apple
           </Text>
@@ -381,13 +402,18 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       <TouchableOpacity
         style={[
           styles.authButton,
+          styles.oauthButton,
           {
             backgroundColor: colors.background.secondary,
             borderColor: colors.border.primary,
           },
         ]}
         onPress={handleGooglePress}
+        disabled={isAppleLoading || isGoogleLoading}
       >
+        {isGoogleLoading && (
+          <ActivityIndicator size="small" color={colors.text.primary} style={styles.buttonSpinner} />
+        )}
         <Text style={[Typography.button, { color: colors.text.primary }]}>
           Sign in with Google
         </Text>
@@ -589,10 +615,11 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         onPress={handleRegister}
         variant="primary"
         disabled={isAuthLoading}
+        loading={isAuthLoading}
       />
 
       <Text style={[styles.termsText, { color: colors.text.tertiary }]}>
-        By creating an account, you agree to our{' '}
+        By creating an account, you confirm that you are 18 years or older and agree to our{' '}
         <Text style={{ color: colors.accent.primary }}>Terms of Service</Text>
         {' '}and{' '}
         <Text style={{ color: colors.accent.primary }}>Privacy Policy</Text>
@@ -790,5 +817,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.lg,
     lineHeight: fontScale(18),
+  },
+  oauthButton: {
+    flexDirection: 'row',
+    gap: scale(8),
+  },
+  buttonSpinner: {
+    marginRight: scale(4),
   },
 });
