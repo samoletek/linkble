@@ -1,6 +1,6 @@
 {
   "name": "linkble",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
@@ -33,6 +33,7 @@
     "expo-notifications": "^0.32.13",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.8",
+    "onesignal-expo-plugin": "^2.0.3",
     "phosphor-react-native": "^3.0.2",
     "react": "19.1.0",
     "react-native": "0.81.5",

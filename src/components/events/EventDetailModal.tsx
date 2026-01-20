@@ -474,7 +474,7 @@ export default function EventDetailModal({
             styles.modalContent,
             {
               backgroundColor: colors.background.secondary,
-              paddingBottom: insets.bottom + scale(16) + 50, // Extra padding for height buffer
+              paddingBottom: insets.bottom + scale(16) + 50,
               transform: [{ translateY }],
             },
           ]}
@@ -497,7 +497,7 @@ export default function EventDetailModal({
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={animateClose} style={styles.closeButton}>
             <View style={[styles.closeButtonBg, { backgroundColor: colors.background.primary }]}>
               <X size={iconScale(20)} color={colors.text.primary} weight="bold" />
             </View>

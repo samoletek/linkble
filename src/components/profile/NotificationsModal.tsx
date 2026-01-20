@@ -133,14 +133,16 @@ export default function NotificationsModal({
       visible={visible}
       onClose={onClose}
       height={SCREEN_HEIGHT * 0.85}
+      renderHeader={(animateClose) => (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={animateClose} style={styles.closeButton}>
+            <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text.primary }]}>Notifications</Text>
+          <View style={styles.placeholder} />
+        </View>
+      )}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text.primary }]}>Notifications</Text>
-        <View style={styles.placeholder} />
-      </View>
 
       {hasUnread && (
         <TouchableOpacity

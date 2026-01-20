@@ -2177,6 +2177,7 @@ DEPENDENCIES:
   - ExpoWebBrowser (from `../node_modules/expo-auth-session/node_modules/expo-web-browser/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - OneSignalXCFramework (< 6.0, >= 5.0.0)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -2581,6 +2582,6 @@ SPEC CHECKSUMS:
   Turf: c9eb11a65d96af58cac523460fd40fec5061b081
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: cdd861d5546f73adf8cbca705ae6ef5de34bbc1e
+PODFILE CHECKSUM: b00afbf6a5809a3f679cffa8cc16806227088d88
 
 COCOAPODS: 1.16.2

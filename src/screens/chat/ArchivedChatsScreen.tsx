@@ -105,7 +105,7 @@ export default function ArchivedChatsScreen() {
         <View style={styles.expiryRow}>
           <Clock size={iconScale(12)} color={colors.status.warning} weight="fill" />
           <Text style={[styles.expiryText, { color: colors.status.warning }]}>
-            {formatTimeRemaining(item.ended_at)}
+            {formatTimeRemaining(item.archived_at)}
           </Text>
           <Text style={[styles.eventDateText, { color: colors.text.tertiary }]}>
             Event: {formatEventDate(item.start_time)}

@@ -22,6 +22,7 @@ interface BaseModalProps {
     height?: number;
     showHandle?: boolean;
     containerStyle?: ViewStyle;
+    renderHeader?: (animateClose: () => void) => React.ReactNode;
 }
 
 /**
@@ -39,6 +40,7 @@ export default function BaseModal({
     height = SCREEN_HEIGHT * 0.85,
     showHandle = true,
     containerStyle,
+    renderHeader,
 }: BaseModalProps) {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
@@ -159,7 +161,6 @@ export default function BaseModal({
                         backgroundColor: colors.background.primary,
                         height: height + 50,
                         bottom: -50,
-                        paddingBottom: insets.bottom + 50,
                         transform: [{ translateY }],
                     },
                     containerStyle,
@@ -174,6 +175,8 @@ export default function BaseModal({
                         <View style={[styles.handle, { backgroundColor: colors.border.primary }]} />
                     </View>
                 )}
+
+                {renderHeader && renderHeader(animateClose)}
 
                 {children}
             </Animated.View>
@@ -199,11 +202,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: scale(20),
         borderTopRightRadius: scale(20),
         zIndex: 999,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 20,
+        overflow: 'hidden',
     },
     handleContainer: {
         paddingTop: scale(8),

@@ -227,7 +227,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       return {
         user: null,
         session: null,
-        error: { message: 'No identity token received from Apple', name: 'AuthError', status: 400 } as AuthError,
+        error: { message: 'Sign in cancelled', name: 'AuthError', status: 400 } as AuthError,
       };
     }
 
@@ -302,7 +302,7 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       return {
         user: null,
         session: null,
-        error: { message: 'No Google ID token received', name: 'AuthError', status: 400 } as AuthError,
+        error: { message: 'Sign in cancelled', name: 'AuthError', status: 400 } as AuthError,
       };
     }
 
@@ -643,7 +643,29 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
       return { error: new Error(profileError.message) };
     }
 
-    // 8. Sign out
+    // 8. Delete user from Supabase Auth via Edge Function
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      const response = await fetch(
+        'https://qrtfttspspnnftkztgfw.supabase.co/functions/v1/delete-user',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to delete auth user:', errorData);
+        // Continue with sign out even if auth deletion fails
+        // The profile is already deleted, so the account is effectively unusable
+      }
+    }
+
+    // 9. Sign out
     await signOut();
 
     return { error: null };

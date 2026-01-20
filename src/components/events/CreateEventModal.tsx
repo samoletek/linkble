@@ -14,6 +14,7 @@ import {
   Alert,
   Switch,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,7 +73,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         toValue: 0,
         useNativeDriver: false,
         tension: 100,
-        friction: 8,
+        friction: 12,
       }).start();
     } else {
       translateY.setValue(MODAL_HEIGHT);
@@ -243,6 +244,13 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   };
 
   const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      Alert.alert('Permission required', 'Please allow access to your photo library.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -490,10 +498,14 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
             <Text style={[styles.headerTitle, { color: colors.text.primary }]}>{isEditMode ? 'Edit Event' : 'New Event'}</Text>
             <TouchableOpacity
               onPress={handleCreate}
-              disabled={!isValid}
+              disabled={!isValid || isCreating}
               style={styles.checkButton}
             >
-              <Check size={iconScale(24)} color={colors.text.primary} weight="bold" />
+              {isCreating ? (
+                <ActivityIndicator size="small" color={colors.text.primary} />
+              ) : (
+                <Check size={iconScale(24)} color={isValid ? colors.text.primary : colors.text.tertiary} weight="bold" />
+              )}
             </TouchableOpacity>
           </View>
 

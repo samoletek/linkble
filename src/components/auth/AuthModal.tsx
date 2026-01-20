@@ -236,7 +236,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     if (result.success) {
       handleClose();
     } else if (result.error) {
-      Alert.alert('Sign In Failed', result.error);
+      Alert.alert('Failed', result.error);
     }
     // If no success and no error, user cancelled - do nothing
   };
@@ -246,7 +246,7 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     if (result.success) {
       handleClose();
     } else if (result.error) {
-      Alert.alert('Sign In Failed', result.error);
+      Alert.alert('Failed', result.error);
     }
   };
 

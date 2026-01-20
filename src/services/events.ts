@@ -586,9 +586,9 @@ export const requestToJoin = async (
   // First check if event exists and hasn't ended
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('status, end_time')
+    .select('status, start_time, end_time, max_participants, auto_accept')
     .eq('id', eventId)
-    .single() as { data: { status: string; end_time: string | null } | null; error: any };
+    .single() as { data: { status: string; start_time: string; end_time: string | null; max_participants: number; auto_accept: boolean } | null; error: any };
 
   if (eventError || !event) {
     return { status: null, error: new Error('Event not found') };
@@ -606,36 +606,133 @@ export const requestToJoin = async (
     }
   }
 
-  // Use database function to check if user can join
-  const { data: canJoinResult, error: checkError } = await (supabase.rpc as any)('can_join_event', {
-    p_user_id: userId,
-    p_event_id: eventId,
-  }) as { data: { can_join: boolean; reason?: string; auto_accept?: boolean } | null; error: any };
+  // Check if user already has a participation record
+  const { data: existingParticipant } = await supabase
+    .from('event_participants')
+    .select('id, status')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .single() as { data: { id: string; status: string } | null };
 
-  if (checkError) {
-    return { status: null, error: new Error(checkError.message) };
+  if (existingParticipant) {
+    if (existingParticipant.status === 'rejected') {
+      return { status: null, error: new Error('You have been banned from this event') };
+    }
+    if (existingParticipant.status === 'accepted') {
+      return { status: 'accepted', error: new Error('You have already joined this event') };
+    }
+    if (existingParticipant.status === 'pending') {
+      return { status: 'pending', error: new Error('Request already sent') };
+    }
   }
 
-  if (!canJoinResult?.can_join) {
-    return { status: null, error: new Error(canJoinResult?.reason || 'Cannot join this event') };
+  // Check capacity
+  const { count } = await supabase
+    .from('event_participants')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .eq('status', 'accepted');
+
+  if (count !== null && count >= event.max_participants) {
+    return { status: null, error: new Error('Event is full') };
   }
 
-  // Create participation record
-  const status: EventParticipant['status'] = canJoinResult.auto_accept ? 'accepted' : 'pending';
+  // ============================================
+  // Time Conflict Check
+  // ============================================
 
+  // Define Target Time Range
+  const targetStart = new Date(event.start_time);
+  // Default duration 2 hours if no end time
+  const targetEnd = event.end_time
+    ? new Date(event.end_time)
+    : new Date(targetStart.getTime() + 2 * 60 * 60 * 1000);
+
+  // Helper to check overlap
+  const hasOverlap = (evStart: string, evEnd: string | null) => {
+    const bStart = new Date(evStart);
+    const bEnd = evEnd ? new Date(evEnd) : new Date(bStart.getTime() + 2 * 60 * 60 * 1000);
+
+    // Check intersection: (StartA < EndB) && (EndA > StartB)
+    return targetStart.getTime() < bEnd.getTime() && targetEnd.getTime() > bStart.getTime();
+  };
+
+  // 1. Check overlapping hosted events
+  // Optimization: Only look at events starting after "now - 24h" to avoid checking ancient history, 
+  // but catch currently running events.
+  const lookbackTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: hostedConflicts } = await supabase
+    .from('events')
+    .select('start_time, end_time')
+    .eq('host_id', userId)
+    .neq('status', 'cancelled')
+    .gte('start_time', lookbackTime) as any;
+
+  if (hostedConflicts?.some((e: any) => hasOverlap(e.start_time, e.end_time))) {
+    return { status: null, error: new Error('You are hosting another event at this time') };
+  }
+
+  // 2. Check overlapping participations
+  const { data: participations } = await supabase
+    .from('event_participants')
+    .select(`
+      event:events (
+        status,
+        start_time,
+        end_time
+      )
+    `)
+    .eq('user_id', userId)
+    .in('status', ['accepted', 'pending']) as any;
+
+  if (participations?.some((p: any) => {
+    const e = p.event;
+    if (!e || e.status === 'cancelled') return false;
+    // Check if event is relevant (not ancient)
+    if (new Date(e.start_time) < new Date(lookbackTime)) return false;
+    return hasOverlap(e.start_time, e.end_time);
+  })) {
+    return { status: null, error: new Error('You have another event at this time') };
+  }
+
+  // Determine new status
+  const isAutoAccept = event.auto_accept;
+  const newStatus: EventParticipant['status'] = isAutoAccept ? 'accepted' : 'pending';
+
+  // If user was kicked or left, update their status instead of inserting
+  if (existingParticipant && (existingParticipant.status === 'kicked' || existingParticipant.status === 'left')) {
+    const { error: updateError } = await (supabase
+      .from('event_participants') as any)
+      .update({
+        status: newStatus,
+        requested_at: new Date().toISOString(),
+        responded_at: isAutoAccept ? new Date().toISOString() : null,
+      })
+      .eq('id', existingParticipant.id);
+
+    if (updateError) {
+      return { status: null, error: new Error(updateError.message) };
+    }
+
+    return { status: newStatus, error: null };
+  }
+
+  // Create new participation record
   const { error: insertError } = await (supabase
     .from('event_participants') as any)
     .insert({
       event_id: eventId,
       user_id: userId,
-      status,
+      status: newStatus,
+      responded_at: isAutoAccept ? new Date().toISOString() : null,
     });
 
   if (insertError) {
     return { status: null, error: new Error(insertError.message) };
   }
 
-  return { status, error: null };
+  return { status: newStatus, error: null };
 };
 
 export const respondToRequest = async (

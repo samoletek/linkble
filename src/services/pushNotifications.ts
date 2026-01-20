@@ -21,14 +21,14 @@ class PushNotificationService {
     this.requestPermissions();
 
     // Event Listeners for Foreground Notifications
-    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
       console.log('OneSignal: notification will show in foreground:', event.getNotification());
       // Always display notification in foreground
       // event.preventDefault() to stop it
     });
 
     // Event Listeners for Notification Click
-    OneSignal.Notifications.addEventListener('click', (event) => {
+    OneSignal.Notifications.addEventListener('click', (event: any) => {
       console.log('OneSignal: notification clicked:', event);
     });
 

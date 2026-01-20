@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { X, Check } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -52,27 +53,49 @@ export default function InterestsModal({
     });
   };
 
-  const handleSave = () => {
-    onSave(selected);
-  };
-
   const isSelected = (id: number) => selected.includes(id);
+
+  const [isSaving, setIsSaving] = useState(false);
 
   return (
     <BaseModal
       visible={visible}
       onClose={onClose}
       height={SCREEN_HEIGHT * 0.85}
+      renderHeader={(animateClose) => {
+        const handleSaveAndClose = async () => {
+          setIsSaving(true);
+          try {
+            await onSave(selected);
+            animateClose();
+          } catch (error) {
+            console.error('Failed to save interests:', error);
+          } finally {
+            setIsSaving(false);
+          }
+        };
+
+        return (
+          <View style={styles.header}>
+            <TouchableOpacity onPress={animateClose} style={styles.closeButton}>
+              <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
+            </TouchableOpacity>
+            <Text style={[styles.title, { color: colors.text.primary }]}>Interests</Text>
+            <TouchableOpacity
+              onPress={handleSaveAndClose}
+              style={styles.checkButton}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.accent.primary} />
+              ) : (
+                <Check size={iconScale(24)} color={colors.text.primary} weight="bold" />
+              )}
+            </TouchableOpacity>
+          </View>
+        );
+      }}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <X size={iconScale(24)} color={colors.text.primary} weight="bold" />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text.primary }]}>Interests</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.checkButton}>
-          <Check size={iconScale(24)} color={colors.text.primary} weight="bold" />
-        </TouchableOpacity>
-      </View>
 
       <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
         Select up to {MAX_INTERESTS} interests
