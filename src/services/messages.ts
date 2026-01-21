@@ -681,7 +681,7 @@ export const sendDirectMessage = async (
     .from('conversations')
     .select('user1_id, user2_id')
     .eq('id', conversationId)
-    .single();
+    .single() as { data: { user1_id: string; user2_id: string } | null };
 
   if (!conversation) {
     return { message: null, error: new Error('Conversation not found') };
