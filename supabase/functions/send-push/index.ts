@@ -46,8 +46,9 @@ serve(async (req) => {
                     .single()
 
                 if (eventData?.host_id) {
-                    heading = "New Join Request!"
-                    content = `Someone wants to join "${eventData.title || 'event'}"`
+                    heading = "New join request"
+                    const title = (eventData.title || 'event').trim();
+                    content = `Someone wants to join "${title}"`
                     targetUserIds = [eventData.host_id]
                     data = { type: 'request_new', eventId: record.event_id }
                     shouldSend = true
@@ -57,20 +58,20 @@ serve(async (req) => {
             // SCENARIO B: Status Change -> To Participant
             else if (type === 'UPDATE' && record.status !== old_record?.status) {
                 const { data: eventData } = await supabase.from('events').select('title').eq('id', record.event_id).single()
-                const eventTitle = eventData?.title || 'event'
+                const eventTitle = (eventData?.title || 'event').trim();
 
                 // Accepted
                 if (record.status === 'accepted') {
-                    heading = "Request Accepted! 🎉"
-                    content = `You are joining "${eventTitle}".`
+                    heading = "Request accepted"
+                    content = `You are joining "${eventTitle}"`
                     targetUserIds = [record.user_id]
                     data = { type: 'request_approved', eventId: record.event_id }
                     shouldSend = true
                 }
                 // Rejected
                 else if (record.status === 'rejected') {
-                    heading = "Request Declined"
-                    content = `Host declined your request for "${eventTitle}".`
+                    heading = "Request declined"
+                    content = `Host declined your request for "${eventTitle}"`
                     targetUserIds = [record.user_id]
                     data = { type: 'request_denied', eventId: record.event_id }
                     shouldSend = true
@@ -78,7 +79,7 @@ serve(async (req) => {
                 // Kicked
                 else if (record.status === 'kicked') {
                     heading = "You were removed"
-                    content = `You were removed from event "${eventTitle}".`
+                    content = `You were removed from event "${eventTitle}"`
                     targetUserIds = [record.user_id]
                     data = { type: 'kicked', eventId: record.event_id }
                     shouldSend = true
@@ -124,8 +125,11 @@ serve(async (req) => {
                 targetUserIds = Array.from(uniqueRecipients)
 
                 if (targetUserIds.length > 0) {
-                    heading = eventData?.title || "Event Chat"
-                    content = `${record.content || 'New message'}`
+                    heading = (eventData?.title || "Event chat").trim()
+                    // Standardize content: replace newlines with space, trim
+                    const rawContent = record.content || 'New message'
+                    content = rawContent.replace(/\n/g, ' ').trim()
+
                     data = { type: 'chat_message', eventId: record.event_id }
                     shouldSend = true
                 }
@@ -149,8 +153,11 @@ serve(async (req) => {
                     ? conversation.user2_id
                     : conversation.user1_id
 
-                heading = "New Message"
-                content = record.content || "You received a private message"
+                heading = "New message"
+                // Standardize content
+                const rawContent = record.content || "You received a private message"
+                content = rawContent.replace(/\n/g, ' ').trim()
+
                 targetUserIds = [receiverId]
                 data = { type: 'dm_message', senderId: record.sender_id, conversationId: record.conversation_id }
                 shouldSend = true
@@ -161,8 +168,9 @@ serve(async (req) => {
         // 4. EVENT CANCELLED (events)
         // =========================================================
         else if (table === 'events' && type === 'UPDATE' && record.status === 'cancelled' && old_record.status !== 'cancelled') {
-            heading = "Event Cancelled 😞"
-            content = `Event "${record.title}" was cancelled by the host.`
+            heading = "Event cancelled"
+            const title = (record.title || '').trim();
+            content = `Event "${title}" was cancelled by the host`
 
             // Send to all accepted participants
             const { data: participants } = await supabase
