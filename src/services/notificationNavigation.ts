@@ -16,23 +16,38 @@ export const handleNotificationPress = (data: any, navigation: any) => {
         case 'request_new':
         case 'request_approved':
         case 'request_denied':
-            // Navigate to Event Detail screen
+            // Navigate to Event Detail screen (in Feed tab)
             if (eventId) {
-                navigation.navigate('EventDetail', { eventId });
+                navigation.navigate('Main', {
+                    screen: 'Feed',
+                    params: { eventId }
+                });
             }
             break;
 
         case 'chat_message':
-            // Navigate to Event Chat screen
+            // Navigate to Event Chat screen (in Chat tab)
             if (eventId) {
-                navigation.navigate('EventChat', { eventId });
+                navigation.navigate('Main', {
+                    screen: 'Chat',
+                    params: {
+                        screen: 'EventChat',
+                        params: { eventId }
+                    }
+                });
             }
             break;
 
         case 'dm_message':
-            // Navigate to DM Chat screen
+            // Navigate to DM Chat screen (in Chat tab)
             if (conversationId) {
-                navigation.navigate('Chat', { conversationId });
+                navigation.navigate('Main', {
+                    screen: 'Chat',
+                    params: {
+                        screen: 'DirectChat',
+                        params: { conversationId }
+                    }
+                });
             }
             break;
 
@@ -61,9 +76,12 @@ export const handleNotificationPress = (data: any, navigation: any) => {
             break;
 
         case 'event_starting':
-            // Navigate to Event Detail
+            // Navigate to Event Detail (in Feed tab)
             if (eventId) {
-                navigation.navigate('EventDetail', { eventId });
+                navigation.navigate('Main', {
+                    screen: 'Feed',
+                    params: { eventId }
+                });
             }
             break;
 
