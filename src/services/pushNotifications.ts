@@ -53,30 +53,7 @@ class PushNotificationService {
     this.initialized = true;
   }
 
-  // Check for notification that opened the app (cold start)
-  async checkInitialNotification() {
-    console.log('🔔 [OneSignal] Checking for initial notification...');
 
-    // Wait a bit for navigation to be ready
-    setTimeout(async () => {
-      try {
-        const initialNotification = await OneSignal.Notifications.getInitialNotification();
-        console.log('🔔 [OneSignal] Initial notification:', initialNotification);
-
-        if (initialNotification?.notification?.additionalData) {
-          console.log('🔔 [OneSignal] Found initial notification with data:', initialNotification.notification.additionalData);
-
-          if (this.navigationRef) {
-            handleNotificationPress(initialNotification.notification.additionalData, this.navigationRef);
-          } else {
-            console.error('🔔 [OneSignal] Navigation ref not set yet for initial notification');
-          }
-        }
-      } catch (error) {
-        console.error('🔔 [OneSignal] Error checking initial notification:', error);
-      }
-    }, 1000); // Wait 1 second for navigation to be ready
-  }
 
   requestPermissions() {
     OneSignal.Notifications.requestPermission(true);
@@ -96,9 +73,6 @@ class PushNotificationService {
   setNavigationRef(ref: any) {
     this.navigationRef = ref;
     console.log('OneSignal: Navigation ref set');
-
-    // Check if app was opened by notification
-    this.checkInitialNotification();
   }
 
   async updatePlayerIdInDatabase(userId: string) {
