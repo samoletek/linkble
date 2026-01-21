@@ -21,7 +21,7 @@ import { getProfile } from '../../services/auth';
 import { getOrCreateConversation } from '../../services/messages';
 import { getInterestsByIds } from '../../utils/interests';
 import { useUserStore } from '../../stores/userStore';
-import { blockUser, reportUser } from '../../services/users';
+import { blockUser, reportUser, unblockUser, isUserBlocked } from '../../services/users';
 import { supabase } from '../../config/supabase';
 import type { Profile, ReportReason } from '../../types/database';
 import type { ChatStackParamList } from '../../types';
@@ -51,6 +51,14 @@ export default function UserProfileScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  // Check block status
+  useEffect(() => {
+    if (currentUser?.id && userId) {
+      isUserBlocked(currentUser.id, userId).then(setIsBlocked);
+    }
+  }, [currentUser?.id, userId]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -94,32 +102,59 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleBlock = useCallback(() => {
+  const handleBlockAction = useCallback(() => {
     if (!currentUser || !profile) return;
 
-    Alert.alert(
-      'Block User',
-      `Are you sure you want to block ${profile.full_name}? They won't be able to message you or view your profile.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await blockUser(currentUser.id, profile.id);
-              setShowMenu(false);
-              Alert.alert('User Blocked', `${profile.full_name} has been blocked.`);
-              navigation.goBack();
-            } catch (error) {
-              console.error('Failed to block user:', error);
-              Alert.alert('Error', 'Failed to block user. Please try again.');
-            }
+    if (isBlocked) {
+      // Unblock Logic
+      Alert.alert(
+        'Unblock User',
+        `Are you sure you want to unblock ${profile.full_name}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unblock',
+            onPress: async () => {
+              try {
+                await unblockUser(currentUser.id, profile.id);
+                setIsBlocked(false);
+                setShowMenu(false);
+                Alert.alert('User Unblocked', `${profile.full_name} has been unblocked.`);
+              } catch (error) {
+                console.error('Failed to unblock user:', error);
+                Alert.alert('Error', 'Failed to unblock user.');
+              }
+            },
           },
-        },
-      ]
-    );
-  }, [currentUser, profile, navigation]);
+        ]
+      );
+    } else {
+      // Block Logic
+      Alert.alert(
+        'Block User',
+        `Are you sure you want to block ${profile.full_name}? They won't be able to message you or view your profile.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await blockUser(currentUser.id, profile.id);
+                setIsBlocked(true);
+                setShowMenu(false);
+                Alert.alert('User Blocked', `${profile.full_name} has been blocked.`);
+                navigation.goBack();
+              } catch (error) {
+                console.error('Failed to block user:', error);
+                Alert.alert('Error', 'Failed to block user. Please try again.');
+              }
+            },
+          },
+        ]
+      );
+    }
+  }, [currentUser, profile, navigation, isBlocked]);
 
   const handleReport = useCallback(() => {
     setShowMenu(false);
@@ -249,7 +284,7 @@ export default function UserProfileScreen() {
         )}
       </ScrollView>
 
-      {!isOwnProfile && (
+      {!isOwnProfile && !isBlocked && (
         <View style={[styles.footer, { paddingBottom: insets.bottom || 16 }]}>
           <TouchableOpacity
             style={[styles.chatButton, { backgroundColor: colors.accent.primary }]}
@@ -292,13 +327,13 @@ export default function UserProfileScreen() {
               style={styles.menuItem}
               onPress={() => {
                 setShowMenu(false);
-                handleBlock();
+                handleBlockAction();
               }}
               activeOpacity={0.7}
             >
-              <Prohibit size={iconScale(20)} color={colors.status.error} weight="regular" />
-              <Text style={[styles.menuItemText, { color: colors.status.error }]}>
-                Block User
+              <Prohibit size={iconScale(20)} color={isBlocked ? colors.text.primary : colors.status.error} weight="regular" />
+              <Text style={[styles.menuItemText, { color: isBlocked ? colors.text.primary : colors.status.error }]}>
+                {isBlocked ? 'Unblock User' : 'Block User'}
               </Text>
             </TouchableOpacity>
           </View>

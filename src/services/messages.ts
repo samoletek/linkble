@@ -676,6 +676,30 @@ export const sendDirectMessage = async (
     return { message: null, error: new Error('Not authenticated') };
   }
 
+  // 1. Get conversation to identify the other user
+  const { data: conversation } = await supabase
+    .from('conversations')
+    .select('user1_id, user2_id')
+    .eq('id', conversationId)
+    .single();
+
+  if (!conversation) {
+    return { message: null, error: new Error('Conversation not found') };
+  }
+
+  const otherUserId = conversation.user1_id === userId ? conversation.user2_id : conversation.user1_id;
+
+  // 2. Check for blocks (in both directions)
+  const { data: blockCheck } = await supabase
+    .from('blocked_users')
+    .select('id')
+    .or(`and(blocker_id.eq.${userId},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${userId})`)
+    .single();
+
+  if (blockCheck) {
+    return { message: null, error: new Error('You cannot message this user') };
+  }
+
   const { data, error } = await (supabase
     .from('direct_messages') as any)
     .insert({
