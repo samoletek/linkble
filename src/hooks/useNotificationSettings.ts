@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 
 const STORAGE_KEY = '@linkble/notification_settings';
 
@@ -36,14 +38,36 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 export const useNotificationSettings = () => {
     const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const { user } = useAuthStore();
 
-    // Load settings from AsyncStorage
+    // Load settings from Supabase and AsyncStorage
     useEffect(() => {
         loadSettings();
-    }, []);
+    }, [user]);
 
     const loadSettings = async () => {
         try {
+            setLoading(true);
+
+            // 1. Try to load from Supabase first (source of truth)
+            if (user?.id) {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('notification_settings')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!error && data?.notification_settings) {
+                    const remoteSettings = data.notification_settings as unknown as NotificationSettings;
+                    setSettings(remoteSettings);
+                    // Update local cache
+                    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remoteSettings));
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // 2. Fallback to AsyncStorage if offline or no remote settings
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 setSettings(JSON.parse(stored));
@@ -59,7 +83,21 @@ export const useNotificationSettings = () => {
         try {
             const updated = { ...settings, ...newSettings };
             setSettings(updated);
+
+            // Save locally
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+            // Sync to Supabase
+            if (user?.id) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ notification_settings: updated as any })
+                    .eq('id', user.id);
+
+                if (error) {
+                    console.error('Failed to sync settings to Supabase:', error);
+                }
+            }
         } catch (error) {
             console.error('Failed to save notification settings:', error);
         }
@@ -85,6 +123,13 @@ export const useNotificationSettings = () => {
         try {
             setSettings(DEFAULT_SETTINGS);
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+
+            if (user?.id) {
+                await supabase
+                    .from('profiles')
+                    .update({ notification_settings: DEFAULT_SETTINGS as any })
+                    .eq('id', user.id);
+            }
         } catch (error) {
             console.error('Failed to reset notification settings:', error);
         }

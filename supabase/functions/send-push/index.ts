@@ -178,6 +178,56 @@ serve(async (req) => {
             }
         }
 
+        // --- FILTERING BASED ON SETTINGS ---
+        if (shouldSend && targetUserIds.length > 0) {
+            console.log(`🔍 Checking notification settings for ${targetUserIds.length} users...`);
+
+            // Fetch settings for all target users
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, notification_settings')
+                .in('id', targetUserIds);
+
+            if (profiles) {
+                // Filter users who have disabled this notification type
+                targetUserIds = targetUserIds.filter(userId => {
+                    const profile = profiles.find(p => p.id === userId);
+                    const settings = profile?.notification_settings;
+
+                    // If no settings (default), allow notification
+                    if (!settings) return true;
+
+                    // If master switch disabled
+                    if (settings.enabled === false) {
+                        console.log(`🚫 User ${userId} has disabled all notifications`);
+                        return false;
+                    }
+
+                    // Check specific types
+                    const typeMap = {
+                        'request_new': settings.events?.joinRequests,
+                        'request_approved': settings.events?.requestResponses,
+                        'request_denied': settings.events?.requestResponses,
+                        'chat_message': settings.messages?.eventChat,
+                        'dm_message': settings.messages?.directMessages,
+                        'event_cancelled': settings.events?.cancelled,
+                        'kicked': settings.events?.kicked,
+                        'event_starting': settings.events?.startingSoon
+                    };
+
+                    const isEnabled = typeMap[data.type];
+
+                    // IF setting is explicitly false, block it. If undefined/null, allow it (default true)
+                    if (isEnabled === false) {
+                        console.log(`🚫 User ${userId} disabled ${data.type}`);
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+        }
+
         // --- SENDING ---
         if (!shouldSend || targetUserIds.length === 0) {
             console.log("⏹️ Logic skipped (conditions not met or no recipients)");

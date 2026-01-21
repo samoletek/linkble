@@ -31,6 +31,7 @@ export interface Profile {
   date_of_birth: string;
   interests: number[];
   push_token: string | null;
+  notification_settings: Json | null;
   created_at: string;
   updated_at: string;
   last_username_change: string | null;
