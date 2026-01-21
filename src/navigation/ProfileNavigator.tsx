@@ -5,6 +5,7 @@ import SettingsScreen from '../screens/profile/SettingsScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import SecurityScreen from '../screens/profile/SecurityScreen';
 import BlockedUsersScreen from '../screens/profile/BlockedUsersScreen';
+import NotificationSettingsScreen from '../screens/profile/NotificationSettingsScreen';
 import type { ProfileStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -22,6 +23,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Security" component={SecurityScreen} />
       <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
     </Stack.Navigator>
   );
 }
