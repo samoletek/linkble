@@ -40,4 +40,5 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Security: undefined;
   BlockedUsers: undefined;
+  NotificationSettings: undefined;
 };
