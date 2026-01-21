@@ -1,8 +1,10 @@
 import { LogLevel, OneSignal } from 'react-native-onesignal';
 import { supabase } from '../config/supabase';
+import { handleNotificationPress } from './notificationNavigation';
 
 class PushNotificationService {
   private initialized = false;
+  private navigationRef: any = null;
 
   initialize(oneSignalAppId: string) {
     if (this.initialized) return;
@@ -22,17 +24,58 @@ class PushNotificationService {
 
     // Event Listeners for Foreground Notifications
     OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
-      console.log('OneSignal: notification will show in foreground:', event.getNotification());
+      console.log('OneSignal: notification will show in foreground:', event.notification);
       // Always display notification in foreground
       // event.preventDefault() to stop it
     });
 
     // Event Listeners for Notification Click
     OneSignal.Notifications.addEventListener('click', (event: any) => {
-      console.log('OneSignal: notification clicked:', event);
+      console.log('🔔 [OneSignal] Notification clicked - FULL EVENT:', JSON.stringify(event, null, 2));
+      console.log('🔔 [OneSignal] event.notification:', event.notification);
+      console.log('🔔 [OneSignal] event.notification.additionalData:', event.notification?.additionalData);
+
+      const notificationData = event.notification?.additionalData;
+
+      if (notificationData) {
+        console.log('🔔 [OneSignal] Navigation data:', notificationData);
+        if (this.navigationRef) {
+          console.log('🔔 [OneSignal] Navigation ref exists, calling handleNotificationPress');
+          handleNotificationPress(notificationData, this.navigationRef);
+        } else {
+          console.error('🔔 [OneSignal] Navigation ref is NULL!');
+        }
+      } else {
+        console.error('🔔 [OneSignal] No additionalData in notification!');
+      }
     });
 
     this.initialized = true;
+  }
+
+  // Check for notification that opened the app (cold start)
+  async checkInitialNotification() {
+    console.log('🔔 [OneSignal] Checking for initial notification...');
+
+    // Wait a bit for navigation to be ready
+    setTimeout(async () => {
+      try {
+        const initialNotification = await OneSignal.Notifications.getInitialNotification();
+        console.log('🔔 [OneSignal] Initial notification:', initialNotification);
+
+        if (initialNotification?.notification?.additionalData) {
+          console.log('🔔 [OneSignal] Found initial notification with data:', initialNotification.notification.additionalData);
+
+          if (this.navigationRef) {
+            handleNotificationPress(initialNotification.notification.additionalData, this.navigationRef);
+          } else {
+            console.error('🔔 [OneSignal] Navigation ref not set yet for initial notification');
+          }
+        }
+      } catch (error) {
+        console.error('🔔 [OneSignal] Error checking initial notification:', error);
+      }
+    }, 1000); // Wait 1 second for navigation to be ready
   }
 
   requestPermissions() {
@@ -48,6 +91,14 @@ class PushNotificationService {
   logout() {
     console.log('OneSignal: Logging out user');
     OneSignal.logout();
+  }
+
+  setNavigationRef(ref: any) {
+    this.navigationRef = ref;
+    console.log('OneSignal: Navigation ref set');
+
+    // Check if app was opened by notification
+    this.checkInitialNotification();
   }
 
   async updatePlayerIdInDatabase(userId: string) {

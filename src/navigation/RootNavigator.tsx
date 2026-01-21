@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StatusBar, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,12 +7,14 @@ import MainNavigator from './MainNavigator';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../stores/authStore';
 import { useUserStore } from '../stores/userStore';
+import { pushNotificationService } from '../services/pushNotifications';
 import type { RootStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   const { colors, activeTheme } = useTheme();
+  const navigationRef = useRef(null);
 
   // Auth store
   const session = useAuthStore((state) => state.session);
@@ -21,6 +23,13 @@ export default function RootNavigator() {
 
   // User store
   const loadProfile = useUserStore((state) => state.loadProfile);
+
+  // Set navigation ref for push notifications
+  useEffect(() => {
+    if (navigationRef.current) {
+      pushNotificationService.setNavigationRef(navigationRef.current);
+    }
+  }, []);
 
   // Initialize auth on mount
   useEffect(() => {
@@ -37,29 +46,29 @@ export default function RootNavigator() {
   // Custom theme matching app colors
   const navigationTheme = activeTheme === 'light'
     ? {
-        ...DefaultTheme,
-        colors: {
-          ...DefaultTheme.colors,
-          primary: colors.accent.primary,
-          background: colors.background.primary,
-          card: colors.background.tertiary,
-          text: colors.text.primary,
-          border: colors.border.primary,
-          notification: colors.accent.primary,
-        },
-      }
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.accent.primary,
+        background: colors.background.primary,
+        card: colors.background.tertiary,
+        text: colors.text.primary,
+        border: colors.border.primary,
+        notification: colors.accent.primary,
+      },
+    }
     : {
-        ...DarkTheme,
-        colors: {
-          ...DarkTheme.colors,
-          primary: colors.accent.primary,
-          background: colors.background.primary,
-          card: colors.background.tertiary,
-          text: colors.text.primary,
-          border: colors.border.primary,
-          notification: colors.accent.primary,
-        },
-      };
+      ...DarkTheme,
+      colors: {
+        ...DarkTheme.colors,
+        primary: colors.accent.primary,
+        background: colors.background.primary,
+        card: colors.background.tertiary,
+        text: colors.text.primary,
+        border: colors.border.primary,
+        notification: colors.accent.primary,
+      },
+    };
 
   // Show loading while initializing auth
   if (!isInitialized) {
@@ -75,7 +84,7 @@ export default function RootNavigator() {
   return (
     <>
       <StatusBar barStyle={activeTheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <NavigationContainer theme={navigationTheme}>
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {isAuthenticated ? (
             <Stack.Screen name="Main" component={MainNavigator} />

@@ -40,7 +40,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (profile) {
         // Identify user in OneSignal
+        console.log('🔔 [OneSignal] Logging in user:', profile.id);
         pushNotificationService.setUserId(profile.id);
+      } else {
+        console.log('⚠️ [OneSignal] No profile loaded, skipping login');
       }
 
       set({ profile, isLoading: false });
