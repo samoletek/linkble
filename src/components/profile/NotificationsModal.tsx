@@ -161,7 +161,7 @@ export default function NotificationsModal({
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Bell size={iconScale(48)} color={colors.text.tertiary} weight="thin" />
+          <Bell size={iconScale(48)} color={colors.text.tertiary} weight="regular" />
           <Text style={[styles.emptyText, { color: colors.text.tertiary }]}>
             No notifications yet
           </Text>
