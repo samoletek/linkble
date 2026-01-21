@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../config/supabase';
 import { useAuthStore } from '../stores/authStore';
 
 const STORAGE_KEY = '@linkble/notification_settings';
