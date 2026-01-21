@@ -242,6 +242,43 @@ serve(async (req) => {
             return new Response(JSON.stringify({ message: "Skipped" }), { headers: { "Content-Type": "application/json" } })
         }
 
+        // --- INSERT INTO DATABASE (IN-APP NOTIFICATIONS) ---
+        // Map push types to DB notification types
+        const dbTypeMap: Record<string, string> = {
+            'request_new': 'join_request',
+            'request_approved': 'request_accepted',
+            'request_denied': 'request_rejected',
+            'chat_message': 'new_message',
+            'dm_message': 'new_dm',
+            'event_cancelled': 'event_cancelled',
+            'kicked': 'kicked_from_event',
+            'event_starting': 'event_starting_30m' // Defaulting to one
+        };
+
+        const dbType = dbTypeMap[data.type] || 'event_nearby';
+
+        console.log(`💾 Saving in-app notifications for ${targetUserIds.length} users...`);
+
+        const notificationsToInsert = targetUserIds.map(userId => ({
+            user_id: userId,
+            type: dbType,
+            title: heading,
+            body: content,
+            data: data,
+            is_read: false
+        }));
+
+        const { error: dbError } = await supabase
+            .from('notifications')
+            .insert(notificationsToInsert);
+
+        if (dbError) {
+            console.error("🔥 Failed to save in-app notifications:", dbError);
+            // Don't stop push execution, just log error
+        } else {
+            console.log("✅ In-app notifications saved.");
+        }
+
         console.log(`🚀 Sending push to ${targetUserIds.length} users...`);
         console.log(`📦 Notification data:`, JSON.stringify(data));
 

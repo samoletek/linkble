@@ -80,9 +80,15 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
   }
 
   // Helper to check if event chat is still active
+  // - Event must NOT be cancelled
   // - With end_time: active until end_time + 24h
   // - Without end_time: active until start_time + 3 days
   const isEventChatActive = (event: EventWithHostAndDate): boolean => {
+    // Exclude cancelled events from active chats
+    if ((event as any).status === 'cancelled') {
+      return false;
+    }
+
     const nowDate = new Date();
     const startTime = new Date(event.start_time);
 
@@ -101,6 +107,7 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
 
   // Add hosted events (filter by active chat window)
   (hostedEvents || []).forEach((event) => {
+    // Note: hostedEvents query already filters by status='active', but we keep check for safety
     if (isEventChatActive(event)) {
       eventMap.set(event.id, event);
     }
@@ -108,8 +115,14 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
 
   // Add participated events (filter by active chat window)
   (participations || []).forEach((p) => {
-    if (p.event && !eventMap.has(p.event.id) && isEventChatActive(p.event)) {
-      eventMap.set(p.event.id, p.event);
+    // Ensure we check status for participated events too
+    if (p.event && !eventMap.has(p.event.id)) {
+      // If event is cancelled, it shouldn't be in active list
+      if ((p.event as any).status === 'cancelled') return;
+
+      if (isEventChatActive(p.event)) {
+        eventMap.set(p.event.id, p.event);
+      }
     }
   });
 
@@ -183,9 +196,23 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  // Helper to check if event is in archive window (24h after active period)
-  const isInArchiveWindow = (event: EventWithHostAndDate): { inArchive: boolean; archivedAt: Date } => {
+  // Helper to check if event is in archive window (24h after active period OR immediately if cancelled)
+  const isInArchiveWindow = (event: EventWithHostAndDate & { status?: string; updated_at?: string }): { inArchive: boolean; archivedAt: Date } => {
     const nowDate = new Date();
+
+    // Handle Cancelled Events
+    if (event.status === 'cancelled') {
+      // If cancelled, it goes to archive immediately for 24 hours
+      // We use updated_at as the "cancellation time", or fall back to start_time if missing
+      const cancellationTime = event.updated_at ? new Date(event.updated_at) : new Date();
+      const archiveEnd = new Date(cancellationTime.getTime() + 24 * 60 * 60 * 1000);
+
+      return {
+        inArchive: nowDate < archiveEnd, // Visible for 24h after cancellation
+        archivedAt: cancellationTime
+      };
+    }
+
     const startTime = new Date(event.start_time);
 
     if (event.end_time) {
@@ -218,13 +245,15 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         host_id,
         start_time,
         end_time,
+        status,
+        updated_at,
         host:profiles!events_host_id_fkey(full_name)
       )
     `)
     .eq('user_id', userId)
-    .eq('status', 'accepted') as { data: Array<{ event_id: string; event: EventWithHostAndDate | null }> | null; error: any };
+    .eq('status', 'accepted') as { data: Array<{ event_id: string; event: (EventWithHostAndDate & { status: string; updated_at: string }) | null }> | null; error: any };
 
-  // Get events where user is host
+  // Get events where user is host (including cancelled)
   const { data: hostedEvents, error: hostedError } = await supabase
     .from('events')
     .select(`
@@ -234,9 +263,11 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
       host_id,
       start_time,
       end_time,
+      status,
+      updated_at,
       host:profiles!events_host_id_fkey(full_name)
     `)
-    .eq('host_id', userId) as { data: EventWithHostAndDate[] | null; error: any };
+    .eq('host_id', userId) as { data: (EventWithHostAndDate & { status: string; updated_at: string })[] | null; error: any };
 
   if (participationsError || hostedError) {
     console.error('Error fetching archived event chats:', participationsError || hostedError);
