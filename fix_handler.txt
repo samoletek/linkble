@@ -1,0 +1,3 @@
+  const handleNotifications = () => {
+    navigation.navigate('NotificationSettings');
+  };

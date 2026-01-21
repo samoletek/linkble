@@ -78,7 +78,7 @@ export default function SettingsScreen() {
   };
 
   const handleNotifications = () => {
-    // TODO: Open notifications settings
+    navigation.navigate('NotificationSettings');
   };
 
   const handlePrivacy = () => {
