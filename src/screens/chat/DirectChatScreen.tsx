@@ -6,15 +6,18 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Image,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, PaperPlaneTilt } from 'phosphor-react-native';
+import { ArrowLeft, PaperPlaneTilt, PushPin, Trash } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
 import { ChatStackParamList, DirectMessageWithSender, Profile } from '../../types';
@@ -25,6 +28,8 @@ import {
   subscribeToDirectMessages,
   unsubscribe,
   markMessagesAsRead,
+  pinDirectMessage,
+  deleteDirectMessage,
 } from '../../services/messages';
 import { isBlockedByUser } from '../../services/users';
 import { supabase } from '../../config/supabase';
@@ -49,6 +54,9 @@ export default function DirectChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [blockedByOther, setBlockedByOther] = useState(false);
+  const [pinnedMessage, setPinnedMessage] = useState<DirectMessageWithSender | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<DirectMessageWithSender | null>(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
 
   // Load conversation info and messages
   useEffect(() => {
@@ -86,6 +94,11 @@ export default function DirectChatScreen() {
       // Load messages
       const directMessages = await getDirectMessages(conversationId);
       setMessages(directMessages);
+
+      // Find pinned message
+      const pinned = directMessages.find(m => m.is_pinned);
+      setPinnedMessage(pinned || null);
+
       setIsLoading(false);
 
       // Mark messages as read
@@ -153,13 +166,79 @@ export default function DirectChatScreen() {
     setIsSending(false);
   }, [conversationId, inputText, isSending]);
 
+  const handleLongPress = useCallback((message: DirectMessageWithSender) => {
+    setSelectedMessage(message);
+    setShowActionMenu(true);
+  }, []);
+
+  const handlePinMessage = useCallback(async () => {
+    if (!selectedMessage) return;
+
+    const shouldPin = !selectedMessage.is_pinned;
+    const { error } = await pinDirectMessage(selectedMessage.id, shouldPin);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      // Update local state
+      setMessages(prev => prev.map(m => ({
+        ...m,
+        is_pinned: m.id === selectedMessage.id ? shouldPin : false,
+      })));
+      setPinnedMessage(shouldPin ? { ...selectedMessage, is_pinned: true } : null);
+    }
+
+    setShowActionMenu(false);
+    setSelectedMessage(null);
+  }, [selectedMessage]);
+
+  const handleDeleteMessage = useCallback(async () => {
+    if (!selectedMessage) return;
+
+    Alert.alert(
+      'Delete Message',
+      'This message will be deleted for everyone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await deleteDirectMessage(selectedMessage.id);
+
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
+              if (pinnedMessage?.id === selectedMessage.id) {
+                setPinnedMessage(null);
+              }
+            }
+
+            setShowActionMenu(false);
+            setSelectedMessage(null);
+          },
+        },
+      ]
+    );
+  }, [selectedMessage, pinnedMessage]);
+
+  const closeActionMenu = useCallback(() => {
+    setShowActionMenu(false);
+    setSelectedMessage(null);
+  }, []);
+
+
   const renderMessage = ({ item }: { item: DirectMessageWithSender }) => {
     const isOwnMessage = item.sender_id === currentUser?.id;
     const senderName = item.sender?.full_name || otherUser?.full_name || 'Unknown';
     const senderAvatar = item.sender?.avatar_url || otherUser?.avatar_url;
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={300}
         style={[
           styles.messageContainer,
           isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer,
@@ -209,7 +288,7 @@ export default function DirectChatScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -235,6 +314,30 @@ export default function DirectChatScreen() {
         </TouchableOpacity>
         <View style={styles.headerRight} />
       </View>
+
+      {/* Pinned Message */}
+      {pinnedMessage && (
+        <TouchableOpacity
+          style={[styles.pinnedContainer, { backgroundColor: colors.background.secondary, borderBottomColor: colors.border.primary }]}
+          onPress={() => {
+            const index = messages.findIndex(m => m.id === pinnedMessage.id);
+            if (index !== -1) {
+              flatListRef.current?.scrollToIndex({ index, animated: true });
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <PushPin size={iconScale(16)} color={colors.accent.primary} weight="fill" />
+          <View style={styles.pinnedContent}>
+            <Text style={[styles.pinnedLabel, { color: colors.accent.primary }]}>
+              Pinned Message
+            </Text>
+            <Text style={[styles.pinnedText, { color: colors.text.secondary }]} numberOfLines={1}>
+              {pinnedMessage.content}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Messages */}
       {isLoading ? (
@@ -324,6 +427,51 @@ export default function DirectChatScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Action Menu Modal */}
+      <Modal
+        visible={showActionMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={closeActionMenu}
+      >
+        <TouchableWithoutFeedback onPress={closeActionMenu}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.actionMenu, { backgroundColor: colors.background.secondary }]}>
+                <TouchableOpacity
+                  style={styles.actionMenuItem}
+                  onPress={handlePinMessage}
+                >
+                  <PushPin size={iconScale(20)} color={colors.text.primary} weight="bold" />
+                  <Text style={[styles.actionMenuText, { color: colors.text.primary }]}>
+                    {selectedMessage?.is_pinned ? 'Unpin Message' : 'Pin Message'}
+                  </Text>
+                </TouchableOpacity>
+                {selectedMessage?.sender_id === currentUser?.id && (
+                  <TouchableOpacity
+                    style={styles.actionMenuItem}
+                    onPress={handleDeleteMessage}
+                  >
+                    <Trash size={iconScale(20)} color={colors.status.error} weight="bold" />
+                    <Text style={[styles.actionMenuText, { color: colors.status.error }]}>
+                      Delete Message
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.actionMenuItem, styles.actionMenuCancel]}
+                  onPress={closeActionMenu}
+                >
+                  <Text style={[styles.actionMenuText, { color: colors.text.secondary }]}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
     </KeyboardAvoidingView>
   );
@@ -467,5 +615,52 @@ const styles = StyleSheet.create({
   },
   blockedText: {
     ...Typography.body,
+  },
+  pinnedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderBottomWidth: 1,
+    gap: scale(10),
+  },
+  pinnedContent: {
+    flex: 1,
+  },
+  pinnedLabel: {
+    ...Typography.caption,
+    fontWeight: '600',
+  },
+  pinnedText: {
+    ...Typography.body,
+    fontSize: fontScale(13),
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(20),
+  },
+  actionMenu: {
+    width: '100%',
+    maxWidth: scale(300),
+    borderRadius: Spacing.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(20),
+    gap: scale(12),
+  },
+  actionMenuText: {
+    ...Typography.bodyMedium,
+  },
+  actionMenuCancel: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    justifyContent: 'center',
   },
 });

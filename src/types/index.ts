@@ -14,7 +14,7 @@ export type AuthStackParamList = {
 
 // 5 tabs as per client spec
 export type MainTabParamList = {
-  Feed: undefined;
+  Feed: { eventId?: string } | undefined;
   Map: undefined;
   Create: undefined;
   Chat: undefined;

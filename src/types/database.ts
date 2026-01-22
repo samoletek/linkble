@@ -89,6 +89,7 @@ export interface DirectMessage {
   conversation_id: string;
   sender_id: string | null;
   content: string;
+  is_pinned: boolean;
   is_deleted: boolean;
   is_read: boolean;
   created_at: string;
@@ -303,7 +304,7 @@ export interface Database {
       direct_messages: {
         Row: DirectMessage;
         Insert: DirectMessageInsert;
-        Update: Partial<Pick<DirectMessage, 'is_deleted' | 'is_read'>>;
+        Update: Partial<Pick<DirectMessage, 'is_pinned' | 'is_deleted' | 'is_read'>>;
       };
       blocked_users: {
         Row: BlockedUser;

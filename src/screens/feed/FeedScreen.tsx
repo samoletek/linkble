@@ -16,7 +16,7 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { MagnifyingGlass, NavigationArrow, Plus, Users, X } from 'phosphor-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing } from '../../constants';
@@ -26,7 +26,9 @@ import CreateEventModal from '../../components/events/CreateEventModal';
 import { useEventsStore } from '../../stores/eventsStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { EventWithHost } from '../../types/database';
+import { MainTabParamList } from '../../types';
 import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
+import { supabase } from '../../config/supabase';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month';
 
@@ -44,10 +46,13 @@ const TITLE_MIN_SIZE = fontScale(20);
 
 const RADIUS_OPTIONS = [10, 20, 30, 50000];
 
+type FeedScreenRouteProp = RouteProp<MainTabParamList, 'Feed'>;
+
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
+  const route = useRoute<FeedScreenRouteProp>();
 
   // Events store
   const events = useEventsStore((state) => state.events);
@@ -188,6 +193,49 @@ export default function FeedScreen() {
       setApplyingFilters(false);
     }
   }, [isLoading, applyingFilters]);
+
+  // Handle eventId from route params (notification navigation)
+  useEffect(() => {
+    const eventIdFromRoute = route.params?.eventId;
+
+    if (eventIdFromRoute && hasInitiallyLoaded) {
+      // Try to find event in current events list first
+      const existingEvent = events.find(e => e.id === eventIdFromRoute);
+
+      if (existingEvent) {
+        // Event is already loaded, open modal immediately
+        setSelectedEvent(existingEvent);
+        setModalVisible(true);
+
+        // Clear the param to prevent reopening on subsequent navigations
+        navigation.setParams({ eventId: undefined });
+      } else {
+        // Event not in list, fetch it from database
+        const fetchEvent = async () => {
+          const { data: event } = await supabase
+            .from('events')
+            .select(`
+              *,
+              host:profiles!events_host_id_fkey(*),
+              category:categories(*)
+            `)
+            .eq('id', eventIdFromRoute)
+            .single();
+
+          if (event) {
+            setSelectedEvent(event as unknown as EventWithHost);
+            setModalVisible(true);
+          }
+
+          // Clear the param
+          navigation.setParams({ eventId: undefined });
+        };
+
+        fetchEvent();
+      }
+    }
+  }, [route.params?.eventId, hasInitiallyLoaded, events, navigation]);
+
 
   const initializeLocation = async () => {
     // If user has set manual address, don't override with GPS

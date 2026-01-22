@@ -798,6 +798,61 @@ export const deleteDirectMessage = async (
   return { error: null };
 };
 
+export const pinDirectMessage = async (
+  messageId: string,
+  pinned: boolean
+): Promise<{ error: Error | null }> => {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { error: new Error('Not authenticated') };
+  }
+
+  // Get message and verify user is in the conversation
+  const { data: message } = await supabase
+    .from('direct_messages')
+    .select(`
+      conversation_id,
+      conversation:conversations(user1_id, user2_id)
+    `)
+    .eq('id', messageId)
+    .single() as { data: { conversation_id: string; conversation: { user1_id: string; user2_id: string } | null } | null };
+
+  if (!message) {
+    return { error: new Error('Message not found') };
+  }
+
+  const conv = message.conversation;
+  if (!conv) {
+    return { error: new Error('Conversation not found') };
+  }
+
+  const isParticipant = conv.user1_id === userId || conv.user2_id === userId;
+
+  if (!isParticipant) {
+    return { error: new Error('Not authorized to pin messages in this conversation') };
+  }
+
+  // If pinning, unpin all other messages in this conversation first
+  if (pinned) {
+    await (supabase
+      .from('direct_messages') as any)
+      .update({ is_pinned: false })
+      .eq('conversation_id', message.conversation_id);
+  }
+
+  const { error } = await (supabase
+    .from('direct_messages') as any)
+    .update({ is_pinned: pinned })
+    .eq('id', messageId);
+
+  if (error) {
+    return { error: new Error(error.message) };
+  }
+
+  return { error: null };
+};
+
+
 // ============================================
 // Real-time Subscriptions
 // ============================================
