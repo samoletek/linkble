@@ -2,7 +2,7 @@
   "expo": {
     "name": "Linkble",
     "slug": "linkble",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "icon": "./assets/logo/logo-original.png",
     "userInterfaceStyle": "automatic",
     "splash": {
