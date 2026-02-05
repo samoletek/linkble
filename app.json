@@ -2,14 +2,16 @@
   "expo": {
     "name": "Linkble",
     "slug": "linkble",
-    "version": "1.0.2",
+    "version": "1.0.5",
     "icon": "./assets/logo/logo-original.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "resizeMode": "cover",
-      "backgroundColor": "#FFFFFF",
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000814",
       "dark": {
-        "resizeMode": "cover",
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
         "backgroundColor": "#000814"
       }
     },
@@ -33,7 +35,7 @@
         {
           "mode": "development",
           "smallIcons": [
-            "./assets/images/adaptive-icon.png"
+            "./assets/images/adaptive_icon.png"
           ]
         }
       ],
@@ -41,12 +43,12 @@
     ],
     "android": {
       "package": "io.architeq.linkble",
-      "versionCode": 4,
+      "versionCode": 9,
       "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "architeq.linkble",
-      "buildNumber": "4",
+      "buildNumber": "9",
       "usesAppleSignIn": true,
       "appleTeamId": "99LU49ANLX",
       "infoPlist": {

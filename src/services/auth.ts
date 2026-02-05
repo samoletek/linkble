@@ -9,6 +9,9 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 // Configure Google Sign In - call this once on app startup
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
+    offlineAccess: true,
+    forceCodeForRefreshToken: true,
+    scopes: ['email', 'profile'],
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
   });

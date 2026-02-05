@@ -23,8 +23,8 @@ if (ONESIGNAL_APP_ID && String(ONESIGNAL_APP_ID) !== 'YOUR_ONESIGNAL_APP_ID') {
   pushNotificationService.initialize(ONESIGNAL_APP_ID);
 }
 
-// Configure Google Sign In
-configureGoogleSignIn();
+// Configure Google Sign In inside component
+// configureGoogleSignIn();
 
 ExpoSplashScreen.preventAutoHideAsync();
 
@@ -36,6 +36,9 @@ function AppContent() {
   useEffect(() => {
     async function prepare() {
       try {
+        // Configure Google Sign In
+        configureGoogleSignIn();
+
         await ExpoSplashScreen.hideAsync();
       } finally {
         setAppIsReady(true);
