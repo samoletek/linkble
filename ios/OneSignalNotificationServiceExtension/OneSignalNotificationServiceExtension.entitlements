@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.architeq.linkble.onesignal</string>
+		<string>group.io.architeq.linkble.onesignal</string>
 	</array>
 </dict>
 </plist>

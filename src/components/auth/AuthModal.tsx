@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -619,10 +620,10 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       />
 
       <Text style={[styles.termsText, { color: colors.text.tertiary }]}>
-        By creating an account, you confirm that you are 18 years or older and agree to our{' '}
-        <Text style={{ color: colors.accent.primary }}>Terms of Service</Text>
+        By creating an account, you confirm that you are 16 years or older and agree to our{' '}
+        <Text style={{ color: colors.accent.primary }} onPress={() => Linking.openURL('https://www.linkble-app.com/terms.html')}>Terms of Service</Text>
         {' '}and{' '}
-        <Text style={{ color: colors.accent.primary }}>Privacy Policy</Text>
+        <Text style={{ color: colors.accent.primary }} onPress={() => Linking.openURL('https://www.linkble-app.com/privacy.html')}>Privacy Policy</Text>
       </Text>
     </>
   );
