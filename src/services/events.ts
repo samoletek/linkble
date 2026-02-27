@@ -11,6 +11,8 @@ import {
 } from '../types/database';
 import { getBlockedUserIds } from './users';
 
+const MAX_EVENT_PARTICIPANTS = 1000;
+
 // ============================================
 // Categories
 // ============================================
@@ -482,10 +484,20 @@ export const createEvent = async (
     }
   }
 
+  const normalizedMaxParticipants = eventData.max_participants ?? 10;
+
+  if (normalizedMaxParticipants < 1) {
+    return { event: null, error: new Error('Event must allow at least 1 participant') };
+  }
+  if (normalizedMaxParticipants > MAX_EVENT_PARTICIPANTS) {
+    return { event: null, error: new Error(`Maximum participants is ${MAX_EVENT_PARTICIPANTS}`) };
+  }
+
   const { data, error } = await (supabase
     .from('events') as any)
     .insert({
       ...eventData,
+      max_participants: normalizedMaxParticipants,
       host_id: userId,
     })
     .select()
@@ -516,6 +528,15 @@ export const updateEvent = async (
 
   if (!existing || existing.host_id !== userId) {
     return { event: null, error: new Error('Not authorized to update this event') };
+  }
+
+  if (typeof updates.max_participants === 'number') {
+    if (updates.max_participants < 1) {
+      return { event: null, error: new Error('Event must allow at least 1 participant') };
+    }
+    if (updates.max_participants > MAX_EVENT_PARTICIPANTS) {
+      return { event: null, error: new Error(`Maximum participants is ${MAX_EVENT_PARTICIPANTS}`) };
+    }
   }
 
   const { data, error } = await (supabase

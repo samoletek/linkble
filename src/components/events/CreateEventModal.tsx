@@ -15,11 +15,13 @@ import {
   Switch,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Check, MapPin, Calendar, Clock, Users, ImageSquare, SoccerBall, Wine, Briefcase, Coffee, GraduationCap, MusicNotes, LockSimple } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -27,12 +29,15 @@ import { Typography, Spacing } from '../../constants';
 import TextInput from '../common/TextInput';
 import { useEventsStore } from '../../stores/eventsStore';
 import { uploadEventImage, updateEvent } from '../../services/events';
-import { geocodeAddress } from '../../utils/geocoding';
+import { geocodeAddress, reverseGeocode, searchAddressSuggestions, AddressSuggestion } from '../../utils/geocoding';
 import { EventWithHost } from '../../types/database';
 import { scale, fontScale, iconScale, verticalScale } from '../../utils/responsive';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
+const MAX_EVENT_PARTICIPANTS = 1000;
+const LOCATION_AUTOCOMPLETE_LIMIT = 5;
+const LOCATION_SEARCH_DEBOUNCE_MS = 300;
 
 const CATEGORIES = [
   { id: 'sports', label: 'Sports', color: '#34C759', Icon: SoccerBall },
@@ -143,6 +148,18 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [spotsError, setSpotsError] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [isResolvingCurrentLocation, setIsResolvingCurrentLocation] = useState(false);
+  const [selectedLocationData, setSelectedLocationData] = useState<{
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestLocationQueryRef = useRef('');
 
   const isEditMode = !!eventToEdit;
   const isPrivateCategory = selectedCategory === 'private';
@@ -156,13 +173,27 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     }
   }, [isPrivateCategory, selectedCategory]);
 
+  useEffect(() => {
+    return () => {
+      if (locationSearchTimeoutRef.current) {
+        clearTimeout(locationSearchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Populate fields when editing
   useEffect(() => {
     if (eventToEdit && visible) {
       setTitle(eventToEdit.title);
       setDescription(eventToEdit.description || '');
       setLocation(eventToEdit.location_address);
+      setSelectedLocationData({
+        address: eventToEdit.location_address,
+        latitude: eventToEdit.location_lat,
+        longitude: eventToEdit.location_lng,
+      });
       setSpots(String(eventToEdit.max_participants));
+      setSpotsError('');
       setImage(eventToEdit.image_url || null);
       setAutoAccept(eventToEdit.auto_accept);
 
@@ -241,6 +272,139 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     setShowTimePicker(false);
     setShowEndDatePicker(false);
     setShowEndTimePicker(false);
+    setShowLocationSuggestions(false);
+  };
+
+  const searchLocations = (value: string) => {
+    const trimmedValue = value.trim();
+    latestLocationQueryRef.current = trimmedValue;
+
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
+
+    if (trimmedValue.length < 2) {
+      setLocationSuggestions([]);
+      setIsSearchingLocation(false);
+      return;
+    }
+
+    setIsSearchingLocation(true);
+    locationSearchTimeoutRef.current = setTimeout(async () => {
+      const result = await searchAddressSuggestions(trimmedValue, LOCATION_AUTOCOMPLETE_LIMIT);
+
+      if (latestLocationQueryRef.current !== trimmedValue) {
+        return;
+      }
+
+      setLocationSuggestions(result.success ? result.suggestions || [] : []);
+      setIsSearchingLocation(false);
+    }, LOCATION_SEARCH_DEBOUNCE_MS);
+  };
+
+  const handleLocationChange = (value: string) => {
+    setLocation(value);
+    setSelectedLocationData(null);
+    setShowLocationSuggestions(true);
+    searchLocations(value);
+  };
+
+  const handleLocationSuggestionSelect = (suggestion: AddressSuggestion) => {
+    Keyboard.dismiss();
+    setLocation(suggestion.fullAddress);
+    setSelectedLocationData({
+      address: suggestion.fullAddress,
+      latitude: suggestion.location.latitude,
+      longitude: suggestion.location.longitude,
+    });
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
+    setIsSearchingLocation(false);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    Keyboard.dismiss();
+    closePickers();
+
+    try {
+      setIsResolvingCurrentLocation(true);
+      const permissionResult = await Location.requestForegroundPermissionsAsync();
+
+      if (permissionResult.status !== 'granted') {
+        Alert.alert('Location Permission', 'Please allow location access to use your current location.');
+        return;
+      }
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const latitude = currentPosition.coords.latitude;
+      const longitude = currentPosition.coords.longitude;
+      const fallbackAddress = `Current location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+
+      setLocation(fallbackAddress);
+      setSelectedLocationData({ address: fallbackAddress, latitude, longitude });
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+      setIsSearchingLocation(false);
+
+      const reverseGeocodeResult = await reverseGeocode(latitude, longitude);
+      if (reverseGeocodeResult.address) {
+        setLocation(reverseGeocodeResult.address);
+        setSelectedLocationData({
+          address: reverseGeocodeResult.address,
+          latitude,
+          longitude,
+        });
+      }
+    } catch (error) {
+      Alert.alert('Location Error', 'Unable to get your current location.');
+    } finally {
+      setIsResolvingCurrentLocation(false);
+    }
+  };
+
+  const resolveLocationForEvent = async (): Promise<{ address: string; lat: number; lng: number } | null> => {
+    if (selectedLocationData) {
+      return {
+        address: selectedLocationData.address || location,
+        lat: selectedLocationData.latitude,
+        lng: selectedLocationData.longitude,
+      };
+    }
+
+    const geocodeResult = await geocodeAddress(location);
+    if (!geocodeResult.success || !geocodeResult.location) {
+      Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+      return null;
+    }
+
+    return {
+      address: geocodeResult.formattedAddress || location,
+      lat: geocodeResult.location.latitude,
+      lng: geocodeResult.location.longitude,
+    };
+  };
+
+  const handleSpotsChange = (value: string) => {
+    const digitsOnly = value.replace(/[^0-9]/g, '');
+    if (!digitsOnly) {
+      setSpots('');
+      setSpotsError('');
+      return;
+    }
+
+    const parsedValue = parseInt(digitsOnly, 10);
+    if (parsedValue > MAX_EVENT_PARTICIPANTS) {
+      setSpots(String(MAX_EVENT_PARTICIPANTS));
+      setSpotsError(`Maximum is ${MAX_EVENT_PARTICIPANTS}`);
+      return;
+    }
+
+    setSpots(String(parsedValue));
+    setSpotsError('');
   };
 
   const pickImage = async () => {
@@ -341,21 +505,28 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         endTimeISO = endDateTime.toISOString();
       }
 
+      const parsedSpots = parseInt(spots, 10);
+      if (!Number.isFinite(parsedSpots) || parsedSpots < 1) {
+        Alert.alert('Invalid Spots', 'Please enter at least 1 spot.');
+        setIsCreating(false);
+        return;
+      }
+      if (parsedSpots > MAX_EVENT_PARTICIPANTS) {
+        Alert.alert('Invalid Spots', `Maximum spots allowed is ${MAX_EVENT_PARTICIPANTS}.`);
+        setIsCreating(false);
+        return;
+      }
+
       if (isEditMode && eventToEdit) {
         // Check if location changed - only geocode if it did
         let locationData: { address: string; lat: number; lng: number } | null = null;
         if (location !== eventToEdit.location_address) {
-          const geocodeResult = await geocodeAddress(location);
-          if (!geocodeResult.success || !geocodeResult.location) {
-            Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+          const resolvedLocation = await resolveLocationForEvent();
+          if (!resolvedLocation) {
             setIsCreating(false);
             return;
           }
-          locationData = {
-            address: geocodeResult.formattedAddress || location,
-            lat: geocodeResult.location.latitude,
-            lng: geocodeResult.location.longitude,
-          };
+          locationData = resolvedLocation;
         }
 
         // Update existing event
@@ -370,7 +541,7 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           }),
           start_time: startTime,
           end_time: hasEndTime ? endTimeISO : undefined,
-          max_participants: parseInt(spots, 10) || 10,
+          max_participants: parsedSpots,
           image_url: imageUrl,
           auto_accept: isPrivateCategory ? false : autoAccept,
         });
@@ -382,10 +553,8 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           Alert.alert('Error', result.error?.message || 'Failed to update event');
         }
       } else {
-        // Geocode the address to get coordinates
-        const geocodeResult = await geocodeAddress(location);
-        if (!geocodeResult.success || !geocodeResult.location) {
-          Alert.alert('Location Error', geocodeResult.error || 'Could not find this location. Please enter a valid address.');
+        const resolvedLocation = await resolveLocationForEvent();
+        if (!resolvedLocation) {
           setIsCreating(false);
           return;
         }
@@ -395,12 +564,12 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           title,
           description: description || 'No description',
           category_id: categoryId,
-          location_address: geocodeResult.formattedAddress || location,
-          location_lat: geocodeResult.location.latitude,
-          location_lng: geocodeResult.location.longitude,
+          location_address: resolvedLocation.address,
+          location_lat: resolvedLocation.lat,
+          location_lng: resolvedLocation.lng,
           start_time: startTime,
           end_time: hasEndTime ? endTimeISO : undefined,
-          max_participants: parseInt(spots, 10) || 10,
+          max_participants: parsedSpots,
           image_url: imageUrl,
           auto_accept: isPrivateCategory ? false : autoAccept,
         });
@@ -419,15 +588,25 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   };
 
   const resetForm = () => {
+    if (locationSearchTimeoutRef.current) {
+      clearTimeout(locationSearchTimeoutRef.current);
+      locationSearchTimeoutRef.current = null;
+    }
     setTitle('');
     setDescription('');
     setSelectedCategory(null);
     setLocation('');
+    setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
+    setSelectedLocationData(null);
+    setIsSearchingLocation(false);
+    setIsResolvingCurrentLocation(false);
     setSelectedDate(null);
     setShowDatePicker(false);
     setSelectedTime(null);
     setShowTimePicker(false);
     setSpots('');
+    setSpotsError('');
     setImage(null);
     setAutoAccept(true);
     setHasEndTime(false);
@@ -453,7 +632,20 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     animateClose();
   };
 
-  const isValid = title.trim() && selectedCategory && location.trim() && selectedDate && selectedTime && spots.trim() && (!hasEndTime || (endDate && endTime));
+  const parsedSpotsValue = parseInt(spots, 10);
+  const isSpotsValid =
+    Number.isFinite(parsedSpotsValue) &&
+    parsedSpotsValue >= 1 &&
+    parsedSpotsValue <= MAX_EVENT_PARTICIPANTS;
+  const isValid = Boolean(
+    title.trim() &&
+    selectedCategory &&
+    location.trim() &&
+    selectedDate &&
+    selectedTime &&
+    isSpotsValid &&
+    (!hasEndTime || (endDate && endTime))
+  );
 
   return (
     <Modal
@@ -622,14 +814,106 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               </View>
             </View>
 
-            <TextInput
-              label="Location"
-              placeholder="Where is it happening?"
-              value={location}
-              onChangeText={setLocation}
-              onFocus={closePickers}
-              icon={<MapPin size={iconScale(20)} color={colors.text.secondary} />}
-            />
+            <View style={[styles.fieldContainer, styles.locationFieldContainer]}>
+              <Text style={[styles.label, { color: colors.text.secondary }]}>Location</Text>
+              <View
+                style={[
+                  styles.locationInputContainer,
+                  {
+                    backgroundColor: colors.background.secondary,
+                    borderColor: colors.border.primary,
+                  },
+                ]}
+              >
+                <MapPin size={iconScale(20)} color={colors.text.secondary} />
+                <RNTextInput
+                  style={[styles.locationInput, { color: colors.text.primary }]}
+                  placeholder="Where is it happening?"
+                  placeholderTextColor={colors.text.placeholder}
+                  value={location}
+                  onChangeText={handleLocationChange}
+                  onFocus={() => {
+                    closePickers();
+                    setShowLocationSuggestions(true);
+                    searchLocations(location);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowLocationSuggestions(false), 150);
+                  }}
+                  autoCorrect={false}
+                />
+                {location.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setLocation('');
+                      setSelectedLocationData(null);
+                      setLocationSuggestions([]);
+                      setShowLocationSuggestions(false);
+                      setIsSearchingLocation(false);
+                    }}
+                    style={styles.locationClearButton}
+                  >
+                    <X size={iconScale(16)} color={colors.text.placeholder} weight="bold" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {showLocationSuggestions && (
+                <View
+                  style={[
+                    styles.locationSuggestionsContainer,
+                    {
+                      backgroundColor: colors.background.secondary,
+                      borderColor: colors.border.primary,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.locationSuggestionItem}
+                    onPress={handleUseCurrentLocation}
+                  >
+                    <View
+                      style={[
+                        styles.currentLocationIconWrap,
+                        { backgroundColor: colors.accent.primary },
+                      ]}
+                    >
+                      {isResolvingCurrentLocation ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <MapPin size={iconScale(14)} color="#FFFFFF" weight="fill" />
+                      )}
+                    </View>
+                    <Text style={[styles.currentLocationText, { color: colors.text.primary }]}>
+                      Use my current location
+                    </Text>
+                  </TouchableOpacity>
+
+                  {isSearchingLocation && (
+                    <View style={styles.locationSuggestionsLoading}>
+                      <ActivityIndicator size="small" color={colors.accent.primary} />
+                    </View>
+                  )}
+
+                  {locationSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.id}
+                      style={styles.locationSuggestionItem}
+                      onPress={() => handleLocationSuggestionSelect(suggestion)}
+                    >
+                      <View style={styles.locationSuggestionTextWrap}>
+                        <Text style={[styles.locationSuggestionTitle, { color: colors.text.primary }]} numberOfLines={1}>
+                          {suggestion.name}
+                        </Text>
+                        <Text style={[styles.locationSuggestionAddress, { color: colors.text.secondary }]} numberOfLines={1}>
+                          {suggestion.address}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
             <View style={styles.row}>
               <View style={styles.halfField}>
@@ -754,11 +1038,16 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
               label="Spots available"
               placeholder="How many people can join?"
               value={spots}
-              onChangeText={setSpots}
+              onChangeText={handleSpotsChange}
               onFocus={closePickers}
               keyboardType="number-pad"
+              maxLength={4}
+              error={spotsError}
               icon={<Users size={iconScale(20)} color={colors.text.secondary} />}
             />
+            <Text style={[styles.spotsHint, { color: colors.text.secondary }]}>
+              Up to 1000
+            </Text>
 
             <View style={[styles.switchContainer, isPrivateCategory && styles.switchContainerDisabled]}>
               <View style={styles.switchTextContainer}>
@@ -988,10 +1277,73 @@ const styles = StyleSheet.create({
   fieldContainer: {
     width: '100%',
   },
+  locationFieldContainer: {
+    zIndex: 20,
+  },
   label: {
     ...Typography.caption,
     marginBottom: Spacing.xs,
     marginLeft: Spacing.xs,
+  },
+  locationInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: Spacing.borderRadius.md,
+    paddingHorizontal: Spacing.inputPadding,
+    minHeight: scale(50),
+    gap: scale(8),
+  },
+  locationInput: {
+    flex: 1,
+    fontFamily: Typography.body.fontFamily,
+    fontSize: Typography.body.fontSize,
+    fontWeight: Typography.body.fontWeight as '400',
+    paddingVertical: Spacing.inputPadding,
+  },
+  locationClearButton: {
+    padding: scale(4),
+  },
+  locationSuggestionsContainer: {
+    marginTop: scale(8),
+    borderWidth: 1,
+    borderRadius: Spacing.borderRadius.md,
+    overflow: 'hidden',
+  },
+  locationSuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.inputPadding,
+    paddingVertical: scale(12),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    gap: scale(10),
+  },
+  locationSuggestionsLoading: {
+    paddingVertical: scale(10),
+    alignItems: 'center',
+  },
+  locationSuggestionTextWrap: {
+    flex: 1,
+  },
+  locationSuggestionTitle: {
+    ...Typography.bodySmall,
+    fontWeight: '600',
+  },
+  locationSuggestionAddress: {
+    ...Typography.caption,
+    marginTop: scale(2),
+  },
+  currentLocationIconWrap: {
+    width: scale(22),
+    height: scale(22),
+    borderRadius: scale(11),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currentLocationText: {
+    ...Typography.bodySmall,
+    fontWeight: '600',
   },
   textAreaContainer: {
     borderWidth: 1,
@@ -1115,5 +1467,10 @@ const styles = StyleSheet.create({
   switchDescription: {
     ...Typography.caption,
     marginTop: scale(2),
+  },
+  spotsHint: {
+    ...Typography.caption,
+    marginTop: scale(2),
+    marginLeft: Spacing.xs,
   },
 });

@@ -16,6 +16,7 @@ import {
   Linking,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Typography, Spacing, Animations } from '../../constants';
@@ -589,9 +590,9 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       {showDatePicker && (
         <View style={styles.datePickerContainer}>
           <DateTimePicker
-            value={dateOfBirth || new Date()}
+            value={dateOfBirth || new Date(2000, 0, 1)}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            display="spinner"
             onChange={handleDateChange}
             maximumDate={new Date()}
             minimumDate={new Date(1900, 0, 1)}
@@ -663,7 +664,8 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       {/* Modal content */}
       <KeyboardAvoidingView
         style={styles.modalWrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
         pointerEvents="box-none"
       >
         <Animated.View
@@ -709,11 +711,21 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
           </View>
 
           {/* Content */}
-          <Animated.View
-            style={[styles.buttonsContainer, { gap: buttonSpacing, opacity: contentOpacity }]}
+          <KeyboardAwareScrollView
+            style={styles.formScroll}
+            contentContainerStyle={styles.formScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            extraScrollHeight={Platform.OS === 'android' ? 140 : 80}
+            enableOnAndroid
+            enableResetScrollToCoords={false}
           >
-            {renderContent()}
-          </Animated.View>
+            <Animated.View
+              style={[styles.buttonsContainer, { gap: buttonSpacing, opacity: contentOpacity }]}
+            >
+              {renderContent()}
+            </Animated.View>
+          </KeyboardAwareScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -766,6 +778,14 @@ const styles = StyleSheet.create({
     ...Typography.h3,
     flex: 1,
     textAlign: 'center',
+  },
+  formScroll: {
+    width: '100%',
+    maxHeight: SCREEN_HEIGHT * 0.7,
+  },
+  formScrollContent: {
+    flexGrow: 1,
+    paddingBottom: scale(8),
   },
   buttonsContainer: {
     width: '100%',

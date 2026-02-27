@@ -2,7 +2,7 @@
   "expo": {
     "name": "Linkble",
     "slug": "linkble",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "icon": "./assets/logo/logo-original.png",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -43,12 +43,12 @@
     ],
     "android": {
       "package": "io.architeq.linkble",
-      "versionCode": 11,
+      "versionCode": 12,
       "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "io.architeq.linkble",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "usesAppleSignIn": true,
       "appleTeamId": "9WXK66PLY2",
       "infoPlist": {

@@ -2,7 +2,40 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+import java.util.Properties
+import java.io.FileInputStream
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def requestedReleaseBuild = gradle.startParameter.taskNames.any { it?.toLowerCase()?.contains("release") }
+def requiredReleaseSigningFields = ["storeFile", "storePassword", "keyAlias", "keyPassword"]
+def missingReleaseSigningFields = requiredReleaseSigningFields.findAll { key ->
+    !keystoreProperties[key] || keystoreProperties[key].toString().trim().isEmpty()
+}
+def configuredStoreFile = keystoreProperties["storeFile"]?.toString()
+def resolvedStoreFile = null
+if (configuredStoreFile) {
+    def candidate = new File(configuredStoreFile)
+    resolvedStoreFile = candidate.isAbsolute() ? candidate : rootProject.file(configuredStoreFile)
+}
+def injectedSigningStoreFile = findProperty("android.injected.signing.store.file")
+def usingInjectedSigning = injectedSigningStoreFile != null && !injectedSigningStoreFile.toString().trim().isEmpty()
+
+if (requestedReleaseBuild && !usingInjectedSigning) {
+    if (!keystorePropertiesFile.exists()) {
+        throw new GradleException("Missing /android/keystore.properties for CLI release signing. Create it from keystore.properties.example or use Android Studio Generate Signed App Bundle flow.")
+    }
+    if (!missingReleaseSigningFields.isEmpty()) {
+        throw new GradleException("Incomplete release signing config in keystore.properties. Missing: ${missingReleaseSigningFields.join(', ')}")
+    }
+    if (!resolvedStoreFile?.exists()) {
+        throw new GradleException("Release keystore not found at '${configuredStoreFile}'. Use an absolute path or path relative to /android.")
+    }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -100,8 +133,8 @@ packagingOptions {
         applicationId 'io.architeq.linkble'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 11
-        versionName "1.0.8"
+        versionCode 12
+        versionName "1.0.9"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -112,6 +145,19 @@ packagingOptions {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (usingInjectedSigning) {
+                storeFile file(injectedSigningStoreFile.toString())
+                storePassword findProperty("android.injected.signing.store.password")
+                keyAlias findProperty("android.injected.signing.key.alias")
+                keyPassword findProperty("android.injected.signing.key.password")
+            } else if (keystorePropertiesFile.exists()) {
+                storeFile resolvedStoreFile
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
@@ -120,7 +166,7 @@ packagingOptions {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

@@ -8,12 +8,22 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 // Configure Google Sign In - call this once on app startup
 export const configureGoogleSignIn = () => {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+
+  if (!webClientId) {
+    console.warn('Google Sign-In: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing');
+  }
+  if (Platform.OS === 'ios' && !iosClientId) {
+    console.warn('Google Sign-In: EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is missing');
+  }
+
   GoogleSignin.configure({
     offlineAccess: true,
     forceCodeForRefreshToken: true,
     scopes: ['email', 'profile'],
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
+    webClientId,
+    ...(iosClientId ? { iosClientId } : {}),
   });
 };
 
@@ -293,6 +303,18 @@ export const signInWithApple = async (): Promise<AuthResult> => {
 
 export const signInWithGoogle = async (): Promise<AuthResult> => {
   try {
+    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
+      return {
+        user: null,
+        session: null,
+        error: {
+          message: 'Google Sign-In is not configured: missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in build environment.',
+          name: 'AuthError',
+          status: 500,
+        } as AuthError,
+      };
+    }
+
     // Check if Google Play Services are available (Android)
     if (Platform.OS === 'android') {
       await GoogleSignin.hasPlayServices();
@@ -366,6 +388,17 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
         user: null,
         session: null,
         error: { message: 'Google Play Services not available', name: 'AuthError', status: 400 } as AuthError,
+      };
+    }
+    if (error.code === 'DEVELOPER_ERROR') {
+      return {
+        user: null,
+        session: null,
+        error: {
+          message: 'Google Sign-In DEVELOPER_ERROR. Verify Web Client ID, iOS bundle ID URL scheme, Android package name and SHA-1/SHA-256 in Firebase/Google Cloud.',
+          name: 'AuthError',
+          status: 400,
+        } as AuthError,
       };
     }
 

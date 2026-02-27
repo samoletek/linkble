@@ -28,6 +28,8 @@ android/build/
 *.apk
 *.aab
 *.keystore
+*.jks
+android/keystore.properties
 !debug.keystore
 
 # Environment & Credentials
