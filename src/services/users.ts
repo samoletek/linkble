@@ -99,13 +99,7 @@ export async function reportEvent(
   if (error) throw error;
 }
 
-/**
- * Get all user IDs that should be hidden from the current user:
- * - Users the current user has blocked
- * - Users who have blocked the current user
- */
 export async function getBlockedUserIds(userId: string): Promise<string[]> {
-  // Users I blocked
   const { data: blocked, error: blockedError } = await supabase
     .from('blocked_users')
     .select('blocked_id')
@@ -113,7 +107,6 @@ export async function getBlockedUserIds(userId: string): Promise<string[]> {
 
   if (blockedError) throw blockedError;
 
-  // Users who blocked me
   const { data: blockedBy, error: blockedByError } = await supabase
     .from('blocked_users')
     .select('blocker_id')

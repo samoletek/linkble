@@ -39,7 +39,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const { colors, activeTheme } = useTheme();
   const insets = useSafeAreaInsets();
 
-  // Auth store
   const authSignIn = useAuthStore((state) => state.signIn);
   const authSignUp = useAuthStore((state) => state.signUp);
   const authSignInWithApple = useAuthStore((state) => state.signInWithApple);
@@ -48,18 +47,15 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const authError = useAuthStore((state) => state.error);
   const clearAuthError = useAuthStore((state) => state.clearError);
 
-  // Animation values - single translateY, backdrop interpolated (Pikup pattern)
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
 
-  // Backdrop opacity interpolated from translateY (Pikup pattern)
   const backdropOpacity = translateY.interpolate({
     inputRange: [0, SCREEN_HEIGHT * 0.5],
     outputRange: [0.5, 0],
     extrapolate: 'clamp',
   });
 
-  // Form state
   const [step, setStep] = useState<AuthStep>('initial');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -68,16 +64,13 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Validation errors
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [dobError, setDobError] = useState('');
 
-  // OAuth loading states
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Pan responder with Pikup patterns
   const handlePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -85,7 +78,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderGrant: () => {
-        // Store current position as offset (Pikup pattern)
         translateY.setOffset((translateY as any)._value);
         translateY.setValue(0);
       },
@@ -95,7 +87,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Flatten offset back into value (Pikup pattern)
         translateY.flattenOffset();
 
         const currentY = (translateY as any)._value;
@@ -104,7 +95,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
         const shouldClose = velocity > 1.5 || currentY > 200;
 
         if (shouldClose) {
-          // Use timing for close - spring waits for oscillation to settle
           Animated.timing(translateY, {
             toValue: SCREEN_HEIGHT,
             duration: 250,
@@ -126,8 +116,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
     })
   ).current;
 
-
-  // Animate modal on visibility change
   useEffect(() => {
     if (visible) {
       resetForm();
@@ -158,7 +146,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
   const handleClose = () => {
     Keyboard.dismiss();
     clearAuthError();
-    // Use timing for close - spring waits for oscillation to settle
     Animated.timing(translateY, {
       toValue: SCREEN_HEIGHT,
       duration: 250,
@@ -247,7 +234,6 @@ export default function AuthModal({ visible, onClose }: AuthModalProps) {
       } else if (result.error) {
         Alert.alert('Failed', result.error);
       }
-      // If no success and no error, user cancelled - do nothing
     } finally {
       setIsAppleLoading(false);
     }

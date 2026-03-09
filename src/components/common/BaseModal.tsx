@@ -25,14 +25,6 @@ interface BaseModalProps {
     renderHeader?: (animateClose: () => void) => React.ReactNode;
 }
 
-/**
- * BaseModal - Rewritten with Pikup patterns for smooth animations
- * 
- * Key patterns from Pikup:
- * 1. Backdrop opacity via interpolate (not setValue)
- * 2. setOffset/flattenOffset for proper drag tracking
- * 3. useNativeDriver: false for interpolated opacity
- */
 export default function BaseModal({
     visible,
     onClose,
@@ -45,12 +37,9 @@ export default function BaseModal({
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
 
-    // Single animation value - backdrop interpolates from this
     const translateY = useRef(new Animated.Value(height)).current;
 
-    // Animate close: slide down, then call onClose
     const animateClose = useCallback(() => {
-        // Use timing for close - spring waits for oscillation to settle
         Animated.timing(translateY, {
             toValue: SCREEN_HEIGHT,
             duration: 250,
@@ -60,46 +49,38 @@ export default function BaseModal({
         });
     }, [translateY, onClose]);
 
-    // Pan responder with Pikup patterns
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: (_, gestureState) => {
-                // Only respond to vertical gestures
                 return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
             },
             onPanResponderGrant: () => {
-                // Store current position as offset, reset value to 0
                 translateY.setOffset((translateY as any)._value);
                 translateY.setValue(0);
             },
             onPanResponderMove: (_, gestureState) => {
-                // Only allow dragging down (positive dy)
                 if (gestureState.dy >= 0) {
                     translateY.setValue(gestureState.dy);
                 }
             },
             onPanResponderRelease: (_, gestureState) => {
-                // Flatten offset back into value
                 translateY.flattenOffset();
 
                 const currentY = (translateY as any)._value;
                 const velocity = gestureState.vy;
 
-                // Determine if should close based on position and velocity
                 const shouldClose = velocity > 1.5 || currentY > height * 0.4;
 
                 if (shouldClose) {
-                    // Use timing for close - spring waits for oscillation to settle
                     Animated.timing(translateY, {
                         toValue: SCREEN_HEIGHT,
                         duration: 250,
                         useNativeDriver: false,
                     }).start(() => {
                         onClose();
-                    });
+                        });
                 } else {
-                    // Snap back to open position
                     Animated.spring(translateY, {
                         toValue: 0,
                         useNativeDriver: false,
@@ -111,10 +92,8 @@ export default function BaseModal({
         })
     ).current;
 
-    // Handle visibility changes
     useEffect(() => {
         if (visible) {
-            // Animate in
             Animated.spring(translateY, {
                 toValue: 0,
                 useNativeDriver: false,
@@ -122,12 +101,10 @@ export default function BaseModal({
                 friction: 12,
             }).start();
         } else {
-            // Reset to closed position
             translateY.setValue(height);
         }
     }, [visible, translateY, height]);
 
-    // Backdrop opacity interpolated from translateY (Pikup pattern)
     const backdropOpacity = translateY.interpolate({
         inputRange: [0, height],
         outputRange: [0.5, 0],
@@ -141,7 +118,6 @@ export default function BaseModal({
             animationType="none"
             onRequestClose={animateClose}
         >
-            {/* Backdrop - opacity derived from translateY via interpolate */}
             <TouchableWithoutFeedback onPress={animateClose}>
                 <Animated.View
                     style={[
@@ -153,7 +129,6 @@ export default function BaseModal({
                 />
             </TouchableWithoutFeedback>
 
-            {/* Modal Content */}
             <Animated.View
                 style={[
                     styles.container,
@@ -166,7 +141,6 @@ export default function BaseModal({
                     containerStyle,
                 ]}
             >
-                {/* Drag Handle */}
                 {showHandle && (
                     <View
                         {...panResponder.panHandlers}

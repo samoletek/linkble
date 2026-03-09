@@ -1,5 +1,3 @@
-// Categories matching database schema
-// Note: Actual categories are loaded from Supabase, these are fallback/reference values
 export const CATEGORIES = [
   { id: 1, name: 'sports_hobbies', displayName: 'Sports & Hobbies', icon: 'SoccerBall', color: '#34C759' },
   { id: 2, name: 'parties', displayName: 'Parties', icon: 'Wine', color: '#FF2D55' },
@@ -10,7 +8,6 @@ export const CATEGORIES = [
   { id: 7, name: 'private_events', displayName: 'Private Events', icon: 'LockSimple', color: '#8E8E93' },
 ];
 
-// Category colors for quick lookup
 export const CATEGORY_COLORS: Record<string, string> = {
   sports_hobbies: '#34C759',
   parties: '#FF2D55',
@@ -21,7 +18,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   private_events: '#8E8E93',
 };
 
-// Category icons mapping (Phosphor icon names)
 export const CATEGORY_ICONS: Record<string, string> = {
   sports_hobbies: 'SoccerBall',
   parties: 'Wine',
@@ -32,17 +28,14 @@ export const CATEGORY_ICONS: Record<string, string> = {
   private_events: 'LockSimple',
 };
 
-// Event settings
-export const DEFAULT_RADIUS = 10; // km
-export const RADIUS_OPTIONS = [10, 20, 30, 50]; // km
+export const DEFAULT_RADIUS = 10;
+export const RADIUS_OPTIONS = [10, 20, 30, 50];
 
-// User settings
 export const MAX_INTERESTS = 5;
 export const MIN_INTERESTS = 3;
 export const MIN_AGE = 16;
 export const USERNAME_CHANGE_DAYS = 30;
 
-// Event constraints
 export const MIN_PARTICIPANTS = 2;
 export const MAX_PARTICIPANTS = 50;
 export const MAX_DESCRIPTION_LENGTH = 2000;
@@ -53,5 +46,4 @@ export const PUBLIC_LEAVE_DEADLINE_HOURS = 1;
 export const PRIVATE_LEAVE_DEADLINE_HOURS = 24;
 export const CHAT_ARCHIVE_HOURS = 24;
 
-// Message constraints
 export const MAX_MESSAGE_LENGTH = 1000;

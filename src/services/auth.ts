@@ -6,7 +6,6 @@ import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-// Configure Google Sign In - call this once on app startup
 export const configureGoogleSignIn = () => {
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
@@ -27,10 +26,6 @@ export const configureGoogleSignIn = () => {
   });
 };
 
-// ============================================
-// Types
-// ============================================
-
 export interface SignUpData {
   email: string;
   password: string;
@@ -49,12 +44,7 @@ export interface AuthResult {
   error: AuthError | null;
 }
 
-// ============================================
-// Helper Functions
-// ============================================
-
 const generateRandomUsername = (): string => {
-  // Generate 6-digit random number (100000-999999)
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
@@ -78,18 +68,12 @@ const generateUniqueUsername = async (): Promise<string> => {
     attempts++;
   }
 
-  // Fallback: add timestamp suffix if all attempts fail
   return `${generateRandomUsername()}${Date.now().toString().slice(-3)}`;
 };
-
-// ============================================
-// Authentication
-// ============================================
 
 export const signUp = async (data: SignUpData): Promise<AuthResult> => {
   const { email, password, fullName, dateOfBirth } = data;
 
-  // Validate age (16+)
   const birthDate = new Date(dateOfBirth);
   const today = new Date();
   const age = today.getFullYear() - birthDate.getFullYear();
@@ -103,7 +87,6 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
     };
   }
 
-  // Create auth user with metadata
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -119,13 +102,10 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
     return { user: null, session: null, error: authError };
   }
 
-  // Generate unique 6-digit username
   const username = await generateUniqueUsername();
 
-  // Wait briefly for trigger to create profile, then update or create
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Check if profile exists (created by trigger)
   const { data: existingProfile } = await supabase
     .from('profiles')
     .select('id')
@@ -133,12 +113,10 @@ export const signUp = async (data: SignUpData): Promise<AuthResult> => {
     .single();
 
   if (existingProfile) {
-    // Profile exists, update username
     await (supabase.from('profiles') as any)
       .update({ username })
       .eq('id', authData.user.id);
   } else {
-    // No profile from trigger, create it with username
     await (supabase.from('profiles') as any).insert({
       id: authData.user.id,
       username,
@@ -164,7 +142,6 @@ export const signIn = async (data: SignInData): Promise<AuthResult> => {
   });
 
   if (authData?.user && !error) {
-    // Check if profile exists, create if missing
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
@@ -172,7 +149,6 @@ export const signIn = async (data: SignInData): Promise<AuthResult> => {
       .single();
 
     if (!existingProfile) {
-      // Create profile for users who were created outside the app
       const username = await generateUniqueUsername();
       await (supabase.from('profiles') as any).insert({
         id: authData.user.id,
@@ -196,13 +172,8 @@ export const signOut = async (): Promise<{ error: AuthError | null }> => {
   return { error };
 };
 
-// ============================================
-// Social Authentication (Apple & Google)
-// ============================================
-
 export const signInWithApple = async (): Promise<AuthResult> => {
   try {
-    // Check if Apple Sign In is available (iOS only)
     if (Platform.OS !== 'ios') {
       return {
         user: null,
@@ -220,14 +191,12 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       };
     }
 
-    // Generate a random nonce for security
     const rawNonce = Crypto.randomUUID();
     const hashedNonce = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       rawNonce
     );
 
-    // Request Apple credentials
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
@@ -244,7 +213,6 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       };
     }
 
-    // Sign in with Supabase using the Apple ID token
     const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: credential.identityToken,
@@ -255,7 +223,6 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       return { user: null, session: null, error: authError };
     }
 
-    // Check if profile exists, create if missing
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
@@ -263,7 +230,6 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       .single();
 
     if (!existingProfile) {
-      // Create profile for new user
       const username = await generateUniqueUsername();
       const fullName = credential.fullName
         ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim()
@@ -273,7 +239,7 @@ export const signInWithApple = async (): Promise<AuthResult> => {
         id: authData.user.id,
         username,
         full_name: fullName,
-        date_of_birth: '1990-01-01', // Default, user can update later
+        date_of_birth: '1990-01-01',
         interests: [],
       });
     }
@@ -284,12 +250,11 @@ export const signInWithApple = async (): Promise<AuthResult> => {
       error: null,
     };
   } catch (error: any) {
-    // Handle user cancellation
     if (error.code === 'ERR_REQUEST_CANCELED') {
       return {
         user: null,
         session: null,
-        error: null, // Not an error, user just cancelled
+        error: null,
       };
     }
 
@@ -315,12 +280,10 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       };
     }
 
-    // Check if Google Play Services are available (Android)
     if (Platform.OS === 'android') {
       await GoogleSignin.hasPlayServices();
     }
 
-    // Sign in with Google
     const userInfo = await GoogleSignin.signIn();
 
     if (!userInfo?.data?.idToken) {
@@ -331,7 +294,6 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       };
     }
 
-    // Authenticate with Supabase using the ID token
     const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: userInfo.data.idToken,
@@ -341,7 +303,6 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       return { user: null, session: null, error: authError };
     }
 
-    // Check if profile exists, create if missing
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
@@ -349,7 +310,6 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       .single();
 
     if (!existingProfile) {
-      // Create profile for new user
       const username = await generateUniqueUsername();
       const fullName = userInfo.data.user?.name || authData.user.email?.split('@')[0] || 'User';
 
@@ -357,7 +317,7 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
         id: authData.user.id,
         username,
         full_name: fullName,
-        date_of_birth: '1990-01-01', // Default, user can update later
+        date_of_birth: '1990-01-01',
         interests: [],
       });
     }
@@ -368,12 +328,11 @@ export const signInWithGoogle = async (): Promise<AuthResult> => {
       error: null,
     };
   } catch (error: any) {
-    // Handle specific Google Sign In errors
     if (error.code === statusCodes.SIGN_IN_CANCELLED) {
       return {
         user: null,
         session: null,
-        error: null, // Not an error, user just cancelled
+        error: null,
       };
     }
     if (error.code === statusCodes.IN_PROGRESS) {
@@ -433,7 +392,6 @@ export const changePassword = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Verify current password by re-authenticating
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
@@ -443,7 +401,6 @@ export const changePassword = async (
     return { error: new Error('Current password is incorrect') };
   }
 
-  // Update to new password
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
   });
@@ -467,10 +424,6 @@ export const updateEmail = async (newEmail: string): Promise<{ error: Error | nu
   return { error: null };
 };
 
-// ============================================
-// Session Management
-// ============================================
-
 export const getSession = async (): Promise<Session | null> => {
   const { data: { session } } = await supabase.auth.getSession();
   return session;
@@ -486,10 +439,6 @@ export const onAuthStateChange = (callback: (session: Session | null) => void) =
     callback(session);
   });
 };
-
-// ============================================
-// Profile Management
-// ============================================
 
 export const getProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
@@ -516,7 +465,6 @@ export const updateProfile = async (
   userId: string,
   updates: ProfileUpdate
 ): Promise<{ profile: Profile | null; error: Error | null }> => {
-  // Handle username change restriction (30 days)
   if (updates.username !== undefined) {
     const { data: currentProfile } = await (supabase
       .from('profiles') as any)
@@ -524,7 +472,6 @@ export const updateProfile = async (
       .eq('id', userId)
       .single();
 
-    // Only check restriction if username is actually changing
     const isUsernameChanging = updates.username !== currentProfile?.username;
 
     if (isUsernameChanging && currentProfile?.last_username_change) {
@@ -540,7 +487,6 @@ export const updateProfile = async (
       }
     }
 
-    // Add timestamp for username change only if it's actually changing
     if (isUsernameChanging && updates.username) {
       (updates as any).last_username_change = new Date().toISOString();
     }
@@ -559,10 +505,6 @@ export const updateProfile = async (
   };
 };
 
-// ============================================
-// Avatar Upload
-// ============================================
-
 export const uploadAvatar = async (
   userId: string,
   file: { uri: string; type: string; name: string }
@@ -570,7 +512,6 @@ export const uploadAvatar = async (
   const fileExt = file.name.split('.').pop();
   const fileName = `${userId}/avatar.${fileExt}`;
 
-  // Read file as base64 for React Native
   const response = await fetch(file.uri);
   const arrayBuffer = await response.arrayBuffer();
 
@@ -589,10 +530,8 @@ export const uploadAvatar = async (
     .from('avatars')
     .getPublicUrl(fileName);
 
-  // Add cache buster to prevent stale images
   const avatarUrl = `${publicUrl}?t=${Date.now()}`;
 
-  // Update profile with new avatar URL
   await updateProfile(userId, { avatar_url: avatarUrl });
 
   return { url: avatarUrl, error: null };
@@ -601,7 +540,6 @@ export const uploadAvatar = async (
 export const deleteAvatar = async (
   userId: string
 ): Promise<{ error: Error | null }> => {
-  // List files in user's avatar folder
   const { data: files, error: listError } = await supabase.storage
     .from('avatars')
     .list(userId);
@@ -610,7 +548,6 @@ export const deleteAvatar = async (
     return { error: new Error(listError.message) };
   }
 
-  // Delete all avatar files for this user
   if (files && files.length > 0) {
     const filePaths = files.map((file) => `${userId}/${file.name}`);
     const { error: deleteError } = await supabase.storage
@@ -622,15 +559,10 @@ export const deleteAvatar = async (
     }
   }
 
-  // Update profile to remove avatar URL
   await updateProfile(userId, { avatar_url: null });
 
   return { error: null };
 };
-
-// ============================================
-// Account Deletion
-// ============================================
 
 export const deleteAccount = async (): Promise<{ error: Error | null }> => {
   const user = await getCurrentUser();
@@ -641,7 +573,6 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
   const userId = user.id;
 
   try {
-    // 1. Delete avatar from storage
     const { data: avatarFiles } = await supabase.storage
       .from('avatars')
       .list(userId);
@@ -651,25 +582,11 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
       await supabase.storage.from('avatars').remove(filePaths);
     }
 
-    // Note: Events and messages in events are preserved for participants
-    // They will be available in the events archive
-
-    // 2. Delete user's direct messages
     await supabase.from('direct_messages').delete().eq('sender_id', userId);
-
-    // 3. Delete user's conversations
     await supabase.from('conversations').delete().or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-
-    // 4. Delete blocked users (both directions)
     await supabase.from('blocked_users').delete().or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
-
-    // 5. Delete user's reports
     await supabase.from('reports').delete().eq('reporter_id', userId);
-
-    // 6. Delete user's notifications
     await supabase.from('notifications').delete().eq('user_id', userId);
-
-    // 7. Delete profile
     const { error: profileError } = await supabase
       .from('profiles')
       .delete()
@@ -679,7 +596,6 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
       return { error: new Error(profileError.message) };
     }
 
-    // 8. Delete user from Supabase Auth via Edge Function
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       const response = await fetch(
@@ -696,12 +612,9 @@ export const deleteAccount = async (): Promise<{ error: Error | null }> => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('Failed to delete auth user:', errorData);
-        // Continue with sign out even if auth deletion fails
-        // The profile is already deleted, so the account is effectively unusable
       }
     }
 
-    // 9. Sign out
     await signOut();
 
     return { error: null };

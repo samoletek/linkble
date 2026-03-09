@@ -61,11 +61,9 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const insets = useSafeAreaInsets();
   const createEvent = useEventsStore((state) => state.createEvent);
 
-  // Single animation value - backdrop interpolates from this (Pikup pattern)
   const translateY = useRef(new Animated.Value(MODAL_HEIGHT)).current;
   const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
-  // Backdrop opacity interpolated from translateY (Pikup pattern)
   const backdropOpacity = translateY.interpolate({
     inputRange: [0, MODAL_HEIGHT],
     outputRange: [0.5, 0],
@@ -92,7 +90,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderGrant: () => {
-        // Store current position as offset (Pikup pattern)
         translateY.setOffset((translateY as any)._value);
         translateY.setValue(0);
       },
@@ -102,7 +99,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Flatten offset back into value (Pikup pattern)
         translateY.flattenOffset();
 
         const currentY = (translateY as any)._value;
@@ -111,7 +107,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         const shouldClose = velocity > 1.5 || currentY > MODAL_HEIGHT * 0.3;
 
         if (shouldClose) {
-          // Use timing for close - spring waits for oscillation to settle
           Animated.timing(translateY, {
             toValue: MODAL_HEIGHT,
             duration: 250,
@@ -164,7 +159,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   const isEditMode = !!eventToEdit;
   const isPrivateCategory = selectedCategory === 'private';
 
-  // Force manual approval for private events, enable auto-accept for others
   useEffect(() => {
     if (isPrivateCategory) {
       setAutoAccept(false);
@@ -181,7 +175,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     };
   }, []);
 
-  // Populate fields when editing
   useEffect(() => {
     if (eventToEdit && visible) {
       setTitle(eventToEdit.title);
@@ -197,7 +190,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
       setImage(eventToEdit.image_url || null);
       setAutoAccept(eventToEdit.auto_accept);
 
-      // Map category_id to category string
       const categoryMap: Record<number, string> = {
         1: 'sports',
         2: 'parties',
@@ -209,12 +201,10 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
       };
       setSelectedCategory(categoryMap[eventToEdit.category_id] || null);
 
-      // Parse date and time
       const eventDate = new Date(eventToEdit.start_time);
       setSelectedDate(eventDate);
       setSelectedTime(eventDate);
 
-      // Parse end date and time
       if (eventToEdit.end_time) {
         setHasEndTime(true);
         const eventEndDate = new Date(eventToEdit.end_time);
@@ -434,7 +424,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
     setIsCreating(true);
 
     try {
-      // Validate date constraints: min 24 hours, max 1 year from now
       if (selectedDate && selectedTime) {
         const eventDateTime = new Date(selectedDate);
         eventDateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
@@ -456,10 +445,8 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         }
       }
 
-      // Upload image if selected and it's a new local image (not existing URL)
       let imageUrl: string | undefined;
       if (image) {
-        // Check if it's a new local image or existing URL
         if (image.startsWith('file://') || image.startsWith('ph://')) {
           console.log('Uploading image:', image);
           const uploadResult = await uploadEventImage(image);
@@ -471,16 +458,13 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           }
           imageUrl = uploadResult.url || undefined;
         } else {
-          // Keep existing URL
           imageUrl = image;
         }
       }
 
-      // Map category string ID to numeric ID (1-based index + 1)
       const categoryIndex = CATEGORIES.findIndex(c => c.id === selectedCategory);
       const categoryId = categoryIndex >= 0 ? categoryIndex + 1 : 4; // Default to freetime (4)
 
-      // Combine date and time into ISO string
       let startTime = new Date().toISOString();
       if (selectedDate && selectedTime) {
         const dateWithTime = new Date(selectedDate);
@@ -488,13 +472,11 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
         startTime = dateWithTime.toISOString();
       }
 
-      // Calculate end time if enabled
       let endTimeISO: string | undefined;
       if (hasEndTime && endDate && endTime) {
         const endDateTime = new Date(endDate);
         endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
 
-        // Validate end time is after start time
         const startDateTime = new Date(startTime);
         if (endDateTime <= startDateTime) {
           Alert.alert('Invalid End Time', 'End time must be after start time.');
@@ -518,7 +500,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
       }
 
       if (isEditMode && eventToEdit) {
-        // Check if location changed - only geocode if it did
         let locationData: { address: string; lat: number; lng: number } | null = null;
         if (location !== eventToEdit.location_address) {
           const resolvedLocation = await resolveLocationForEvent();
@@ -529,7 +510,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           locationData = resolvedLocation;
         }
 
-        // Update existing event
         const result = await updateEvent(eventToEdit.id, {
           title,
           description: description || 'No description',
@@ -559,7 +539,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
           return;
         }
 
-        // Create new event
         const result = await createEvent({
           title,
           description: description || 'No description',
@@ -617,7 +596,6 @@ export default function CreateEventModal({ visible, onClose, eventToEdit, onEdit
   };
 
   const animateClose = () => {
-    // Use timing for close - spring waits for oscillation to settle
     Animated.timing(translateY, {
       toValue: MODAL_HEIGHT,
       duration: 250,

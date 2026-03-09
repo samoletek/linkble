@@ -1,10 +1,5 @@
 import { Alert } from 'react-native';
 
-/**
- * Handles navigation when user taps on a push notification
- * @param data - Notification data payload from OneSignal
- * @param navigation - React Navigation object
- */
 export const handleNotificationPress = (data: any, navigation: any) => {
     if (!data || !navigation) {
         console.error('🔔 [Notification] Missing data or navigation!', { data, navigation });
@@ -21,7 +16,6 @@ export const handleNotificationPress = (data: any, navigation: any) => {
         fullData: data
     });
 
-    // Add small delay to ensure app is ready for navigation
     setTimeout(() => {
         console.log(`🔔 [Notification] Starting navigation for type: ${type}`);
 
@@ -29,7 +23,6 @@ export const handleNotificationPress = (data: any, navigation: any) => {
             case 'request_new':
             case 'request_approved':
             case 'request_denied':
-                // Navigate to Event Detail screen (in Feed tab)
                 if (eventId) {
                     console.log(`🔔 [Notification] Navigating to Feed with eventId: ${eventId}`);
                     navigation.navigate('Main', {
@@ -42,7 +35,6 @@ export const handleNotificationPress = (data: any, navigation: any) => {
                 break;
 
             case 'chat_message':
-                // Navigate to Event Chat screen (in Chat tab)
                 if (eventId) {
                     console.log(`🔔 [Notification] Navigating to Chat > EventChat with eventId: ${eventId}`);
                     navigation.navigate('Main', {
@@ -58,7 +50,6 @@ export const handleNotificationPress = (data: any, navigation: any) => {
                 break;
 
             case 'dm_message':
-                // Navigate to DM Chat screen (in Chat tab)
                 if (conversationId) {
                     console.log(`🔔 [Notification] Navigating to Chat > DirectChat with conversationId: ${conversationId}`);
                     navigation.navigate('Main', {
@@ -101,7 +92,6 @@ export const handleNotificationPress = (data: any, navigation: any) => {
                 break;
 
             case 'event_starting':
-                // Navigate to Event Detail (in Feed tab)
                 if (eventId) {
                     console.log(`🔔 [Notification] Navigating to Feed with eventId: ${eventId}`);
                     navigation.navigate('Main', {
@@ -116,6 +106,5 @@ export const handleNotificationPress = (data: any, navigation: any) => {
             default:
                 console.warn('🔔 [Notification] Unknown notification type:', type);
         }
-    }, 300); // 300ms delay to ensure app is ready
+    }, 300);
 };
-

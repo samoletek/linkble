@@ -1,10 +1,3 @@
-/**
- * Color constants for Linkble app
- * Supports both dark (primary) and light themes
- * Based on client design specs - neon blue accent color
- */
-
-// Dark theme colors (PRIMARY)
 export const DarkColors = {
   background: {
     primary: '#000814',          // Main app background (deep navy/black)
@@ -52,7 +45,6 @@ export const DarkColors = {
   transparent: 'transparent',
 } as const;
 
-// Light theme colors
 export const LightColors = {
   background: {
     primary: '#FFFFFF',

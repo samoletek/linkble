@@ -87,14 +87,12 @@ export default function EventDetailModal({
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
 
-  // Single animation value - backdrop interpolates from this (Pikup pattern)
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Backdrop opacity interpolated from translateY (Pikup pattern)
   const backdropOpacity = translateY.interpolate({
     inputRange: [0, SCREEN_HEIGHT * 0.5],
     outputRange: [0.5, 0],
@@ -108,18 +106,15 @@ export default function EventDetailModal({
         return Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderGrant: () => {
-        // Store current position as offset (Pikup pattern)
         translateY.setOffset((translateY as any)._value);
         translateY.setValue(0);
       },
       onPanResponderMove: (_, gestureState) => {
-        // Only allow dragging down
         if (gestureState.dy >= 0) {
           translateY.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Flatten offset back into value (Pikup pattern)
         translateY.flattenOffset();
 
         const currentY = (translateY as any)._value;
@@ -128,7 +123,6 @@ export default function EventDetailModal({
         const shouldClose = velocity > 1.5 || currentY > 200;
 
         if (shouldClose) {
-          // Use timing for close - spring waits for oscillation to settle
           Animated.timing(translateY, {
             toValue: SCREEN_HEIGHT,
             duration: 250,
@@ -148,7 +142,6 @@ export default function EventDetailModal({
     })
   ).current;
 
-  // Load full event details and participants when modal opens
   const loadEventData = useCallback(async () => {
     if (!event) return;
 
@@ -197,7 +190,6 @@ export default function EventDetailModal({
       return;
     }
 
-    // Refresh event details before stopping loading
     const details = await getEvent(event.id);
     setEventDetails(details);
     setIsActionLoading(false);
@@ -264,7 +256,6 @@ export default function EventDetailModal({
       return;
     }
 
-    // Reload data after response
     await loadEventData();
     setRespondingTo(null);
   }, [loadEventData]);
@@ -359,7 +350,6 @@ export default function EventDetailModal({
   }, [currentUser, event, selectedReason]);
 
   const animateClose = useCallback(() => {
-    // Use timing for close - spring waits for oscillation to settle
     Animated.timing(translateY, {
       toValue: SCREEN_HEIGHT,
       duration: 250,
@@ -378,7 +368,6 @@ export default function EventDetailModal({
   const participantsCount = eventDetails?.participants_count || 1;
   const spotsLeft = event.max_participants - participantsCount;
 
-  // Determine button state
   const renderActionButton = () => {
     if (isLoading || isActionLoading) {
       return (
@@ -449,7 +438,6 @@ export default function EventDetailModal({
     );
   };
 
-  // Show chat button only for participants and host
   const canAccessChat = isHost || participantStatus === 'accepted';
 
   return (

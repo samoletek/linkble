@@ -1,8 +1,3 @@
-/**
- * Typography constants for Linkble app
- * Uses system fonts (San Francisco on iOS, Roboto on Android)
- * All sizes are responsive based on screen dimensions
- */
 import { Platform, TextStyle } from 'react-native';
 import { fontScale, lineHeightScale } from '../utils/responsive';
 
@@ -13,7 +8,6 @@ const fontFamily = Platform.select({
 });
 
 export const Typography = {
-  // Headers
   h1: {
     fontFamily,
     fontSize: fontScale(32),
@@ -42,7 +36,6 @@ export const Typography = {
     lineHeight: lineHeightScale(24),
   } as TextStyle,
 
-  // Body text
   body: {
     fontFamily,
     fontSize: fontScale(16),
@@ -64,7 +57,6 @@ export const Typography = {
     lineHeight: lineHeightScale(20),
   } as TextStyle,
 
-  // Button text
   button: {
     fontFamily,
     fontSize: fontScale(16),

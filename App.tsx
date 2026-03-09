@@ -6,7 +6,6 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 import 'react-native-gesture-handler';
 import Mapbox from '@rnmapbox/maps';
 
-// Disable LogBox warnings in development
 LogBox.ignoreAllLogs(true);
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -18,13 +17,9 @@ import { configureGoogleSignIn } from './src/services/auth';
 
 Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
 
-// Initialize OneSignal
 if (ONESIGNAL_APP_ID && String(ONESIGNAL_APP_ID) !== 'YOUR_ONESIGNAL_APP_ID') {
   pushNotificationService.initialize(ONESIGNAL_APP_ID);
 }
-
-// Configure Google Sign In inside component
-// configureGoogleSignIn();
 
 ExpoSplashScreen.preventAutoHideAsync();
 
@@ -36,7 +31,6 @@ function AppContent() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Configure Google Sign In
         configureGoogleSignIn();
 
         await ExpoSplashScreen.hideAsync();

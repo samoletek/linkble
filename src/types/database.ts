@@ -1,6 +1,3 @@
-// Database types for Supabase
-// Auto-generated based on schema
-
 export type Json =
   | string
   | number
@@ -8,10 +5,6 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[];
-
-// ============================================
-// Table Types
-// ============================================
 
 export interface Category {
   id: number;
@@ -157,10 +150,6 @@ export type NotificationType =
   | 'kicked_from_event'
   | 'event_full';
 
-// ============================================
-// Extended Types (with relations)
-// ============================================
-
 export interface EventWithHost extends Event {
   host: Profile;
   category: Category;
@@ -186,10 +175,6 @@ export interface ConversationWithUser extends Conversation {
   last_message: DirectMessage | null;
   unread_count: number;
 }
-
-// ============================================
-// Insert Types (for creating new records)
-// ============================================
 
 export interface ProfileInsert {
   id: string;
@@ -263,10 +248,6 @@ export interface ReportInsert {
   reason: ReportReason;
   description?: string;
 }
-
-// ============================================
-// Database Schema Type (for Supabase client)
-// ============================================
 
 export interface Database {
   public: {

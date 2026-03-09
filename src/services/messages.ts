@@ -10,10 +10,6 @@ import {
 } from '../types/database';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-// ============================================
-// Event Chats List
-// ============================================
-
 export interface EventChatPreview {
   event_id: string;
   event_title: string;
@@ -41,7 +37,6 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  // Get events where user is accepted participant or host
   const { data: participations, error: participationsError } = await supabase
     .from('event_participants')
     .select(`
@@ -59,7 +54,6 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     .eq('user_id', userId)
     .eq('status', 'accepted') as { data: Array<{ event_id: string; event: EventWithHostAndDate | null }> | null; error: any };
 
-  // Get events where user is host (active events)
   const { data: hostedEvents, error: hostedError } = await supabase
     .from('events')
     .select(`
@@ -79,12 +73,7 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     return [];
   }
 
-  // Helper to check if event chat is still active
-  // - Event must NOT be cancelled
-  // - With end_time: active until end_time + 24h
-  // - Without end_time: active until start_time + 3 days
   const isEventChatActive = (event: EventWithHostAndDate): boolean => {
-    // Exclude cancelled events from active chats
     if ((event as any).status === 'cancelled') {
       return false;
     }
@@ -102,22 +91,16 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     }
   };
 
-  // Combine events (filter to active chats only)
   const eventMap = new Map<string, EventWithHost>();
 
-  // Add hosted events (filter by active chat window)
   (hostedEvents || []).forEach((event) => {
-    // Note: hostedEvents query already filters by status='active', but we keep check for safety
     if (isEventChatActive(event)) {
       eventMap.set(event.id, event);
     }
   });
 
-  // Add participated events (filter by active chat window)
   (participations || []).forEach((p) => {
-    // Ensure we check status for participated events too
     if (p.event && !eventMap.has(p.event.id)) {
-      // If event is cancelled, it shouldn't be in active list
       if ((p.event as any).status === 'cancelled') return;
 
       if (isEventChatActive(p.event)) {
@@ -126,7 +109,6 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     }
   });
 
-  // Get last message for each event
   const chats = await Promise.all(
     Array.from(eventMap.values()).map(async (event) => {
       const { data: lastMsg } = await supabase
@@ -138,7 +120,6 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
         .limit(1)
         .single() as { data: { content: string; created_at: string } | null };
 
-      // Get all messages in this event (not from current user, not deleted)
       const { data: allMessages } = await supabase
         .from('messages')
         .select('id')
@@ -148,7 +129,6 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
 
       let unreadCount = 0;
       if (allMessages && allMessages.length > 0) {
-        // Get messages already read by current user
         const { data: readMessages } = await supabase
           .from('message_reads')
           .select('message_id')
@@ -171,20 +151,12 @@ export const getEventChats = async (): Promise<EventChatPreview[]> => {
     })
   );
 
-  // Sort by last message time
   return chats.sort((a, b) => {
     if (!a.last_message_at) return 1;
     if (!b.last_message_at) return -1;
     return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
   });
 };
-
-// ============================================
-// Archived Event Chats
-// Archived window: 24 hours after active period ends
-// - With end_time: archive from (end_time + 24h) to (end_time + 48h)
-// - Without end_time: archive from (start_time + 3 days) to (start_time + 4 days)
-// ============================================
 
 export interface ArchivedEventChatPreview extends EventChatPreview {
   start_time: string;
@@ -196,19 +168,15 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  // Helper to check if event is in archive window (24h after active period OR immediately if cancelled)
   const isInArchiveWindow = (event: EventWithHostAndDate & { status?: string; updated_at?: string }): { inArchive: boolean; archivedAt: Date } => {
     const nowDate = new Date();
 
-    // Handle Cancelled Events
     if (event.status === 'cancelled') {
-      // If cancelled, it goes to archive immediately for 24 hours
-      // We use updated_at as the "cancellation time", or fall back to start_time if missing
       const cancellationTime = event.updated_at ? new Date(event.updated_at) : new Date();
       const archiveEnd = new Date(cancellationTime.getTime() + 24 * 60 * 60 * 1000);
 
       return {
-        inArchive: nowDate < archiveEnd, // Visible for 24h after cancellation
+        inArchive: nowDate < archiveEnd,
         archivedAt: cancellationTime
       };
     }
@@ -233,7 +201,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     }
   };
 
-  // Get events where user participated
   const { data: participations, error: participationsError } = await supabase
     .from('event_participants')
     .select(`
@@ -253,7 +220,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     .eq('user_id', userId)
     .eq('status', 'accepted') as { data: Array<{ event_id: string; event: (EventWithHostAndDate & { status: string; updated_at: string }) | null }> | null; error: any };
 
-  // Get events where user is host (including cancelled)
   const { data: hostedEvents, error: hostedError } = await supabase
     .from('events')
     .select(`
@@ -274,10 +240,8 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     return [];
   }
 
-  // Combine events and filter to archive window
   const eventMap = new Map<string, { event: EventWithHostAndDate; archivedAt: Date }>();
 
-  // Add hosted events in archive window
   (hostedEvents || []).forEach((event) => {
     const { inArchive, archivedAt } = isInArchiveWindow(event);
     if (inArchive) {
@@ -285,7 +249,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     }
   });
 
-  // Add participated events in archive window
   (participations || []).forEach((p) => {
     if (p.event && !eventMap.has(p.event.id)) {
       const { inArchive, archivedAt } = isInArchiveWindow(p.event);
@@ -295,7 +258,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     }
   });
 
-  // Get last message for each event
   const chats = await Promise.all(
     Array.from(eventMap.values()).map(async ({ event, archivedAt }) => {
       const { data: lastMsg } = await supabase
@@ -307,7 +269,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
         .limit(1)
         .single() as { data: { content: string; created_at: string } | null };
 
-      // Get all messages in this event (not from current user, not deleted)
       const { data: allMessages } = await supabase
         .from('messages')
         .select('id')
@@ -317,7 +278,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
 
       let unreadCount = 0;
       if (allMessages && allMessages.length > 0) {
-        // Get messages already read by current user
         const { data: readMessages } = await supabase
           .from('message_reads')
           .select('message_id')
@@ -343,7 +303,6 @@ export const getArchivedEventChats = async (): Promise<ArchivedEventChatPreview[
     })
   );
 
-  // Sort by archived date (most recent first)
   return chats.sort((a, b) => b.archived_at.getTime() - a.archived_at.getTime());
 };
 
@@ -351,10 +310,6 @@ export const getArchivedChatsCount = async (): Promise<number> => {
   const chats = await getArchivedEventChats();
   return chats.length;
 };
-
-// ============================================
-// Event Chat Messages
-// ============================================
 
 export const getEventMessages = async (
   eventId: string,
@@ -415,7 +370,6 @@ export const pinMessage = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get message and verify host permission
   const { data: message } = await supabase
     .from('messages')
     .select(`
@@ -449,7 +403,6 @@ export const deleteMessage = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get message and check permissions (own message or host)
   const { data: message } = await supabase
     .from('messages')
     .select(`
@@ -483,10 +436,6 @@ export const deleteMessage = async (
   return { error: null };
 };
 
-// ============================================
-// Event Message Read Tracking
-// ============================================
-
 export const markEventMessagesAsRead = async (
   eventId: string
 ): Promise<{ error: Error | null }> => {
@@ -495,7 +444,6 @@ export const markEventMessagesAsRead = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get all unread messages in this event (not sent by current user)
   const { data: unreadMessages, error: fetchError } = await supabase
     .from('messages')
     .select('id')
@@ -507,7 +455,6 @@ export const markEventMessagesAsRead = async (
     return { error: fetchError ? new Error(fetchError.message) : null };
   }
 
-  // Get messages already read by this user
   const { data: alreadyRead } = await supabase
     .from('message_reads')
     .select('message_id')
@@ -554,15 +501,10 @@ export const getMessageReadStatus = async (
   return new Set((data || []).map(r => r.message_id));
 };
 
-// ============================================
-// Direct Messages
-// ============================================
-
 export const getConversations = async (): Promise<ConversationWithUser[]> => {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  // Get hidden conversation IDs
   const hiddenIds = await getHiddenConversationIds();
 
   const { data, error } = await supabase
@@ -576,10 +518,8 @@ export const getConversations = async (): Promise<ConversationWithUser[]> => {
     return [];
   }
 
-  // Filter out hidden conversations
   const visibleConversations = (data || []).filter(conv => !hiddenIds.includes(conv.id));
 
-  // Fetch other user details, last message, and unread count for each conversation
   const conversationsWithDetails = await Promise.all(
     visibleConversations.map(async (conv) => {
       const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
@@ -676,7 +616,6 @@ export const sendDirectMessage = async (
     return { message: null, error: new Error('Not authenticated') };
   }
 
-  // 1. Get conversation to identify the other user
   const { data: conversation } = await supabase
     .from('conversations')
     .select('user1_id, user2_id')
@@ -689,7 +628,6 @@ export const sendDirectMessage = async (
 
   const otherUserId = conversation.user1_id === userId ? conversation.user2_id : conversation.user1_id;
 
-  // 2. Check for blocks (in both directions)
   const { data: blockCheck } = await supabase
     .from('blocked_users')
     .select('id')
@@ -725,7 +663,6 @@ export const markMessagesAsRead = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get unread message IDs before updating
   const { data: unreadMessages } = await supabase
     .from('direct_messages')
     .select('id')
@@ -748,7 +685,6 @@ export const markMessagesAsRead = async (
     return { error: new Error(error.message) };
   }
 
-  // Broadcast read status - need to subscribe first, then send
   return new Promise((resolve) => {
     const broadcastChannel = supabase.channel(`dm-broadcast:${conversationId}`);
     broadcastChannel
@@ -775,7 +711,6 @@ export const deleteDirectMessage = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Verify ownership
   const { data: message } = await supabase
     .from('direct_messages')
     .select('sender_id')
@@ -807,7 +742,6 @@ export const pinDirectMessage = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get message and verify user is in the conversation
   const { data: message } = await supabase
     .from('direct_messages')
     .select(`
@@ -832,7 +766,6 @@ export const pinDirectMessage = async (
     return { error: new Error('Not authorized to pin messages in this conversation') };
   }
 
-  // If pinning, unpin all other messages in this conversation first
   if (pinned) {
     await (supabase
       .from('direct_messages') as any)
@@ -852,11 +785,6 @@ export const pinDirectMessage = async (
   return { error: null };
 };
 
-
-// ============================================
-// Real-time Subscriptions
-// ============================================
-
 export const subscribeToEventMessages = (
   eventId: string,
   onMessage: (message: MessageWithSender) => void,
@@ -873,7 +801,6 @@ export const subscribeToEventMessages = (
         filter: `event_id=eq.${eventId}`,
       },
       async (payload) => {
-        // Fetch sender details
         const { data: sender } = await supabase
           .from('profiles')
           .select('*')
@@ -918,7 +845,6 @@ export const subscribeToDirectMessages = (
         filter: `conversation_id=eq.${conversationId}`,
       },
       async (payload) => {
-        // Fetch sender details
         const { data: sender } = await supabase
           .from('profiles')
           .select('*')
@@ -933,7 +859,6 @@ export const subscribeToDirectMessages = (
     )
     .subscribe();
 
-  // Separate channel for broadcast (read receipts)
   const broadcastChannel = supabase
     .channel(`dm-broadcast:${conversationId}`)
     .on(
@@ -1009,14 +934,6 @@ export const unsubscribe = (channel: RealtimeChannel): void => {
   supabase.removeChannel(channel);
 };
 
-// ============================================
-// Chat Deletion (Hide for User)
-// ============================================
-
-/**
- * Leave an event chat - removes the user from the event
- * This will hide the chat from the user's list since they're no longer a participant
- */
 export const leaveEventChat = async (
   eventId: string
 ): Promise<{ error: Error | null }> => {
@@ -1025,7 +942,6 @@ export const leaveEventChat = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Check if user is the host - hosts cannot leave their own event
   const { data: event } = await supabase
     .from('events')
     .select('host_id')
@@ -1036,7 +952,6 @@ export const leaveEventChat = async (
     return { error: new Error('As the host, you cannot leave your own event. Cancel the event instead.') };
   }
 
-  // Update participant status to 'left'
   const { error } = await (supabase
     .from('event_participants') as any)
     .update({ status: 'left' })
@@ -1050,10 +965,6 @@ export const leaveEventChat = async (
   return { error: null };
 };
 
-/**
- * Hide a direct conversation for the current user
- * Stores in hidden_conversations table in Supabase
- */
 export const hideConversation = async (
   conversationId: string
 ): Promise<{ error: Error | null }> => {
@@ -1070,7 +981,6 @@ export const hideConversation = async (
     });
 
   if (error) {
-    // Ignore unique constraint violation (already hidden)
     if (error.code === '23505') {
       return { error: null };
     }
@@ -1080,9 +990,6 @@ export const hideConversation = async (
   return { error: null };
 };
 
-/**
- * Get list of hidden conversation IDs for current user
- */
 export const getHiddenConversationIds = async (): Promise<string[]> => {
   const userId = await getCurrentUserId();
   if (!userId) return [];

@@ -13,10 +13,6 @@ import { getBlockedUserIds } from './users';
 
 const MAX_EVENT_PARTICIPANTS = 1000;
 
-// ============================================
-// Categories
-// ============================================
-
 export const getCategories = async (): Promise<Category[]> => {
   const { data, error } = await supabase
     .from('categories')
@@ -31,10 +27,6 @@ export const getCategories = async (): Promise<Category[]> => {
   return data || [];
 };
 
-// ============================================
-// Event Queries
-// ============================================
-
 export const getNearbyEvents = async (
   latitude: number,
   longitude: number,
@@ -43,7 +35,6 @@ export const getNearbyEvents = async (
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
 
-  // Get blocked user IDs (mutual blocks)
   let blockedIds: string[] = [];
   if (userId) {
     try {
@@ -53,7 +44,6 @@ export const getNearbyEvents = async (
     }
   }
 
-  // Get event IDs where user is a participant (host or accepted participant)
   let userParticipatingEventIds: string[] = [];
   if (userId) {
     const { data: hostedEvents } = await supabase
@@ -85,7 +75,6 @@ export const getNearbyEvents = async (
     return [];
   }
 
-  // Fetch host and category details for each event
   const eventIds = (data as Event[])?.map((e) => e.id) || [];
   if (eventIds.length === 0) return [];
 
@@ -101,40 +90,29 @@ export const getNearbyEvents = async (
 
   if (!eventsWithDetails) return [];
 
-  // Filter events:
-  // 1. Show future events (not started) for everyone
-  // 2. Show ongoing/past events only for participants with time limits:
-  //    - With end_time: visible until 24h after end_time
-  //    - Without end_time: visible for 3 days after start_time
   const filteredByTime = eventsWithDetails.filter((event: any) => {
     const startTime = new Date(event.start_time);
     const endTime = event.end_time ? new Date(event.end_time) : null;
     const nowDate = new Date(now);
 
-    // Event hasn't started yet - show to everyone
     if (startTime > nowDate) {
       return true;
     }
 
-    // Event has started - only show to participants
     const isParticipant = userParticipatingEventIds.includes(event.id);
     if (!isParticipant) {
       return false;
     }
 
-    // User is a participant - check visibility window
     if (endTime) {
-      // With end_time: visible until 24h after end
       const visibilityEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
       return nowDate < visibilityEnd;
     } else {
-      // Without end_time: visible for 3 days after start
       const visibilityEnd = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
       return nowDate < visibilityEnd;
     }
   });
 
-  // Filter out events from blocked users
   const filteredEvents = blockedIds.length > 0
     ? filteredByTime.filter((e: any) => !blockedIds.includes(e.host_id))
     : filteredByTime;
@@ -146,7 +124,6 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
 
-  // Get blocked user IDs (mutual blocks)
   let blockedIds: string[] = [];
   if (userId) {
     try {
@@ -156,17 +133,14 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
     }
   }
 
-  // Get event IDs where user is a participant (host or accepted participant)
   let userParticipatingEventIds: string[] = [];
   if (userId) {
-    // Events where user is host
     const { data: hostedEvents } = await supabase
       .from('events')
       .select('id')
       .eq('host_id', userId)
       .eq('status', 'active');
 
-    // Events where user is accepted participant
     const { data: participantEvents } = await supabase
       .from('event_participants')
       .select('event_id')
@@ -179,7 +153,6 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
     ];
   }
 
-  // Fetch all active events (both future and ongoing)
   const { data: eventsData, error } = await supabase
     .from('events')
     .select(`
@@ -195,45 +168,33 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
     return [];
   }
 
-  // Filter events:
-  // 1. Show future events (not started) for everyone
-  // 2. Show ongoing/past events only for participants with time limits:
-  //    - With end_time: visible until 24h after end_time
-  //    - Without end_time: visible for 3 days after start_time
   const filteredByTime = eventsData.filter((event: any) => {
     const startTime = new Date(event.start_time);
     const endTime = event.end_time ? new Date(event.end_time) : null;
     const nowDate = new Date(now);
 
-    // Event hasn't started yet - show to everyone
     if (startTime > nowDate) {
       return true;
     }
 
-    // Event has started - only show to participants
     const isParticipant = userParticipatingEventIds.includes(event.id);
     if (!isParticipant) {
       return false;
     }
 
-    // User is a participant - check visibility window
     if (endTime) {
-      // With end_time: visible until 24h after end
       const visibilityEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
       return nowDate < visibilityEnd;
     } else {
-      // Without end_time: visible for 3 days after start
       const visibilityEnd = new Date(startTime.getTime() + 3 * 24 * 60 * 60 * 1000);
       return nowDate < visibilityEnd;
     }
   });
 
-  // Filter out events from blocked users
   const filteredEvents = blockedIds.length > 0
     ? filteredByTime.filter((e: any) => !blockedIds.includes(e.host_id))
     : filteredByTime;
 
-  // Fetch participant counts for all events
   const eventIds = filteredEvents.map((e: any) => e.id);
   if (eventIds.length === 0) return [];
 
@@ -243,16 +204,14 @@ export const getAllEvents = async (): Promise<(EventWithHost & { participants_co
     .in('event_id', eventIds)
     .eq('status', 'accepted');
 
-  // Count participants per event
   const countMap: Record<string, number> = {};
   (participantCounts || []).forEach((p: any) => {
     countMap[p.event_id] = (countMap[p.event_id] || 0) + 1;
   });
 
-  // Merge counts with events and mark user participation
   const eventsWithCounts = filteredEvents.map((event: any) => ({
     ...event,
-    participants_count: (countMap[event.id] || 0) + 1, // +1 for host
+    participants_count: (countMap[event.id] || 0) + 1,
     is_user_participant: userParticipatingEventIds.includes(event.id),
   }));
 
@@ -304,14 +263,12 @@ export const getEvent = async (eventId: string): Promise<EventWithDetails | null
     return null;
   }
 
-  // Get participants count
   const { count: participantsCount } = await supabase
     .from('event_participants')
     .select('*', { count: 'exact', head: true })
     .eq('event_id', eventId)
     .eq('status', 'accepted');
 
-  // Check if current user is participant
   let participantStatus: EventParticipant['status'] | null = null;
   if (userId) {
     const { data: participant } = await supabase
@@ -327,14 +284,13 @@ export const getEvent = async (eventId: string): Promise<EventWithDetails | null
   const eventData = event as EventWithHost;
   return {
     ...eventData,
-    participants_count: (participantsCount || 0) + 1, // +1 for host
+    participants_count: (participantsCount || 0) + 1,
     is_participant: participantStatus === 'accepted' || eventData.host_id === userId,
     participant_status: participantStatus,
   } as EventWithDetails;
 };
 
 export const getUserEvents = async (userId: string): Promise<EventWithHost[]> => {
-  // Events where user is host
   const { data: hostedEvents } = await supabase
     .from('events')
     .select(`
@@ -345,7 +301,6 @@ export const getUserEvents = async (userId: string): Promise<EventWithHost[]> =>
     .eq('host_id', userId)
     .order('start_time', { ascending: true });
 
-  // Events where user is accepted participant
   const { data: participantEvents } = await supabase
     .from('event_participants')
     .select(`
@@ -361,16 +316,11 @@ export const getUserEvents = async (userId: string): Promise<EventWithHost[]> =>
   const hosted = (hostedEvents as EventWithHost[]) || [];
   const participating = participantEvents?.map((p: any) => p.event).filter(Boolean) || [];
 
-  // Combine and sort by start time
   const allEvents = [...hosted, ...participating];
   allEvents.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
   return allEvents;
 };
-
-// ============================================
-// Event Image Upload
-// ============================================
 
 export const uploadEventImage = async (
   imageUri: string
@@ -383,23 +333,19 @@ export const uploadEventImage = async (
   }
 
   try {
-    // Generate unique filename
     const timestamp = Date.now();
     const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}/${timestamp}.${fileExt}`;
     console.log('uploadEventImage - fileName:', fileName);
 
-    // Fetch the image and convert to ArrayBuffer (React Native compatible)
     const response = await fetch(imageUri);
     console.log('uploadEventImage - fetch response ok:', response.ok);
 
     const arrayBuffer = await response.arrayBuffer();
     console.log('uploadEventImage - arrayBuffer size:', arrayBuffer.byteLength);
 
-    // Determine content type
     const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
-    // Upload to Supabase Storage using ArrayBuffer
     const { error: uploadError } = await supabase.storage
       .from('event-images')
       .upload(fileName, arrayBuffer, {
@@ -412,7 +358,6 @@ export const uploadEventImage = async (
       return { url: null, error: new Error(uploadError.message) };
     }
 
-    // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('event-images')
       .getPublicUrl(fileName);
@@ -425,10 +370,6 @@ export const uploadEventImage = async (
   }
 };
 
-// ============================================
-// Event CRUD
-// ============================================
-
 export const createEvent = async (
   eventData: Omit<EventInsert, 'host_id'>
 ): Promise<{ event: Event | null; error: Error | null }> => {
@@ -437,7 +378,6 @@ export const createEvent = async (
     return { event: null, error: new Error('Not authenticated') };
   }
 
-  // Ensure profile exists (required for foreign key)
   const { data: existingProfile } = await supabase
     .from('profiles')
     .select('id')
@@ -445,7 +385,6 @@ export const createEvent = async (
     .single();
 
   if (!existingProfile) {
-    // Get user email for profile name
     const { data: { user } } = await supabase.auth.getUser();
     const profileName = user?.email?.split('@')[0] || 'User';
 
@@ -461,7 +400,6 @@ export const createEvent = async (
     }
   }
 
-  // Check if user already has an active event they're participating in
   const { data: existingParticipation } = await supabase
     .from('event_participants')
     .select('event_id')
@@ -470,7 +408,6 @@ export const createEvent = async (
     .limit(1) as { data: Array<{ event_id: string }> | null };
 
   if (existingParticipation && existingParticipation.length > 0) {
-    // Verify the event is still active and upcoming
     const { data: activeEvent } = await supabase
       .from('events')
       .select('id')
@@ -519,7 +456,6 @@ export const updateEvent = async (
     return { event: null, error: new Error('Not authenticated') };
   }
 
-  // Verify ownership
   const { data: existing } = await supabase
     .from('events')
     .select('host_id')
@@ -536,6 +472,22 @@ export const updateEvent = async (
     }
     if (updates.max_participants > MAX_EVENT_PARTICIPANTS) {
       return { event: null, error: new Error(`Maximum participants is ${MAX_EVENT_PARTICIPANTS}`) };
+    }
+
+    const { count: acceptedCount } = await supabase
+      .from('event_participants')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('status', 'accepted');
+
+    const currentTotalParticipants = (acceptedCount || 0) + 1;
+    if (updates.max_participants < currentTotalParticipants) {
+      return {
+        event: null,
+        error: new Error(
+          `Cannot set participant limit below current participants (${currentTotalParticipants})`
+        ),
+      };
     }
   }
 
@@ -561,7 +513,6 @@ export const cancelEvent = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get event and verify ownership + timing
   const { data: event } = await supabase
     .from('events')
     .select('host_id, start_time')
@@ -572,7 +523,6 @@ export const cancelEvent = async (
     return { error: new Error('Not authorized to cancel this event') };
   }
 
-  // Check 24 hour rule
   const startTime = new Date(event.start_time);
   const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
@@ -592,10 +542,6 @@ export const cancelEvent = async (
   return { error: null };
 };
 
-// ============================================
-// Join System
-// ============================================
-
 export const requestToJoin = async (
   eventId: string
 ): Promise<{ status: EventParticipant['status'] | null; error: Error | null }> => {
@@ -604,7 +550,6 @@ export const requestToJoin = async (
     return { status: null, error: new Error('Not authenticated') };
   }
 
-  // First check if event exists and hasn't ended
   const { data: event, error: eventError } = await supabase
     .from('events')
     .select('status, start_time, end_time, max_participants, auto_accept')
@@ -619,7 +564,6 @@ export const requestToJoin = async (
     return { status: null, error: new Error('This event has been cancelled') };
   }
 
-  // Check if event has ended
   if (event.end_time) {
     const endTime = new Date(event.end_time);
     if (endTime < new Date()) {
@@ -627,7 +571,6 @@ export const requestToJoin = async (
     }
   }
 
-  // Check if user already has a participation record
   const { data: existingParticipant } = await supabase
     .from('event_participants')
     .select('id, status')
@@ -647,40 +590,29 @@ export const requestToJoin = async (
     }
   }
 
-  // Check capacity
   const { count } = await supabase
     .from('event_participants')
     .select('*', { count: 'exact', head: true })
     .eq('event_id', eventId)
     .eq('status', 'accepted');
 
-  if (count !== null && count >= event.max_participants) {
+  const participantSlots = Math.max((event.max_participants ?? 1) - 1, 0);
+  if (count !== null && count >= participantSlots) {
     return { status: null, error: new Error('Event is full') };
   }
 
-  // ============================================
-  // Time Conflict Check
-  // ============================================
-
-  // Define Target Time Range
   const targetStart = new Date(event.start_time);
-  // Default duration 2 hours if no end time
   const targetEnd = event.end_time
     ? new Date(event.end_time)
     : new Date(targetStart.getTime() + 2 * 60 * 60 * 1000);
 
-  // Helper to check overlap
   const hasOverlap = (evStart: string, evEnd: string | null) => {
     const bStart = new Date(evStart);
     const bEnd = evEnd ? new Date(evEnd) : new Date(bStart.getTime() + 2 * 60 * 60 * 1000);
 
-    // Check intersection: (StartA < EndB) && (EndA > StartB)
     return targetStart.getTime() < bEnd.getTime() && targetEnd.getTime() > bStart.getTime();
   };
 
-  // 1. Check overlapping hosted events
-  // Optimization: Only look at events starting after "now - 24h" to avoid checking ancient history, 
-  // but catch currently running events.
   const lookbackTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data: hostedConflicts } = await supabase
@@ -694,7 +626,6 @@ export const requestToJoin = async (
     return { status: null, error: new Error('You are hosting another event at this time') };
   }
 
-  // 2. Check overlapping participations
   const { data: participations } = await supabase
     .from('event_participants')
     .select(`
@@ -710,18 +641,15 @@ export const requestToJoin = async (
   if (participations?.some((p: any) => {
     const e = p.event;
     if (!e || e.status === 'cancelled') return false;
-    // Check if event is relevant (not ancient)
     if (new Date(e.start_time) < new Date(lookbackTime)) return false;
     return hasOverlap(e.start_time, e.end_time);
   })) {
     return { status: null, error: new Error('You have another event at this time') };
   }
 
-  // Determine new status
   const isAutoAccept = event.auto_accept;
   const newStatus: EventParticipant['status'] = isAutoAccept ? 'accepted' : 'pending';
 
-  // If user was kicked or left, update their status instead of inserting
   if (existingParticipant && (existingParticipant.status === 'kicked' || existingParticipant.status === 'left')) {
     const { error: updateError } = await (supabase
       .from('event_participants') as any)
@@ -739,7 +667,6 @@ export const requestToJoin = async (
     return { status: newStatus, error: null };
   }
 
-  // Create new participation record
   const { error: insertError } = await (supabase
     .from('event_participants') as any)
     .insert({
@@ -765,37 +692,46 @@ export const respondToRequest = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get participant record and verify host, also get event timing
   const { data: participant } = await supabase
     .from('event_participants')
     .select(`
       event_id,
       status,
-      event:events(host_id, start_time, end_time, status)
+      event:events(host_id, start_time, end_time, status, max_participants)
     `)
     .eq('id', participantId)
-    .single() as { data: { event_id: string; status: string; event: { host_id: string; start_time: string; end_time: string | null; status: string } | null } | null };
+    .single() as { data: { event_id: string; status: string; event: { host_id: string; start_time: string; end_time: string | null; status: string; max_participants: number } | null } | null };
 
   if (!participant || participant.event?.host_id !== userId) {
     return { error: new Error('Not authorized') };
   }
 
-  // Check if request is still pending
   if (participant.status !== 'pending') {
     return { error: new Error('This request has already been responded to') };
   }
 
-  // Check if event is cancelled
   if (participant.event?.status === 'cancelled') {
     return { error: new Error('Cannot respond to requests for cancelled events') };
   }
 
-  // Check if event has ended
   const now = new Date();
   const endTime = participant.event?.end_time ? new Date(participant.event.end_time) : null;
 
   if (endTime && endTime < now) {
     return { error: new Error('Cannot respond to requests after event has ended') };
+  }
+
+  if (accept) {
+    const participantSlots = Math.max((participant.event?.max_participants ?? 1) - 1, 0);
+    const { count: acceptedCount } = await supabase
+      .from('event_participants')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', participant.event_id)
+      .eq('status', 'accepted');
+
+    if (acceptedCount !== null && acceptedCount >= participantSlots) {
+      return { error: new Error('Event is full') };
+    }
   }
 
   const { error } = await (supabase
@@ -821,7 +757,6 @@ export const leaveEvent = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Get event details for leave deadline check
   const { data: event } = await supabase
     .from('events')
     .select('start_time, is_private')
@@ -866,7 +801,6 @@ export const kickParticipant = async (
     return { error: new Error('Not authenticated') };
   }
 
-  // Verify host
   const { data: event } = await supabase
     .from('events')
     .select('host_id')
@@ -889,10 +823,6 @@ export const kickParticipant = async (
 
   return { error: null };
 };
-
-// ============================================
-// Participants
-// ============================================
 
 export const getEventParticipants = async (
   eventId: string
