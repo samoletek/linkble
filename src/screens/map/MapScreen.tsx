@@ -155,7 +155,7 @@ export default function MapScreen() {
   };
 
   const handleOpenChat = (eventId: string) => {
-    navigation.navigate('ChatNavigator', {
+    navigation.navigate('Chat', {
       screen: 'EventChat',
       params: { eventId },
     });

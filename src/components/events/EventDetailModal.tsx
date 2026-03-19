@@ -359,6 +359,12 @@ export default function EventDetailModal({
     });
   }, [translateY, onClose]);
 
+  const handleOpenChatPress = useCallback(() => {
+    if (!event || !onOpenChat) return;
+    onOpenChat(event.id);
+    onClose();
+  }, [event, onOpenChat, onClose]);
+
   if (!event) return null;
 
   const hostName = event.host?.full_name || 'Unknown';
@@ -803,10 +809,7 @@ export default function EventDetailModal({
               {canAccessChat && onOpenChat && (
                 <TouchableOpacity
                   style={[styles.chatButton, { backgroundColor: colors.background.tertiary }]}
-                  onPress={() => {
-                    onClose();
-                    onOpenChat(event.id);
-                  }}
+                  onPress={handleOpenChatPress}
                 >
                   <ChatCircle size={iconScale(22)} color={colors.text.primary} weight="bold" />
                 </TouchableOpacity>
