@@ -3,9 +3,9 @@
 Linkble is a local-events mobile app for finding, creating, and joining real-world activities nearby. The repository includes the React Native app, the marketing website, and Supabase backend assets.
 
 Website: `https://linkble-app.com`
-App version: `1.0.9`
-iOS build: `12`
-Android versionCode: `12`
+App version: `1.0.10`
+iOS build: `13`
+Android versionCode: `13`
 
 ## What Is In This Repo
 
