@@ -37,7 +37,7 @@ export const MIN_AGE = 16;
 export const USERNAME_CHANGE_DAYS = 30;
 
 export const MIN_PARTICIPANTS = 2;
-export const MAX_PARTICIPANTS = 50;
+export const MAX_PARTICIPANTS = 1000;
 export const MAX_DESCRIPTION_LENGTH = 2000;
 export const MIN_ADVANCE_HOURS = 1;
 export const MAX_ADVANCE_DAYS = 365;
