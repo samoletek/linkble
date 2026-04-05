@@ -80,3 +80,7 @@ CHECKLIST.md
 
 # Local agent instructions
 agents.md
+AGENTS.md
+.agent/
+.agents/
+.codex/

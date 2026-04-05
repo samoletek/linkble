@@ -1,92 +1,57 @@
 # Linkble
 
-Linkble is a local-events mobile app for finding, creating, and joining real-world activities nearby. The repository includes the React Native app, the marketing website, and Supabase backend assets.
+Linkble is a local-events product with:
+- mobile app (React Native + Expo bare workflow)
+- marketing/legal website
+- Supabase backend migrations and Edge Functions
 
-Website: `https://linkble-app.com`
-App version: `1.0.11`
-iOS build: `14`
-Android versionCode: `14`
+Production website: `https://linkble-app.com`
 
-## What Is In This Repo
+## Repository Layout
 
-- `src/`: app screens, components, services, stores, and navigation
-- `website/`: landing page plus legal pages
-- `supabase/`: migrations and Edge Functions
-- `ios/`, `android/`: native projects for local builds
-- `CHECKLIST.md`: delivery status and Phase 2 proposal
-
-## Current App Scope
-
-- Email/password auth plus Apple Sign In and Google Sign In
-- Profile setup, avatar upload, interests, username changes, account deletion
-- Event discovery in feed and on map
-- Event creation with category, schedule, address search, and participant limits
-- Public/private events, join requests, auto-accept flow, leave/cancel rules
-- Event group chat and basic direct messages
-- Report/block safety flows
-- OneSignal-based push notification pipeline and event-time notification functions
+- `src/` - mobile app screens, services, stores, navigation
+- `android/`, `ios/` - native projects for release builds
+- `website/` - landing and legal pages
+- `supabase/` - SQL migrations and Edge Functions
+- `CHECKLIST.md` - delivery status and next-phase scope
 
 ## Stack
 
-- React Native `0.81.5`
-- React `19`
-- Expo `54` (bare/native workflow)
+- React Native 0.81
+- Expo SDK 54 (native workflow)
 - TypeScript
-- Supabase Auth, Postgres, Realtime, Storage, Edge Functions
-- Mapbox for map rendering/geocoding
-- OneSignal for push notifications
-- Vercel for the website
-
-## Project Structure
-
-```text
-linkble/
-├── src/
-│   ├── components/
-│   ├── navigation/
-│   ├── screens/
-│   ├── services/
-│   ├── stores/
-│   └── utils/
-├── supabase/
-│   ├── functions/
-│   └── migrations/
-├── website/
-├── ios/
-├── android/
-├── app.json
-├── package.json
-└── CHECKLIST.md
-```
+- Supabase (Auth/Postgres/Realtime/Storage/Functions)
+- Mapbox
+- OneSignal
+- Vercel (website)
 
 ## Local Setup
 
-Requirements:
+### Requirements
 
-- Node.js `18+`
+- Node.js 18+
 - npm
-- Xcode + CocoaPods for iOS
-- Android Studio for Android
-- Supabase CLI if you need to push migrations/functions
+- Xcode + CocoaPods (iOS)
+- Android Studio (Android)
 
-Install dependencies:
+### Install
 
 ```bash
 npm install
 npx pod-install
 ```
 
-Run the app:
+### Run
 
 ```bash
+npm run start
 npm run ios
 npm run android
-npm run start
 ```
 
-## Environment And Config
+## Environment Variables
 
-The app currently expects:
+Create `.env` with:
 
 ```env
 SUPABASE_URL=
@@ -97,36 +62,22 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 ```
 
-Additional config locations:
+## Platform Config Files
 
 - Android Firebase config: `google-services.json`
-- Mapbox token fallback: `src/config/mapbox.ts`
-- OneSignal App ID: `src/config/onesignal.ts`
+- iOS Firebase config: `GoogleService-Info.plist`
 
-## Supabase
+Both files are ignored by git and must be stored locally.
 
-Database changes are tracked in `supabase/migrations/`.
-Edge Functions currently included:
+## Supabase Workflow
 
-- `send-push`
-- `check-event-times`
-- `delete-user`
-
-Typical workflow:
+Apply DB migrations/functions from this repo:
 
 ```bash
 npx supabase db push
 ```
 
-## Website
+## Release
 
-The marketing site and legal pages live in `website/`:
-
-- `index.html`
-- `privacy.html`
-- `terms.html`
-- `child-safety.html`
-
-## Status
-
-This repository is actively used for production builds from Xcode and Android Studio. Detailed delivery tracking, deployment notes, and the proposed Phase 2 scope live in `CHECKLIST.md`.
+- iOS: archive from Xcode (`ios/` project)
+- Android: Generate Signed App Bundle from Android Studio (`android/` project)
