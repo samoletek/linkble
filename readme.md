@@ -57,9 +57,15 @@ Create `.env` with:
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 GOOGLE_MAPS_API_KEY=
-MAPBOX_ACCESS_TOKEN=
+EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
+```
+
+For Android native builds, set Mapbox downloads token only in your shell/CI env:
+
+```bash
+export RNMAPBOX_MAPS_DOWNLOAD_TOKEN=...
 ```
 
 ## Platform Config Files

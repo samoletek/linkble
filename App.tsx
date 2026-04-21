@@ -15,7 +15,9 @@ import { ONESIGNAL_APP_ID } from './src/config/onesignal';
 import { pushNotificationService } from './src/services/pushNotifications';
 import { configureGoogleSignIn } from './src/services/auth';
 
-Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
+if (MAPBOX_ACCESS_TOKEN) {
+  Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
+}
 
 if (ONESIGNAL_APP_ID && String(ONESIGNAL_APP_ID) !== 'YOUR_ONESIGNAL_APP_ID') {
   pushNotificationService.initialize(ONESIGNAL_APP_ID);
